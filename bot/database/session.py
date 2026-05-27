@@ -90,7 +90,59 @@ async def init_db() -> None:
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
+        # Run schema migrations for existing tables
+        if is_postgres:
+            await _migrate_postgres_schema(_engine)
+
         logger.info("Database tables created and verified.")
+
+
+async def _migrate_postgres_schema(engine) -> None:
+    """Add missing columns to existing PostgreSQL tables."""
+    import sqlalchemy as sa
+    from sqlalchemy import inspect, text as sa_text
+
+    # ── Users table: new casino profiling columns ──
+    user_columns: dict[str, str] = {
+        "user_meta": "JSONB DEFAULT '{}'::jsonb",
+        "current_session_start": "VARCHAR(50)",
+        "session_total_bets": "INTEGER DEFAULT 0",
+        "session_total_wins": "INTEGER DEFAULT 0",
+        "session_total_losses": "INTEGER DEFAULT 0",
+        "session_net": "FLOAT DEFAULT 0.0",
+        "consecutive_losses": "INTEGER DEFAULT 0",
+        "consecutive_wins": "INTEGER DEFAULT 0",
+        "longest_win_streak": "INTEGER DEFAULT 0",
+        "longest_loss_streak": "INTEGER DEFAULT 0",
+        "last_game_played": "VARCHAR(20)",
+        "total_deposits": "FLOAT DEFAULT 0.0",
+        "total_withdrawals": "FLOAT DEFAULT 0.0",
+        "net_profit": "FLOAT DEFAULT 0.0",
+        "total_bets_count": "INTEGER DEFAULT 0",
+        "total_wins_count": "INTEGER DEFAULT 0",
+        "avg_bet_size": "FLOAT DEFAULT 0.0",
+        "rage_bet_count": "INTEGER DEFAULT 0",
+        "last_bet_time": "VARCHAR(50)",
+    }
+
+    async with engine.begin() as conn:
+        # Get existing columns
+        def _get_cols(sync_conn):
+            return {c["name"] for c in inspect(sync_conn).get_columns("users")}
+        existing = await conn.run_sync(_get_cols)
+
+        for col_name, col_type in user_columns.items():
+            if col_name not in existing:
+                try:
+                    await conn.execute(sa_text(
+                        f'ALTER TABLE users ADD COLUMN "{col_name}" {col_type}'
+                    ))
+                    logger.info("Added column users.%s", col_name)
+                except Exception as exc:
+                    logger.warning("Could not add column users.%s: %s", col_name, exc)
+
+        # ── New tables that might not have been created ──
+        # (GameSessionTable, JackpotEventTable, RetentionEventTable are handled by create_all)
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
