@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
 
 from bot.database import get_db, Repository
@@ -41,11 +42,15 @@ async def admin_settings_menu_handler(update: Update, context: ContextTypes.DEFA
         f"and default UI messages below.</i>"
     )
 
-    await query.edit_message_text(
-        text=text,
-        reply_markup=settings_menu(require_contact, refer_paused),
-        parse_mode="HTML"
-    )
+    try:
+        await query.edit_message_text(
+            text=text,
+            reply_markup=settings_menu(require_contact, refer_paused),
+            parse_mode="HTML"
+        )
+    except BadRequest as e:
+        if "message is not modified" not in str(e).lower():
+            raise
     await query.answer()
 
 

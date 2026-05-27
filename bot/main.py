@@ -14,6 +14,8 @@ from fastapi import FastAPI, Request, Response, status
 from telegram import Update
 from telegram.ext import ApplicationBuilder
 
+from telegram.error import TelegramError
+
 from bot.database import get_db, close_db, check_db_health, Repository, init_db
 from bot.middlewares.rate_limiter import setup_rate_limiter
 from bot.handlers import register_user_handlers
@@ -35,6 +37,19 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Initialize PTB Application
 ptb_app = ApplicationBuilder().token(settings.BOT_TOKEN).build()
+
+
+async def global_error_handler(update: object, context: object) -> None:
+    """Log all exceptions without crashing the bot."""
+    from telegram.error import BadRequest, Forbidden, NetworkError, TimedOut
+    exc = context.error if hasattr(context, 'error') else None
+    if isinstance(exc, (BadRequest, Forbidden, NetworkError, TimedOut, TelegramError)):
+        logger.warning("PTB handler warning (%s): %s", type(exc).__name__, exc)
+    else:
+        logger.exception("PTB handler error: %s", exc)
+
+
+ptb_app.add_error_handler(global_error_handler)
 
 
 @asynccontextmanager

@@ -67,6 +67,27 @@ class UserModel(BaseModel):
     # ─── Referral Claim Tracking ──────────────────────────────────────────────
     referral_reward_claimed: bool = False
 
+    # ─── Casino Profiling ────────────────────────────────────────────────────
+    user_meta: Optional[dict] = None
+    current_session_start: Optional[str] = None
+    session_total_bets: int = 0
+    session_total_wins: int = 0
+    session_total_losses: int = 0
+    session_net: float = 0.0
+    consecutive_losses: int = 0
+    consecutive_wins: int = 0
+    longest_win_streak: int = 0
+    longest_loss_streak: int = 0
+    last_game_played: Optional[str] = None
+    total_deposits: float = 0.0
+    total_withdrawals: float = 0.0
+    net_profit: float = 0.0
+    total_bets_count: int = 0
+    total_wins_count: int = 0
+    avg_bet_size: float = 0.0
+    rage_bet_count: int = 0
+    last_bet_time: Optional[str] = None
+
     # ─── Device / Security ───────────────────────────────────────────────────
     device_verified: bool = False
     fraud_score: int = 0
