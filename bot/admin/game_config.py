@@ -7,7 +7,7 @@ from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, fil
 from bot.database import get_db, Repository
 from bot.admin.panel import is_admin
 from bot.services.risk_engine import RiskEngine
-from bot.keyboards.admin_kb import settings_menu, back_to_admin
+from bot.keyboards.admin_kb import settings_menu
 
 logger = logging.getLogger(__name__)
 
@@ -58,22 +58,6 @@ async def admin_game_config_detail(update: Update, context: ContextTypes.DEFAULT
     repo = Repository(await get_db())
     engine = RiskEngine(repo)
     cfg = await engine.load_config()
-    if game == "global":
-        gcfg = cfg.get("global", {})
-        text = (
-            "🔧 <b>Global Game Config</b>\n\n"
-            f"New User Luck Rounds: <code>{gcfg.get('new_user_luck_rounds', 3)}</code>\n"
-            f"New User RTP Boost: <code>{gcfg.get('new_user_rtp_boost', 10)}%</code>\n"
-            f"Exposure Cap: <code>₹{gcfg.get('exposure_cap', 50000):.2f}</code>\n"
-            f"Max Payout: <code>₹{gcfg.get('max_payout', 10000):.2f}</code>\n"
-            f"Volatility: <code>{gcfg.get('volatility', 'normal')}</code>\n\n"
-            "Send the setting to change in format:\n"
-            "<code>key = value</code>\n\n"
-            "<i>Keys: new_user_luck_rounds, new_user_rtp_boost, exposure_cap, max_payout, volatility</i>"
-        )
-        await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=back_to_admin())
-        await query.answer()
-        return
     if game == "analytics":
         analytics = await repo.get_all_games_analytics()
         lines = ["📊 <b>Game Analytics</b>\n"]
@@ -98,25 +82,47 @@ async def admin_game_config_detail(update: Update, context: ContextTypes.DEFAULT
         section = cfg.get(game, {})
         text = f"<b>{game.replace('_',' ').title()} Configuration</b>\n\n"
         text += "\n".join(f"<code>{k}</code>: {v}" for k, v in section.items())
-        text += "\n\nSend the setting to change:\n<code>key = value</code>"
-        await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=back_to_admin())
+        await query.edit_message_text(
+            text=text, parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✏️ Edit", callback_data=f"admin:game_cfg_edit:{game}")],
+                [InlineKeyboardButton("🔙 Back", callback_data="admin:game_cfg_menu")],
+            ])
+        )
         await query.answer()
         return
-    gcfg = cfg.get(game, {})
-    text = (
-        f"<b>{game.capitalize()} Configuration</b>\n\n"
-        + "\n".join(f"<code>{k}</code>: {v}" for k, v in gcfg.items() if k != "weights")
+
+    is_global = game == "global"
+    if is_global:
+        gcfg = cfg.get("global", {})
+        text = (
+            "🔧 <b>Global Game Config</b>\n\n"
+            f"New User Luck Rounds: <code>{gcfg.get('new_user_luck_rounds', 3)}</code>\n"
+            f"New User RTP Boost: <code>{gcfg.get('new_user_rtp_boost', 10)}%</code>\n"
+            f"Exposure Cap: <code>₹{gcfg.get('exposure_cap', 50000):.2f}</code>\n"
+            f"Max Payout: <code>₹{gcfg.get('max_payout', 10000):.2f}</code>\n"
+            f"Volatility: <code>{gcfg.get('volatility', 'normal')}</code>"
+        )
+        valid_keys = "new_user_luck_rounds, new_user_rtp_boost, exposure_cap, max_payout, volatility"
+    else:
+        gcfg = cfg.get(game, {})
+        text = (
+            f"<b>{game.capitalize()} Configuration</b>\n\n"
+            + "\n".join(f"<code>{k}</code>: {v}" for k, v in gcfg.items() if k != "weights")
+        )
+        weight_str = ""
+        if "weights" in gcfg:
+            weight_str = "\n" + "\n".join(f"  <code>{k}</code>: {v}" for k, v in gcfg["weights"].items())
+        text += "\n" + weight_str if weight_str else ""
+        valid_keys = ", ".join(k for k in gcfg.keys() if k != "weights")
+
+    await query.edit_message_text(
+        text=text, parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✏️ Edit", callback_data=f"admin:game_cfg_edit:{game}")],
+            [InlineKeyboardButton("🔙 Back", callback_data="admin:game_cfg_menu")],
+        ])
     )
-    weight_str = ""
-    if "weights" in gcfg:
-        weight_str = "\n" + "\n".join(f"  <code>{k}</code>: {v}" for k, v in gcfg["weights"].items())
-    text += "\n" + weight_str if weight_str else ""
-    text += (
-        "\n\nSend the setting to change in format:\n"
-        "<code>key = value</code>\n\n"
-        f"<i>Valid keys: {', '.join(k for k in gcfg.keys() if k != 'weights')}</i>"
-    )
-    await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=back_to_admin())
     await query.answer()
 
 
@@ -182,6 +188,37 @@ async def admin_game_config_input(update: Update, context: ContextTypes.DEFAULT_
     )
 
 
+async def admin_game_config_edit_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+    game = query.data.split(":", 2)[2]
+    context.user_data["admin_state"] = f"game_cfg_{game}"
+
+    hint_map = {
+        "global": "Keys: new_user_luck_rounds, new_user_rtp_boost, exposure_cap, max_payout, volatility",
+        "dice": "Keys: min_rtp, max_rtp, min_bet, max_bet",
+        "slots": "Keys: min_rtp, max_rtp, min_bet, max_bet",
+        "mines": "Keys: min_rtp, max_rtp, min_bet, max_bet",
+        "crash": "Keys: min_rtp, max_rtp, min_bet, max_bet",
+    }
+    hint = hint_map.get(game, "Keys depend on configuration")
+
+    await query.edit_message_text(
+        text=(
+            f"✏️ <b>Edit {game.capitalize()} Config</b>\n\n"
+            "Send the value in format:\n"
+            f"<code>key = value</code>\n\n"
+            f"<i>{hint}</i>"
+        ),
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ Cancel", callback_data=f"admin:game_cfg:{game}")]
+        ])
+    )
+    await query.answer()
+
+
 async def admin_game_config_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if not query or not is_admin(query.from_user.id):
@@ -193,5 +230,6 @@ async def admin_game_config_back(update: Update, context: ContextTypes.DEFAULT_T
 def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(admin_game_config_menu, pattern="^admin:game_cfg_menu$"))
     application.add_handler(CallbackQueryHandler(admin_game_config_detail, pattern=r"^admin:game_cfg:(dice|slots|mines|crash|global|analytics|retention|anti_abuse)$"))
+    application.add_handler(CallbackQueryHandler(admin_game_config_edit_start, pattern=r"^admin:game_cfg_edit:(dice|slots|mines|crash|global|retention|anti_abuse)$"))
     application.add_handler(CallbackQueryHandler(admin_game_config_back, pattern="^admin:game_cfg_back$"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_game_config_input), group=12)
