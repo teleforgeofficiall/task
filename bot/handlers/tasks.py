@@ -40,9 +40,9 @@ async def tasks_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if not todo_tasks:
         no_tasks_text = (
-            "Available Tasks\n\n"
-            "Amazing! You have completed all available tasks.\n"
-            "Check back later for new tasks, or refer friends to keep earning!"
+            "📋 <b>Available Tasks</b>\n\n"
+            "<blockquote>Amazing! You have completed all available tasks.\n"
+            "Check back later for new tasks, or refer friends to keep earning!</blockquote>"
         )
         banner_url = await repository.get_image("img_treasure")
         await edit_or_reply(
@@ -69,9 +69,10 @@ async def tasks_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     tasks_data = [{"id": t.id, "description": t.description, "reward": t.reward} for t in page_tasks]
 
     tasks_text = (
-        f"Earn Balance - Active Tasks (Page {page+1}/{total_pages})\n\n"
-        f"Select a task from the list below to read instructions and submit verification. "
-        f"Rewards are credited instantly for channel joins, and upon review for manual tasks."
+        f"📋 <b>Active Tasks</b> — Page {page+1}/{total_pages}\n\n"
+        f"<blockquote>Select a task below to view instructions and submit verification.\n"
+        f"✅ Channel joins — instant credit\n"
+        f"🔄 Manual tasks — credited after admin review</blockquote>"
     )
 
     banner_url = await repository.get_image("img_treasure")
@@ -105,12 +106,13 @@ async def task_view_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     pending_badge = " (Proof Pending Review)" if is_pending else ""
 
     text = (
-        f"Task Details:\n"
-        f"---------------------\n"
-        f"Description: {escape_html(task.description)}\n"
-        f"Reward: {format_currency(task.reward)}{pending_badge}\n"
-        f"Guide/Instructions:\n{escape_html(task.guide)}\n"
-        f"---------------------"
+        f"📋 <b>Task Details</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"<blockquote><b>Description:</b> {escape_html(task.description)}</blockquote>\n\n"
+        f"💰 <b>Reward:</b> <code>{format_currency(task.reward)}</code>{pending_badge}\n\n"
+        f"📝 <b>Guide / Instructions</b>\n"
+        f"<blockquote>{escape_html(task.guide)}</blockquote>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━"
     )
 
     kb = task_detail_keyboard(
@@ -262,10 +264,10 @@ async def task_submit_proof_handler(update: Update, context: ContextTypes.DEFAUL
     context.user_data["state"] = f"awaiting_proof_{task_id}_{page}"
 
     text = (
-        "Submit Task Proof\n\n"
-        "Please send the screenshot or screen recording verifying "
+        "📸 <b>Submit Task Proof</b>\n\n"
+        "<blockquote>Please send a screenshot or screen recording verifying "
         "you completed the instructions.\n\n"
-        "Send the media directly into this chat. Tap Cancel below to abort."
+        "Send the media directly in this chat. Tap <b>Cancel</b> below to abort.</blockquote>"
     )
 
     kb = InlineKeyboardMarkup([
@@ -329,11 +331,12 @@ async def proof_receiver_handler(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data.pop("state", None)
 
     await msg.reply_text(
-        "Proof submitted successfully!\n\n"
-        "Our team will review your proof. Once approved, your reward will be credited to your wallet.",
+        "✅ <b>Proof Submitted!</b>\n\n"
+        "<blockquote>Our team will review your submission. "
+        "Once approved, your reward will be credited to your wallet instantly.</blockquote>",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("Back to Tasks", callback_data=f"menu:tasks:{page}")]
+            [InlineKeyboardButton("🔙 Back to Tasks", callback_data=f"menu:tasks:{page}")]
         ])
     )
 

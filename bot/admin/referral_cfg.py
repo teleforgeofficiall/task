@@ -143,8 +143,9 @@ async def admin_ref_config_text_handler(update: Update, context: ContextTypes.DE
 
         context.user_data.pop("admin_state", None)
         await repository.update_setting("fixed_referral_reward", val)
+        await repository.update_setting("referral_mode", "fixed")  # auto switch mode
         await msg.reply_text(
-            f"✅ Fixed referral reward set to <b>{format_currency(val)}</b>!",
+            f"✅ Fixed referral reward set to <b>{format_currency(val)}</b>! Mode auto-switched to <b>FIXED</b>.",
             parse_mode="HTML"
         )
         

@@ -128,7 +128,16 @@ async def edit_or_reply(
             return
         except BadRequest as e:
             if "message is not modified" in str(e).lower():
-                # Safe to ignore
+                # If we were trying to change media+keyboard, at least update caption+keyboard
+                if image_url:
+                    try:
+                        await query.edit_message_caption(
+                            caption=text,
+                            reply_markup=reply_markup,
+                            parse_mode=parse_mode
+                        )
+                    except BadRequest:
+                        pass
                 try:
                     await query.answer()
                 except Exception:

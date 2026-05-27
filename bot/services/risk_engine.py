@@ -7,11 +7,24 @@ import secrets
 import time
 from typing import Any, Dict, Optional
 
+from bot.database import get_db, Repository
+
+from bot.services.user_profiler import UserProfiler
+from bot.services.exposure_manager import ExposureManager
+from bot.services.retention_engine import RetentionEngine
+from bot.services.anti_abuse import AntiAbuseEngine
+from bot.services.slot_psychology import SlotPsychologyEngine
+from bot.services.crash_engine import CrashEngine
+from bot.services.mines_engine import MinesEngine
+from bot.services.dice_engine import DiceEngine
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_CONFIG: Dict[str, Any] = {
     "dice": {
         "rtp": 92,
+        "rtp_min": 88,
+        "rtp_max": 96,
         "min_bet": 1,
         "max_bet": 1000,
         "win_chance": 50,
@@ -20,6 +33,8 @@ _DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "slots": {
         "rtp": 90,
+        "rtp_min": 85,
+        "rtp_max": 94,
         "min_bet": 1,
         "max_bet": 1000,
         "jackpot_chance": 0.5,
@@ -31,15 +46,15 @@ _DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "mines": {
         "rtp": 94,
-        "min_bet": 1,
-        "max_bet": 1000,
+        "rtp_min": 90,
+        "rtp_max": 97,
         "mine_count": 3,
         "grid_size": 9,
     },
     "crash": {
         "rtp": 91,
-        "min_bet": 1,
-        "max_bet": 1000,
+        "rtp_min": 87,
+        "rtp_max": 95,
         "house_edge": 9,
     },
     "global": {
@@ -48,6 +63,20 @@ _DEFAULT_CONFIG: Dict[str, Any] = {
         "exposure_cap": 50000,
         "max_payout": 10000,
         "volatility": "normal",
+    },
+    "retention": {
+        "recovery_boost_pct": 15,
+        "comeback_win_probability": 0.35,
+        "frustration_threshold": 5,
+    },
+    "anti_abuse": {
+        "sensitivity": "normal",
+        "withdrawal_review_threshold": 1000,
+    },
+    "jackpot": {
+        "frequency": "rare",
+        "max_daily": 3,
+        "min_bet_for_jackpot": 10,
     },
     "stats": {
         "total_bets": 0,
@@ -68,11 +97,8 @@ _DEFAULT_CONFIG: Dict[str, Any] = {
 
 
 class RiskEngine:
-    """Central RTP + Risk Engine for all casino games.
-
-    Loads config from DB settings; caches in memory for fast reads.
-    Thread-safe asyncio-friendly design — no locks needed for reads.
-    """
+    """Central RTP + Risk Engine — orchestrates all game systems.
+    Backward compatible with all existing snapgame.py handlers."""
 
     def __init__(self, repository=None):
         self._repo = repository
@@ -80,13 +106,24 @@ class RiskEngine:
         self._last_load = 0.0
         self._cache_ttl = 30.0
 
+        # Sub-engines (lazy init)
+        self._profiler: Optional[UserProfiler] = None
+        self._exposure: Optional[ExposureManager] = None
+        self._retention: Optional[RetentionEngine] = None
+        self._anti_abuse: Optional[AntiAbuseEngine] = None
+        self._slots_psy: Optional[SlotPsychologyEngine] = None
+        self._crash: Optional[CrashEngine] = None
+        self._mines: Optional[MinesEngine] = None
+        self._dice: Optional[DiceEngine] = None
+
     async def _ensure_repo(self):
         if self._repo:
             return self._repo
-        from bot.database import get_db, Repository
         db = await get_db()
         self._repo = Repository(db)
         return self._repo
+
+    # --- Config ---
 
     async def load_config(self) -> Dict[str, Any]:
         now = time.time()
@@ -118,22 +155,119 @@ class RiskEngine:
         cfg = await self.load_config()
         return dict(cfg.get("global", {}))
 
-    # ---- Stats tracking ----
+    # --- Sub-engine accessors ---
+
+    def profiler(self) -> UserProfiler:
+        if not self._profiler:
+            self._profiler = UserProfiler(self._repo)
+        return self._profiler
+
+    def exposure(self) -> ExposureManager:
+        if not self._exposure:
+            repo = self._repo
+            self._exposure = ExposureManager(repo)
+        return self._exposure
+
+    def retention(self) -> RetentionEngine:
+        if not self._retention:
+            self._retention = RetentionEngine(self._repo)
+        return self._retention
+
+    def anti_abuse(self) -> AntiAbuseEngine:
+        if not self._anti_abuse:
+            self._anti_abuse = AntiAbuseEngine(self._repo)
+        return self._anti_abuse
+
+    def slots_psy(self) -> SlotPsychologyEngine:
+        if not self._slots_psy:
+            self._slots_psy = SlotPsychologyEngine()
+        return self._slots_psy
+
+    def crash_eng(self) -> CrashEngine:
+        if not self._crash:
+            self._crash = CrashEngine()
+        return self._crash
+
+    def mines_eng(self) -> MinesEngine:
+        if not self._mines:
+            self._mines = MinesEngine()
+        return self._mines
+
+    def dice_eng(self) -> DiceEngine:
+        if not self._dice:
+            self._dice = DiceEngine()
+        return self._dice
+
+    # --- Effective RTP calculation ---
+
+    async def _compute_effective_rtp(self, game: str, config: Dict,
+                                      user_id: Optional[int] = None) -> Dict[str, Any]:
+        """Compute the effective RTP for this game/user interaction."""
+        cfg = config.get(game, {})
+        base_rtp = float(cfg.get("rtp", 90))
+        rtp_min = float(cfg.get("rtp_min", base_rtp - 4))
+        rtp_max = float(cfg.get("rtp_max", base_rtp + 4))
+
+        adjustments = []
+        boost = 0.0
+
+        # 1. Exposure adjustment
+        exposure_adj = await self.exposure().get_rtp_adjustment()
+        adjustments.append(("exposure", exposure_adj))
+
+        # 2. User profile adjustment
+        if user_id:
+            profile = await self.profiler().get_profile(user_id)
+            boost += profile["rtp_boost"]
+            adjustments.append(("profile", profile["rtp_boost"]))
+
+        # 3. Retention boost
+        if user_id:
+            ret_boost = await self.retention().get_recovery_boost(user_id, game)
+            if ret_boost > 0:
+                boost += ret_boost
+                adjustments.append(("retention", ret_boost))
+
+        # 4. Hope cycle
+        hope = False
+        if user_id:
+            hope = await self.retention().create_hope_cycle(user_id, game)
+            if hope:
+                boost += 20.0
+                adjustments.append(("hope_cycle", 20.0))
+
+        effective = base_rtp + sum(a[1] for a in adjustments) + boost
+        effective = max(rtp_min, min(rtp_max, effective))
+
+        return {
+            "effective_rtp": round(effective, 1),
+            "base_rtp": base_rtp,
+            "adjustments": adjustments,
+            "hope_cycle": hope,
+        }
+
+    # --- Stats ---
+
     async def record_bet(self, game: str, bet: float, payout: float) -> None:
         cfg = await self.load_config()
         stats = cfg.setdefault("stats", {})
         stats["total_bets"] = stats.get("total_bets", 0) + 1
         stats["total_payouts"] = stats.get("total_payouts", 0.0) + payout
-        stats["total_rake"] = stats.get("total_rake", 0.0) + (bet - payout) if bet > payout else stats.get("total_rake", 0.0)
+        rake = max(0, bet - payout)
+        stats["total_rake"] = stats.get("total_rake", 0.0) + rake
         game_key = f"{game}_bets"
         payout_key = f"{game}_payouts"
         stats[game_key] = stats.get(game_key, 0) + 1
         stats[payout_key] = stats.get(payout_key, 0.0) + payout
         if payout > stats.get("biggest_win", 0):
             stats["biggest_win"] = payout
-        if bet > payout and (bet - payout) > stats.get("biggest_loss", 0):
-            stats["biggest_loss"] = bet - payout
+        loss = max(0, bet - payout)
+        if loss > stats.get("biggest_loss", 0):
+            stats["biggest_loss"] = loss
         await self.save_config(cfg)
+
+        # Track exposure
+        await self.exposure().record_bet(game, bet, payout)
 
     async def get_stats(self) -> Dict[str, Any]:
         cfg = await self.load_config()
@@ -144,151 +278,136 @@ class RiskEngine:
         bets = stats.get(f"{game}_bets", 0)
         payouts = stats.get(f"{game}_payouts", 0.0)
         if bets < 10:
-            cfg = await self.get_game_config(game)
-            return float(cfg.get("rtp", 90))
+            return float((await self.get_game_config(game)).get("rtp", 90))
         return round((payouts / (bets * 10.0)) * 100, 2) if bets else 90.0
 
-    # ---- RTP-aware outcome helpers ----
-    def _should_win(self, config_rtp: int, user_luck_boost: float = 0.0) -> bool:
-        adjusted = config_rtp + user_luck_boost
-        return (secrets.randbelow(10000) / 100.0) < adjusted
+    # --- Game outcome generators (backward compatible API) ---
 
-    def _get_user_luck_boost(self, user_game_count: int) -> float:
-        gcfg = self._cache.get("global", {}) if self._cache else {}
-        luck_rounds = gcfg.get("new_user_luck_rounds", 3)
-        boost = gcfg.get("new_user_rtp_boost", 10)
-        if user_game_count < luck_rounds:
-            return boost * (1.0 - user_game_count / luck_rounds)
-        return 0.0
+    async def roll_dice(self, config: dict, user_game_count: int = 0,
+                         use_seeded: bool = False, user_id: Optional[int] = None) -> dict:
+        """Dice roll with smart pattern engine."""
+        rtp_info = await self._compute_effective_rtp("dice", await self.load_config(), user_id)
 
-    # ---- Per-game outcome generators ----
-    def roll_dice(self, config: dict, user_game_count: int = 0, use_seeded: bool = False) -> dict:
-        rtp = config.get("rtp", 92)
-        boost = self._get_user_luck_boost(user_game_count)
-        if use_seeded:
-            roll = secrets.randbelow(6) + 1
-        else:
-            roll = random.randint(1, 6)
-        if self._should_win(rtp, boost):
-            if roll < 4:
-                roll = random.randint(4, 6)
-        else:
-            if roll >= 4:
-                roll = random.randint(1, 3)
-        if roll >= 4:
-            mult = config.get("payout_multiplier", 1.8)
-        else:
-            mult = 0.0
-        return {"roll": roll, "win": roll >= 4, "multiplier": mult}
+        hope_cycle = rtp_info["hope_cycle"]
+        ret_boost = sum(a[1] for a in rtp_info["adjustments"] if a[0] == "retention")
 
-    def spin_slots(self, config: dict, user_game_count: int = 0) -> dict:
-        rtp = config.get("rtp", 90)
-        weights = config.get("weights", {"common": 60, "rare": 25, "epic": 10, "legendary": 5})
-        boost = self._get_user_luck_boost(user_game_count)
-        symbols = ["common", "rare", "epic", "legendary"]
-        w = [weights.get(s, 10) for s in symbols]
-        total_w = sum(w)
-        norm_w = [wi / total_w for wi in w]
-        reels = []
-        for _ in range(3):
-            if self._should_win(rtp, boost):
-                r = secrets.randbelow(10000)
-                cumulative = 0.0
-                chosen = "common"
-                for i, pw in enumerate(norm_w):
-                    cumulative += pw * 10000
-                    if r < cumulative:
-                        chosen = symbols[i]
-                        break
-                reels.append(chosen)
-            else:
-                reels.append(random.choices(symbols, weights=w, k=1)[0])
-        unique = len(set(reels))
-        if unique == 1:
-            sym = reels[0]
-            multi_map = {"common": config.get("common_multi", 2.0),
-                         "rare": config.get("rare_multi", 5.0),
-                         "epic": config.get("epic_multi", 15.0),
-                         "legendary": config.get("legendary_multi", 50.0)}
-            mult = multi_map.get(sym, 2.0)
-            jackpot = (sym == "legendary")
-        elif unique == 2:
-            mult = config.get("common_multi", 2.0)
-            jackpot = False
-        else:
-            mult = 0.0
-            jackpot = False
-        return {"reels": reels, "win": mult > 0, "multiplier": mult, "jackpot": jackpot}
+        result = self.dice_eng().roll(
+            config=config,
+            effective_rtp=rtp_info["effective_rtp"],
+            user_id=user_id,
+            user_game_count=user_game_count,
+            retention_boost=ret_boost,
+            hope_cycle=hope_cycle,
+        )
+        return result
 
-    def generate_mines(self, config: dict, mine_count: int = None, user_game_count: int = 0) -> dict:
-        grid_size = config.get("grid_size", 9)
-        mines = mine_count or config.get("mine_count", 3)
-        if mines < 1:
-            mines = 1
-        if mines >= grid_size:
-            mines = grid_size - 1
-        board = ["gem"] * (grid_size - mines) + ["mine"] * mines
-        random.shuffle(board)
-        return {"board": board, "mines": mines, "grid_size": grid_size}
+    async def spin_slots(self, config: dict, user_game_count: int = 0,
+                          user_id: Optional[int] = None) -> dict:
+        """Slots spin with psychology engine."""
+        cfg = await self.load_config()
+        rtp_info = await self._compute_effective_rtp("slots", cfg, user_id)
+        exposure_info = await self.exposure().get_exposure_level()
+        jackpot_mod = await self.exposure().get_jackpot_probability_modifier()
 
-    def get_mines_multiplier(self, gems_found: int, total_mines: int, grid_size: int = 9) -> float:
-        if gems_found <= 0:
-            return 1.0
-        safe = grid_size - total_mines
-        if safe <= 0 or total_mines <= 0:
-            return 1.0
-        prob = 1.0
-        for i in range(gems_found):
-            prob *= (safe - i) / (grid_size - i)
-        mult = (1.0 / prob) * 0.94 if prob > 0 else 1.0
-        return round(mult, 2)
+        return self.slots_psy().spin(
+            config=config,
+            effective_rtp=rtp_info["effective_rtp"],
+            exposure_mod=max(0.1, 1.0 - exposure_info["risk_score"]),
+            user_id=user_id,
+            jackpot_mod=jackpot_mod,
+        )
 
-    def generate_crash_point(self, config: dict, user_game_count: int = 0) -> float:
-        rtp = config.get("rtp", 91)
-        boost = self._get_user_luck_boost(user_game_count)
-        r = random.random()
-        if r < 0.10:
-            base = random.uniform(1.0, 1.2)
-        elif r < 0.35:
-            base = random.uniform(1.2, 1.5)
-        elif r < 0.65:
-            base = random.uniform(1.5, 2.5)
-        elif r < 0.85:
-            base = random.uniform(2.5, 5.0)
-        elif r < 0.95:
-            base = random.uniform(5.0, 10.0)
-        elif r < 0.99:
-            base = random.uniform(10.0, 25.0)
-        else:
-            base = random.uniform(25.0, 100.0)
-        adjusted = base * (100.0 / rtp) * (1.0 - boost / 200.0)
-        return round(max(1.01, adjusted), 2)
+    async def generate_mines(self, config: dict, mine_count: int = None,
+                              user_game_count: int = 0,
+                              user_id: Optional[int] = None,
+                              profit_level: float = 0.0,
+                              loss_streak: int = 0) -> dict:
+        """Mines board with adaptive engine."""
+        rtp_info = await self._compute_effective_rtp("mines", await self.load_config(), user_id)
 
-    # ---- Anti-abuse ----
+        return self.mines_eng().generate_board(
+            config=config,
+            user_id=user_id,
+            user_game_count=user_game_count,
+            profit_level=profit_level,
+            loss_streak=loss_streak,
+            effective_rtp=rtp_info["effective_rtp"],
+        )
+
+    def get_mines_multiplier(self, gems_found: int, total_mines: int,
+                              grid_size: int = 9) -> float:
+        return self.mines_eng().get_multiplier(gems_found, total_mines, grid_size)
+
+    async def generate_crash_point(self, config: dict, user_game_count: int = 0,
+                                    user_id: Optional[int] = None) -> float:
+        """Crash point with adaptive distribution."""
+        cfg = await self.load_config()
+        rtp_info = await self._compute_effective_rtp("crash", cfg, user_id)
+        volatility = cfg.get("global", {}).get("volatility", "normal")
+        mult_limit = await self.exposure().get_multiplier_limit()
+
+        point = self.crash_eng().generate(
+            config=config,
+            effective_rtp=rtp_info["effective_rtp"],
+            exposure_mult_limit=mult_limit,
+            volatility=volatility,
+        )
+        self.crash_eng().record_crash(f"user_{user_id}" if user_id else "global", point)
+        return point
+
+    # --- Anti-abuse (backward compatible) ---
+
     async def check_abuse(self, user_id: int, game: str, bet: float) -> dict:
         cfg = await self.load_config()
         gcfg = cfg.get(game, {})
         global_cfg = cfg.get("global", {})
         max_payout = global_cfg.get("max_payout", 10000)
-        exposure_cap = global_cfg.get("exposure_cap", 50000)
         min_bet = gcfg.get("min_bet", 1)
         max_bet = gcfg.get("max_bet", 1000)
+
         if bet < min_bet:
-            return {"allowed": False, "reason": f"Minimum bet is ₹{min_bet}"}
+            return {"allowed": False, "reason": f"Minimum bet is \u20b9{min_bet}"}
         if bet > max_bet:
-            return {"allowed": False, "reason": f"Maximum bet is ₹{max_bet}"}
+            return {"allowed": False, "reason": f"Maximum bet is \u20b9{max_bet}"}
         if bet * 50.0 > max_payout:
             return {"allowed": False, "reason": "Bet exceeds max payout exposure"}
-        repo = await self._ensure_repo()
-        user = await repo.get_user(user_id)
-        if user and user.fraud_score > 50:
-            return {"allowed": False, "reason": "Account flagged. Contact support."}
+
+        # Enhanced abuse check
+        result = await self.anti_abuse().check_bet(user_id, game, bet)
+        if not result["allowed"]:
+            return {"allowed": False, "reason": result["reason"]}
+
         return {"allowed": True}
 
-    # ---- New user luck ----
+    async def check_abuse_withdrawal(self, user_id: int, amount: float) -> dict:
+        return await self.anti_abuse().check_withdrawal(user_id, amount)
+
+    async def is_rage_betting(self, user_id: int, current_bet: float) -> bool:
+        return await self.anti_abuse().is_rage_betting(user_id, current_bet)
+
+    # --- Session tracking ---
+
+    async def update_session(self, user_id: int, game: str, bet: float,
+                              won: bool, is_rage: bool = False) -> None:
+        await self.profiler().update_session_metrics(user_id, game, bet, won, is_rage)
+
+        # Log retention event if needed
+        if won and is_rage:
+            await self.retention().log_retention_event(
+                user_id, "rage_recovery", "rage_bet_resulted_in_win", game=game, boost=0, won=True
+            )
+
+    async def get_profile(self, user_id: int) -> dict:
+        return await self.profiler().get_profile(user_id)
+
+    # --- New user luck ---
+
     def is_new_user_luck_active(self, game_count: int) -> bool:
         gcfg = self._cache.get("global", {}) if self._cache else {}
         return game_count < gcfg.get("new_user_luck_rounds", 3)
+
+    def get_recent_dice_pattern(self, user_id: int) -> str:
+        return self.dice_eng().get_recent_pattern(user_id)
 
 
 def _merge_config(default: dict, override: dict) -> dict:

@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
 from bot.database import get_db, Repository
-from bot.keyboards.user_kb import games_hub_keyboard, game_bet_amount_keyboard, mines_grid_keyboard, crash_game_keyboard
+from bot.keyboards.user_kb import games_hub_keyboard, game_bet_amount_keyboard, mines_grid_keyboard, crash_game_keyboard, game_result_keyboard
 from bot.services.risk_engine import RiskEngine
 from bot.utils import edit_or_reply
 
@@ -44,7 +44,7 @@ async def games_hub_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
 
     repository = Repository(await get_db())
-    banner_url = await repository.get_image("img_snap_pick")
+    banner_url = await repository.get_image("img_game")
 
     text = (
         "━━━━━━━━━━━━━━━━━━━━\n"
@@ -74,12 +74,63 @@ async def game_bet_select_handler(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     if not query:
         return
+    await query.answer()
     game = query.data.split(":")[2]
+    repository = Repository(await get_db())
     game_names = {"dice": "🎲 Dice", "slots": "🎰 Slots", "mines": "💣 Mines", "crash": "📈 Crash"}
     name = game_names.get(game, game.capitalize())
 
-    text = f"{name}\n\nSelect your bet amount:"
-    await edit_or_reply(update=update, context=context, text=text, reply_markup=game_bet_amount_keyboard(game))
+    img_key = {"dice": "img_game_dice", "slots": "img_game_slots", "mines": "img_game_mines", "crash": "img_game_crash"}.get(game, "img_game")
+    banner_url = await repository.get_image(img_key)
+    descriptions = {
+        "dice": (
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"{name}\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            "<b>🎯 How to Play</b>\n"
+            "• Place your bet and roll the dice.\n"
+            "• If you roll <b>4, 5, or 6</b> — <b>you win!</b>\n"
+            "• Roll <b>1, 2, or 3</b> — you lose.\n"
+            "• Higher rolls can trigger bigger multipliers.\n\n"
+            "<b>💡 Tip:</b> Dice is fast-paced. Set a budget and play smart."
+        ),
+        "slots": (
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"{name}\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            "<b>🎯 How to Play</b>\n"
+            "• Place your bet and spin the reels.\n"
+            "• Match <b>2 or more</b> symbols to win.\n"
+            "• <b>3 identical</b> symbols = Jackpot! 👑\n"
+            "• Symbol values: 🍒 Common → 🔔 Rare → ⭐ Epic → 👑 Legendary\n\n"
+            "<b>💡 Tip:</b> The jackpot can payout big. Every spin counts."
+        ),
+        "mines": (
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"{name}\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            "<b>🎯 How to Play</b>\n"
+            "• Place your bet to reveal a 3×3 grid.\n"
+            "• Tap tiles to find 💎 gems — avoid 💣 bombs!\n"
+            "• Each gem found increases your multiplier.\n"
+            "• <b>Cash out</b> anytime to secure your winnings.\n"
+            "• Hit a mine and you lose your bet.\n\n"
+            "<b>💡 Tip:</b> Don't get greedy — cash out early for consistent wins."
+        ),
+        "crash": (
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"{name}\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            "<b>🎯 How to Play</b>\n"
+            "• Place your bet and watch the multiplier rise.\n"
+            "• <b>Cash out</b> before the crash to win.\n"
+            "• If it crashes before you cash out — you lose.\n"
+            "• The longer you wait, the higher the multiplier.\n\n"
+            "<b>💡 Tip:</b> A low multiplier cashout is still a win. Don't be greedy!"
+        ),
+    }
+    text = descriptions.get(game, f"━━━━━━━━━━━━━━━━━━━━\n{name}\n━━━━━━━━━━━━━━━━━━━━\n\n<blockquote>Choose your bet amount and start playing.</blockquote>")
+    await edit_or_reply(update=update, context=context, text=text, image_url=banner_url, reply_markup=game_bet_amount_keyboard(game))
 
 
 # ─── Dice Game ────────────────────────────────────────────────────────────
@@ -89,6 +140,7 @@ async def game_dice_play_handler(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     if not query:
         return
+    await query.answer()
     parts = query.data.split(":")
     amount = float(parts[3])
     user_id = query.from_user.id
@@ -115,11 +167,12 @@ async def game_dice_play_handler(update: Update, context: ContextTypes.DEFAULT_T
     await edit_or_reply(update=update, context=context, text="🎲 Rolling...")
     cfg = await engine.get_game_config("dice")
     gc = _get_game_count(context)
-    result_data = engine.roll_dice(cfg, gc, use_seeded=True)
+    result_data = await engine.roll_dice(cfg, gc, use_seeded=True, user_id=user_id)
     _increment_game_count(context)
     result = result_data["roll"]
+    won = result_data["win"]
 
-    if result_data["win"]:
+    if won:
         mult = result_data["multiplier"]
         payout = amount * mult
         await repository.record_game_win_transaction(user_id, "dice", payout, mult)
@@ -146,12 +199,9 @@ async def game_dice_play_handler(update: Update, context: ContextTypes.DEFAULT_T
             f"Bet: <code>₹{amount:.2f}</code>"
         )
 
-    await context.bot.send_message(chat_id=user_id, text=text, parse_mode="HTML")
-    await context.bot.send_message(
-        chat_id=user_id,
-        text="Select a game to play again 👇",
-        reply_markup=games_hub_keyboard()
-    )
+    is_rage = await engine.is_rage_betting(user_id, amount)
+    await engine.update_session(user_id, "dice", amount, won, is_rage)
+    await context.bot.send_message(chat_id=user_id, text=text, parse_mode="HTML", reply_markup=game_result_keyboard("dice"))
 
 
 # ─── Slots Game ──────────────────────────────────────────────────────────
@@ -161,6 +211,7 @@ async def game_slots_play_handler(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     if not query:
         return
+    await query.answer()
     parts = query.data.split(":")
     amount = float(parts[3])
     user_id = query.from_user.id
@@ -188,14 +239,15 @@ async def game_slots_play_handler(update: Update, context: ContextTypes.DEFAULT_
 
     cfg = await engine.get_game_config("slots")
     gc = _get_game_count(context)
-    spin = engine.spin_slots(cfg, gc)
+    spin = await engine.spin_slots(cfg, gc, user_id=user_id)
     _increment_game_count(context)
 
     reels = spin["reels"]
     emoji_map = {"common": "🍒", "rare": "🔔", "epic": "⭐", "legendary": "👑"}
     display = " | ".join(emoji_map.get(s, "❓") for s in reels)
+    won = spin["win"]
 
-    if spin["win"]:
+    if won:
         mult = spin["multiplier"]
         payout = amount * mult
         await repository.record_game_win_transaction(user_id, "slots", payout, mult)
@@ -224,12 +276,9 @@ async def game_slots_play_handler(update: Update, context: ContextTypes.DEFAULT_
         f"{f'Payout: <code>₹{payout:.2f} ({mult}x)</code>' if mult > 0 else ''}"
     )
 
-    await context.bot.send_message(chat_id=user_id, text=text, parse_mode="HTML")
-    await context.bot.send_message(
-        chat_id=user_id,
-        text="Select a game to play again 👇",
-        reply_markup=games_hub_keyboard()
-    )
+    is_rage = await engine.is_rage_betting(user_id, amount)
+    await engine.update_session(user_id, "slots", amount, won, is_rage)
+    await context.bot.send_message(chat_id=user_id, text=text, parse_mode="HTML", reply_markup=game_result_keyboard("slots"))
 
 
 # ─── Mines Game ──────────────────────────────────────────────────────────
@@ -239,6 +288,7 @@ async def game_mines_start_handler(update: Update, context: ContextTypes.DEFAULT
     query = update.callback_query
     if not query:
         return
+    await query.answer()
     parts = query.data.split(":")
     amount = float(parts[3])
     user_id = query.from_user.id
@@ -256,7 +306,12 @@ async def game_mines_start_handler(update: Update, context: ContextTypes.DEFAULT
         return
 
     cfg = await engine.get_game_config("mines")
-    mine_data = engine.generate_mines(cfg, user_game_count=_get_game_count(context))
+    user_prof = await engine.get_profile(user_id)
+    profit_lvl = user_prof.get("meta", {}).get("net_profit", 0) if user_prof else 0
+    mine_data = await engine.generate_mines(
+        cfg, user_game_count=_get_game_count(context), user_id=user_id,
+        profit_level=profit_lvl, loss_streak=user.consecutive_losses or 0
+    )
 
     context.user_data["mines"] = {
         "board": mine_data["board"],
@@ -319,21 +374,24 @@ async def game_mines_reveal_handler(update: Update, context: ContextTypes.DEFAUL
     if cell == "mine":
         mines["game_over"] = True
         repo = Repository(await get_db())
-        engine = RiskEngine(repo)
+        eng = RiskEngine(repo)
         await repo.record_game_round(mines.get("_user_id") or query.from_user.id, "mines", mines["amount"], 0, mines["multiplier"], won=False)
-        await engine.record_bet("mines", mines["amount"], 0)
+        await eng.record_bet("mines", mines["amount"], 0)
         msg = "💥 Hit a mine!"
     else:
         mines["gems_found"] += 1
-        engine = RiskEngine()
-        cfg = await engine.get_game_config("mines")
-        mines["multiplier"] = engine.get_mines_multiplier(mines["gems_found"], mines.get("mine_count", 3), mines.get("grid_size", 9))
+        eng = RiskEngine(Repository(await get_db()))
+        cfg = await eng.get_game_config("mines")
+        mines["multiplier"] = eng.get_mines_multiplier(mines["gems_found"], mines.get("mine_count", 3), mines.get("grid_size", 9))
         msg = "💎 Found a gem!"
 
     await query.answer(msg, show_alert=(cell == "mine"))
     context.user_data["mines"] = mines
 
     if mines["game_over"]:
+        user_id = query.from_user.id
+        is_rage = await eng.is_rage_betting(user_id, mines["amount"])
+        await eng.update_session(user_id, "mines", mines["amount"], False, is_rage)
         text = (
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"💣 <b>Mines</b> — Game Over\n"
@@ -368,6 +426,8 @@ async def game_mines_cashout_handler(update: Update, context: ContextTypes.DEFAU
     await query.answer(f"💰 Cashed out {mines['multiplier']:.1f}x!", show_alert=True)
 
     mines["game_over"] = True
+    is_rage = await engine.is_rage_betting(user_id, mines["amount"])
+    await engine.update_session(user_id, "mines", mines["amount"], True, is_rage)
     text = (
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"💣 <b>Mines</b> — Cashed Out!\n"
@@ -388,6 +448,7 @@ async def game_crash_start_handler(update: Update, context: ContextTypes.DEFAULT
     query = update.callback_query
     if not query:
         return
+    await query.answer()
     parts = query.data.split(":")
     amount = float(parts[3])
     user_id = query.from_user.id
@@ -410,7 +471,7 @@ async def game_crash_start_handler(update: Update, context: ContextTypes.DEFAULT
     cfg = await engine.get_game_config("crash")
     gc = _get_game_count(context)
     game_id = f"crash_{user_id}_{int(time.time())}"
-    crash_point = engine.generate_crash_point(cfg, gc)
+    crash_point = await engine.generate_crash_point(cfg, gc, user_id=user_id)
     start_time = time.time()
 
     try:
@@ -481,6 +542,8 @@ async def _crash_game_loop(context, game_id: str, amount: float, crash_point: fl
                     eng = RiskEngine(repo)
                     await eng.record_bet("crash", amount, 0)
                     _increment_game_count(context)
+                    if uid:
+                        await eng.update_session(uid, "crash", amount, False, False)
                 except Exception:
                     pass
                 if msg_id:
@@ -555,6 +618,8 @@ async def game_crash_cashout_handler(update: Update, context: ContextTypes.DEFAU
     await repository.record_game_round(user_id, "crash", amount, payout, mult, won=True)
     await engine.record_bet("crash", amount, payout)
     _increment_game_count(context)
+    is_rage = await engine.is_rage_betting(user_id, amount)
+    await engine.update_session(user_id, "crash", amount, True, is_rage)
 
     sign = "+" if profit >= 0 else ""
     result_text = (

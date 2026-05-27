@@ -41,9 +41,9 @@ async def wallet_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         f"━━━━━━━━━━━━━━━━━━━━\n\n"
         f"<b>User:</b> {user.first_name}\n\n"
         f"💰 <b>Balance</b>\n"
-        f"<code>₹{format_currency(user.balance)}</code>\n\n"
+        f"<code>{format_currency(user.balance)}</code>\n\n"
         f"📈 <b>Lifetime Earnings</b>\n"
-        f"<code>₹{format_currency(user.lifetime_earnings)}</code>\n\n"
+        f"<code>{format_currency(user.lifetime_earnings)}</code>\n\n"
         f"{score_icon} <b>Trust Score:</b> <code>{trust_score}%</code>\n"
         f"━━━━━━━━━━━━━━━━━━━━"
     )

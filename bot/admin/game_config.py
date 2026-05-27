@@ -41,6 +41,8 @@ async def admin_game_config_menu(update: Update, context: ContextTypes.DEFAULT_T
          InlineKeyboardButton("📈 Crash", callback_data="admin:game_cfg:crash")],
         [InlineKeyboardButton("📊 Analytics", callback_data="admin:game_cfg:analytics")],
         [InlineKeyboardButton("🔧 Global Config", callback_data="admin:game_cfg:global")],
+        [InlineKeyboardButton("🎯 Retention Config", callback_data="admin:game_cfg:retention"),
+         InlineKeyboardButton("🛡 Anti-Abuse", callback_data="admin:game_cfg:anti_abuse")],
         [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")],
     ]
     await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(kb))
@@ -89,6 +91,15 @@ async def admin_game_config_detail(update: Update, context: ContextTypes.DEFAULT
                 [InlineKeyboardButton("🔙 Back", callback_data="admin:game_cfg_menu")]
             ])
         )
+        await query.answer()
+        return
+
+    if game in ("retention", "anti_abuse"):
+        section = cfg.get(game, {})
+        text = f"<b>{game.replace('_',' ').title()} Configuration</b>\n\n"
+        text += "\n".join(f"<code>{k}</code>: {v}" for k, v in section.items())
+        text += "\n\nSend the setting to change:\n<code>key = value</code>"
+        await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=back_to_admin())
         await query.answer()
         return
     gcfg = cfg.get(game, {})
@@ -181,6 +192,6 @@ async def admin_game_config_back(update: Update, context: ContextTypes.DEFAULT_T
 
 def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(admin_game_config_menu, pattern="^admin:game_cfg_menu$"))
-    application.add_handler(CallbackQueryHandler(admin_game_config_detail, pattern=r"^admin:game_cfg:(dice|slots|mines|crash|global|analytics)$"))
+    application.add_handler(CallbackQueryHandler(admin_game_config_detail, pattern=r"^admin:game_cfg:(dice|slots|mines|crash|global|analytics|retention|anti_abuse)$"))
     application.add_handler(CallbackQueryHandler(admin_game_config_back, pattern="^admin:game_cfg_back$"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_game_config_input), group=12)

@@ -84,6 +84,29 @@ class UserTable(Base):
     # Referral claim tracking
     referral_reward_claimed: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Casino profiling metadata (JSON blob)
+    user_meta: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, default=dict)
+
+    # Game session tracking
+    current_session_start: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    session_total_bets: Mapped[int] = mapped_column(Integer, default=0)
+    session_total_wins: Mapped[int] = mapped_column(Integer, default=0)
+    session_total_losses: Mapped[int] = mapped_column(Integer, default=0)
+    session_net: Mapped[float] = mapped_column(Float, default=0.0)
+    consecutive_losses: Mapped[int] = mapped_column(Integer, default=0)
+    consecutive_wins: Mapped[int] = mapped_column(Integer, default=0)
+    longest_win_streak: Mapped[int] = mapped_column(Integer, default=0)
+    longest_loss_streak: Mapped[int] = mapped_column(Integer, default=0)
+    last_game_played: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    total_deposits: Mapped[float] = mapped_column(Float, default=0.0)
+    total_withdrawals: Mapped[float] = mapped_column(Float, default=0.0)
+    net_profit: Mapped[float] = mapped_column(Float, default=0.0)
+    total_bets_count: Mapped[int] = mapped_column(Integer, default=0)
+    total_wins_count: Mapped[int] = mapped_column(Integer, default=0)
+    avg_bet_size: Mapped[float] = mapped_column(Float, default=0.0)
+    rage_bet_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_bet_time: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
     __table_args__ = (
         Index("ix_users_lifetime_earnings", "lifetime_earnings"),
         Index("ix_users_joined_at", "joined_at"),
@@ -246,3 +269,60 @@ class BackupRecordTable(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="completed")
     created_at: Mapped[str] = mapped_column(String(50), default=lambda: datetime.now(IST).isoformat())
+
+
+# ─── Game Sessions ─────────────────────────────────────────────────────────
+
+class GameSessionTable(Base):
+    __tablename__ = "game_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    game: Mapped[str] = mapped_column(String(20), nullable=False)
+    start_time: Mapped[str] = mapped_column(String(50), default=lambda: datetime.now(IST).isoformat())
+    end_time: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    total_bets: Mapped[int] = mapped_column(Integer, default=0)
+    total_wins: Mapped[int] = mapped_column(Integer, default=0)
+    total_bet_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    total_payout: Mapped[float] = mapped_column(Float, default=0.0)
+    net_result: Mapped[float] = mapped_column(Float, default=0.0)
+    session_duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
+    was_retention_triggered: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    __table_args__ = (
+        Index("ix_sessions_user_time", "user_id", "start_time"),
+    )
+
+
+# ─── Jackpot Events ────────────────────────────────────────────────────────
+
+class JackpotEventTable(Base):
+    __tablename__ = "jackpot_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    game: Mapped[str] = mapped_column(String(20), nullable=False)
+    bet: Mapped[float] = mapped_column(Float, nullable=False)
+    payout: Mapped[float] = mapped_column(Float, nullable=False)
+    multiplier: Mapped[float] = mapped_column(Float, nullable=False)
+    jackpot_type: Mapped[str] = mapped_column(String(20), default="mini")
+    timestamp: Mapped[str] = mapped_column(String(50), default=lambda: datetime.now(IST).isoformat())
+
+
+# ─── Retention Events ──────────────────────────────────────────────────────
+
+class RetentionEventTable(Base):
+    __tablename__ = "retention_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    trigger_reason: Mapped[str] = mapped_column(String(100), nullable=False)
+    game: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    boost_applied: Mapped[float] = mapped_column(Float, default=0.0)
+    resulted_in_win: Mapped[bool] = mapped_column(Boolean, default=False)
+    timestamp: Mapped[str] = mapped_column(String(50), default=lambda: datetime.now(IST).isoformat())
+
+    __table_args__ = (
+        Index("ix_retention_user_type", "user_id", "event_type"),
+    )

@@ -27,11 +27,26 @@ async def send_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, rep
     banner_url = await repository.get_image("img_welcome")
     start_text = await repository.get_setting(
         "start_message",
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "✨ <b>Welcome to TaskHub!</b>\n\n"
-        "> Complete tasks, invite friends, and earn real money.\n"
-        "> Instant payouts — 100% secure.\n"
-        "━━━━━━━━━━━━━━━━━━━━"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🚀 <b>Welcome to TaskHub Rewards</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "> 💸 <b>Earn Real Money</b> by completing simple tasks, playing games & inviting friends.\n\n"
+        "> ✨ <i>Trusted by thousands of active users daily.</i>\n"
+        "> ⚡ <i>Fast withdrawals.</i>\n"
+        "> 🔒 <i>Secure & automated payout system.</i>\n"
+        "> 🎁 <i>Daily rewards, bonuses & referral income available.</i>\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📌 <b>What You Can Do Here:</b>\n"
+        "• ✅ Complete Tasks & Earn\n"
+        "• 🎮 Play Games & Win Rewards\n"
+        "• 👥 Invite Friends for Lifetime Commission\n"
+        "• 💰 Withdraw Directly to Your Wallet\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "<blockquote>💬 <i>\"Small earnings become big when consistency meets opportunity.\"</i></blockquote>\n\n"
+        "🔥 <b>Start now</b> and turn your free time into real rewards.\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "⚠️ <i>Please avoid spam/fake activity. Our security system monitors all actions automatically.</i>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━"
     )
 
     kb = main_menu_keyboard()

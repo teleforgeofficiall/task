@@ -45,7 +45,7 @@ async def admin_img_replace_start(update: Update, context: ContextTypes.DEFAULT_
     if not query or not is_admin(query.from_user.id):
         return
 
-    key = query.data.split(":")[2] # img_welcome / img_snap_pick etc.
+    key = query.data.split(":")[2] # img_welcome / img_game etc.
     context.user_data["admin_state"] = f"replace_img_{key}"
 
     # Persist pending key in DB so it survives a --reload (user_data is wiped)

@@ -160,8 +160,7 @@ def withdraws_menu() -> InlineKeyboardMarkup:
 def withdrawal_alert_keyboard(user_id: int, wid: int) -> InlineKeyboardMarkup:
     """Keyboard for withdrawal admin alert — view profile."""
     keyboard = [
-        [InlineKeyboardButton("👤 View User Profile", callback_data=f"admin:usr_profile_{user_id}"),
-         InlineKeyboardButton("💳 View Request", callback_data=f"admin:wd_view:{wid}:0")],
+        [InlineKeyboardButton("👤 View User Profile", callback_data=f"admin:usr_profile_{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -288,18 +287,26 @@ def images_manager_keyboard() -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton("📸 Welcome / Start Image", callback_data="admin:img_replace:img_welcome"),
-            InlineKeyboardButton("📸 Snap Pick Banner", callback_data="admin:img_replace:img_snap_pick"),
+            InlineKeyboardButton("📸 Bonus Drop Banner", callback_data="admin:img_replace:img_drop_rain"),
         ],
         [
-            InlineKeyboardButton("📸 Referral Invite Banner", callback_data="admin:img_replace:img_refer_new"),
-            InlineKeyboardButton("📸 Referral Success Image", callback_data="admin:img_replace:img_refer_success"),
+            InlineKeyboardButton("📸 Games Hub Banner", callback_data="admin:img_replace:img_game"),
+            InlineKeyboardButton("📸 Dice Banner", callback_data="admin:img_replace:img_game_dice"),
         ],
         [
-            InlineKeyboardButton("📸 Daily Bonus Claim Banner", callback_data="admin:img_replace:img_bonus_drop"),
-            InlineKeyboardButton("📸 Force Subscribe Banner", callback_data="admin:img_replace:img_channel_task"),
+            InlineKeyboardButton("📸 Slots Banner", callback_data="admin:img_replace:img_game_slots"),
+            InlineKeyboardButton("📸 Mines Banner", callback_data="admin:img_replace:img_game_mines"),
         ],
         [
-            InlineKeyboardButton("💰 Bonus Drop Banner", callback_data="admin:img_replace:img_drop_rain"),
+            InlineKeyboardButton("📸 Crash Banner", callback_data="admin:img_replace:img_game_crash"),
+            InlineKeyboardButton("📸 Referral Invite", callback_data="admin:img_replace:img_refer_new"),
+        ],
+        [
+            InlineKeyboardButton("📸 Referral Paused", callback_data="admin:img_replace:img_refer_paused"),
+            InlineKeyboardButton("📸 Daily Bonus", callback_data="admin:img_replace:img_bonus_drop"),
+        ],
+        [
+            InlineKeyboardButton("📸 Force Subscribe", callback_data="admin:img_replace:img_channel_task"),
         ],
         [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")]
     ]

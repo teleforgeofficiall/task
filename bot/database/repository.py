@@ -49,11 +49,26 @@ def _now_date_str() -> str:
 
 _DEFAULT_SETTINGS: Dict[str, Any] = {
     "start_message": (
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "✨ <b>Welcome to TaskHub!</b>\n\n"
-        "> Complete tasks, invite friends, and earn real money.\n"
-        "> Instant payouts — 100% secure.\n"
-        "━━━━━━━━━━━━━━━━━━━━"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🚀 <b>Welcome to TaskHub Rewards</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "> 💸 <b>Earn Real Money</b> by completing simple tasks, playing games & inviting friends.\n\n"
+        "> ✨ <i>Trusted by thousands of active users daily.</i>\n"
+        "> ⚡ <i>Fast withdrawals.</i>\n"
+        "> 🔒 <i>Secure & automated payout system.</i>\n"
+        "> 🎁 <i>Daily rewards, bonuses & referral income available.</i>\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📌 <b>What You Can Do Here:</b>\n"
+        "• ✅ Complete Tasks & Earn\n"
+        "• 🎮 Play Games & Win Rewards\n"
+        "• 👥 Invite Friends for Lifetime Commission\n"
+        "• 💰 Withdraw Directly to Your Wallet\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "<blockquote>💬 <i>\"Small earnings become big when consistency meets opportunity.\"</i></blockquote>\n\n"
+        "🔥 <b>Start now</b> and turn your free time into real rewards.\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "⚠️ <i>Please avoid spam/fake activity. Our security system monitors all actions automatically.</i>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━"
     ),
     "launch_message": (
         "💡 <b>Launch a Task</b>\n\n"
@@ -79,9 +94,12 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "random_reward_min": settings.DEFAULT_RANDOM_MIN,
     "random_reward_max": settings.DEFAULT_RANDOM_MAX,
     "img_welcome": "https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg",
-    "img_snap_pick": "https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg",
+    "img_game": "https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg",
+    "img_game_dice": "https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg",
+    "img_game_slots": "https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg",
+    "img_game_mines": "https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg",
+    "img_game_crash": "https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg",
     "img_refer_new": "https://telegra.ph/file/5e2fdf0e4e93fb7cc28fe-17e0302973422b849b.jpg",
-    "img_refer_success": "https://telegra.ph/file/bb7b81cfe5e1a09e8ed70-92a5b67a330e351e8e.jpg",
     "img_refer_paused": "https://telegra.ph/file/02790c2b0d88478d4b634-e974bcc86d6915320a.jpg",
     "img_bonus_drop": "https://telegra.ph/file/246af8dcd72ce749589fb-ddec441baa01f7ef5b.jpg",
     "img_treasure": "https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg",
@@ -153,6 +171,28 @@ class Repository:
             "bonus_enabled": True,
             "bonus_cooldown_hours": 24,
             "daily_bonus_task_limit": 1,
+            "start_message": (
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "🚀 <b>Welcome to TaskHub Rewards</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                "> 💸 <b>Earn Real Money</b> by completing simple tasks, playing games & inviting friends.\n\n"
+                "> ✨ <i>Trusted by thousands of active users daily.</i>\n"
+                "> ⚡ <i>Fast withdrawals.</i>\n"
+                "> 🔒 <i>Secure & automated payout system.</i>\n"
+                "> 🎁 <i>Daily rewards, bonuses & referral income available.</i>\n\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                "📌 <b>What You Can Do Here:</b>\n"
+                "• ✅ Complete Tasks & Earn\n"
+                "• 🎮 Play Games & Win Rewards\n"
+                "• 👥 Invite Friends for Lifetime Commission\n"
+                "• 💰 Withdraw Directly to Your Wallet\n\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                "<blockquote>💬 <i>\"Small earnings become big when consistency meets opportunity.\"</i></blockquote>\n\n"
+                "🔥 <b>Start now</b> and turn your free time into real rewards.\n\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "⚠️ <i>Please avoid spam/fake activity. Our security system monitors all actions automatically.</i>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━"
+            ),
         }
 
         for key, value in _DEFAULT_SETTINGS.items():
@@ -170,6 +210,29 @@ class Repository:
                     current_val = existing.value
                 if current_val != value:
                     existing.value = json.dumps(value)
+
+        # Migrate renamed keys
+        old_snap = await session.get(SettingTable, "img_snap_pick")
+        if old_snap is not None:
+            new_game = await session.get(SettingTable, "img_game")
+            if new_game is None:
+                session.add(SettingTable(key="img_game", value=old_snap.value))
+            await session.delete(old_snap)
+
+        # Remove deprecated keys
+        for deprecated in ("img_refer_success",):
+            dep_row = await session.get(SettingTable, deprecated)
+            if dep_row is not None:
+                await session.delete(dep_row)
+
+        # Seed per-game images if missing (copy from existing img_game)
+        game_img_keys = ("img_game_dice", "img_game_slots", "img_game_mines", "img_game_crash")
+        hub_img = await session.get(SettingTable, "img_game")
+        hub_val = hub_img.value if hub_img else json.dumps(_DEFAULT_SETTINGS["img_game"])
+        for gk in game_img_keys:
+            existing = await session.get(SettingTable, gk)
+            if existing is None:
+                session.add(SettingTable(key=gk, value=hub_val))
 
         gs = await session.get(GameStateTable, "state")
         if gs is None:

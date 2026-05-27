@@ -153,6 +153,9 @@ def mines_grid_keyboard(revealed: List[str], game_over: bool) -> InlineKeyboardM
         keyboard.append(row)
     if not game_over:
         keyboard.append([InlineKeyboardButton("💰 Cash Out", callback_data="mines:cashout")])
+    else:
+        keyboard.append([InlineKeyboardButton("🔁 Play Again", callback_data="game:play:mines")])
+        keyboard.append([InlineKeyboardButton("🔙 Games", callback_data="menu:snapgame")])
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -164,6 +167,13 @@ def crash_game_keyboard(game_id: str, crashed: bool) -> InlineKeyboardMarkup:
         ])
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("💰 Cash Out", callback_data=f"crash:cashout:{game_id}")],
+    ])
+
+
+def game_result_keyboard(game: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔁 Play Again", callback_data=f"game:play:{game}")],
+        [InlineKeyboardButton("🔙 Games", callback_data="menu:snapgame")],
     ])
 
 
