@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  bot:
+    build: .
+    container_name: taskhub-bot
+    env_file:
+      - .env
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: taskhub-db
+    environment:
+      POSTGRES_USER: taskhub
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: taskhub_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:
