@@ -170,4 +170,4 @@ def register_handlers(application) -> None:
     application.add_handler(MessageHandler(
         (filters.TEXT | filters.PHOTO) & ~filters.COMMAND,
         admin_cmds_text_handler
-    ), group=10)
+    ), group=20)

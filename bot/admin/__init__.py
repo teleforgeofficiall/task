@@ -1,6 +1,6 @@
 """bot/admin package"""
 from bot.admin import panel, dashboard, users, tasks, proofs, withdrawals, broadcast, settings, fsub, images, cmds, referral_cfg, security, export, earn_more_mgmt, alerts_mgmt, withdraw_config, game_config
-from bot.admin import bonus_manage
+from bot.admin import bonus_manage, redeem_code
 from bot.backup import register_handlers as register_backup_handlers
 
 def register_admin_handlers(application) -> None:
@@ -24,4 +24,5 @@ def register_admin_handlers(application) -> None:
     withdraw_config.register_handlers(application)
     game_config.register_handlers(application)
     bonus_manage.register_handlers(application)
+    redeem_code.register_handlers(application)
     register_backup_handlers(application)

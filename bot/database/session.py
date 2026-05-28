@@ -93,8 +93,37 @@ async def init_db() -> None:
         # Run schema migrations for existing tables
         if is_postgres:
             await _migrate_postgres_schema(_engine)
+        else:
+            await _migrate_sqlite_schema(_engine)
 
         logger.info("Database tables created and verified.")
+
+
+async def _migrate_sqlite_schema(engine) -> None:
+    """Add missing columns to existing SQLite tables."""
+    import sqlalchemy as sa
+    from sqlalchemy import inspect, text as sa_text
+
+    # ── Withdrawals table: add stars & channel_link columns ──
+    wd_columns_sqlite: dict[str, str] = {
+        "stars": "INTEGER DEFAULT 0",
+        "channel_link": "VARCHAR(500) DEFAULT ''",
+    }
+
+    async with engine.begin() as conn:
+        def _get_wd_cols_sqlite(sync_conn):
+            return {c["name"] for c in inspect(sync_conn).get_columns("withdrawals")}
+        existing = await conn.run_sync(_get_wd_cols_sqlite)
+
+        for col_name, col_type in wd_columns_sqlite.items():
+            if col_name not in existing:
+                try:
+                    await conn.execute(sa_text(
+                        f'ALTER TABLE withdrawals ADD COLUMN {col_name} {col_type}'
+                    ))
+                    logger.info("Added column withdrawals.%s", col_name)
+                except Exception as exc:
+                    logger.warning("Could not add column withdrawals.%s: %s", col_name, exc)
 
 
 async def _migrate_postgres_schema(engine) -> None:
@@ -141,6 +170,26 @@ async def _migrate_postgres_schema(engine) -> None:
                 except Exception as exc:
                     logger.warning("Could not add column users.%s: %s", col_name, exc)
 
+        # ── Withdrawals table: add stars & channel_link columns ──
+        wd_columns: dict[str, str] = {
+            "stars": "INTEGER DEFAULT 0",
+            "channel_link": "VARCHAR(500) DEFAULT ''",
+        }
+
+        def _get_wd_cols(sync_conn):
+            return {c["name"] for c in inspect(sync_conn).get_columns("withdrawals")}
+        wd_existing = await conn.run_sync(_get_wd_cols)
+
+        for col_name, col_type in wd_columns.items():
+            if col_name not in wd_existing:
+                try:
+                    await conn.execute(sa_text(
+                        f'ALTER TABLE withdrawals ADD COLUMN "{col_name}" {col_type}'
+                    ))
+                    logger.info("Added column withdrawals.%s", col_name)
+                except Exception as exc:
+                    logger.warning("Could not add column withdrawals.%s: %s", col_name, exc)
+
         # ── New tables that might not have been created ──
         # (GameSessionTable, JackpotEventTable, RetentionEventTable are handled by create_all)
 
@@ -186,3 +235,28 @@ async def check_db_health() -> bool:
     except Exception as exc:
         logger.error("Database health check failed: %s", exc)
         return False
+
+
+async def reset_all_data() -> None:
+    """Drop all tables and recreate them with default seed data."""
+    global _engine, _session_factory
+    from bot.database.models_sql import Base
+
+    if _engine is None:
+        await init_db()
+
+    async with _engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        logger.info("All tables dropped.")
+
+    # Recreate and seed
+    async with _engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Seed defaults
+    from bot.database.repository import Repository
+    db = await get_db()
+    repo = Repository(db)
+    await repo.ensure_defaults()
+
+    logger.info("Database reset complete — all tables recreated and seeded.")

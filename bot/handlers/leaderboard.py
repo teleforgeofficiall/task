@@ -57,8 +57,8 @@ async def leaderboard_menu_handler(update: Update, context: ContextTypes.DEFAULT
         f"────────────────────"
     )
 
-    # Use the treasure image
-    banner_url = await repository.get_image("img_treasure")
+    # Use the leaderboard image
+    banner_url = await repository.get_image("img_leaderboard")
 
     await edit_or_reply(
         update=update,

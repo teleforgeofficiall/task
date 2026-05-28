@@ -169,6 +169,8 @@ class WithdrawalTable(Base):
     method: Mapped[str] = mapped_column(String(20), default="upi", index=True)
     upi_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     redeem_code: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    stars: Mapped[int] = mapped_column(Integer, default=0)
+    channel_link: Mapped[str] = mapped_column(String(500), default="")
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     reject_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     date: Mapped[str] = mapped_column(String(50), default=lambda: datetime.now(IST).isoformat())
@@ -178,6 +180,24 @@ class WithdrawalTable(Base):
     __table_args__ = (
         Index("ix_withdrawals_user_date", "user_id", "date"),
         Index("ix_withdrawals_method_status", "method", "status"),
+    )
+
+
+# ─── Redeem Codes (Inventory) ──────────────────────────────────────────────
+
+class RedeemCodeTable(Base):
+    __tablename__ = "redeem_codes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    amount: Mapped[float] = mapped_column(Float, nullable=False, index=True)
+    used: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    created_at: Mapped[str] = mapped_column(String(50), default=lambda: datetime.now(IST).isoformat())
+    used_by: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    used_at: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    __table_args__ = (
+        Index("ix_redeem_codes_amount_used", "amount", "used"),
     )
 
 
@@ -292,6 +312,17 @@ class GameSessionTable(Base):
     __table_args__ = (
         Index("ix_sessions_user_time", "user_id", "start_time"),
     )
+
+
+# ─── Device Fingerprints (Verification) ─────────────────────────────────
+
+class DeviceFingerprintTable(Base):
+    __tablename__ = "device_fingerprints"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    device_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    verified_at: Mapped[str] = mapped_column(String(50), default=lambda: datetime.now(IST).isoformat())
 
 
 # ─── Jackpot Events ────────────────────────────────────────────────────────

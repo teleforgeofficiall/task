@@ -13,9 +13,11 @@ class WithdrawalModel(BaseModel):
     id: int = 0
     user_id: int
     amount: float
-    method: str = "upi"             # "upi" | "redeem"
+    method: str = "upi"             # "upi" | "redeem" | "stars"
     upi_id: Optional[str] = None
     redeem_code: Optional[str] = None
+    stars: int = 0
+    channel_link: str = ""
     status: str = "pending"         # "pending" | "paid" | "rejected"
     reject_reason: Optional[str] = None
     date: str = Field(default_factory=lambda: datetime.now(IST).isoformat())
@@ -38,4 +40,6 @@ class WithdrawalModel(BaseModel):
         data.setdefault("method", "upi")
         data.setdefault("up_id", None)
         data.setdefault("redeem_code", None)
+        data.setdefault("stars", 0)
+        data.setdefault("channel_link", "")
         return cls(**data)

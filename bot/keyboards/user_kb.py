@@ -94,11 +94,12 @@ def task_detail_keyboard(task_id: int, task_type: str, url: str, page: int) -> I
     return InlineKeyboardMarkup(keyboard)
 
 
-def referral_keyboard(has_unclaimed: bool, ref_link: str) -> InlineKeyboardMarkup:
+def referral_keyboard(has_unclaimed: bool, ref_link: str = "") -> InlineKeyboardMarkup:
     keyboard = []
     if has_unclaimed:
         keyboard.append([InlineKeyboardButton("🎁 Claim Pending Rewards", callback_data="refer:claim")])
-    keyboard.append([InlineKeyboardButton("📤 Share Referral Link", switch_inline_query=f"ref_{ref_link.split('ref_')[1].split(':')[0]}")])
+    if ref_link:
+        keyboard.append([InlineKeyboardButton("📤 Share Referral Link", switch_inline_query=f"ref_{ref_link.split('ref_')[1].split(':')[0]}")])
     keyboard.append([
         InlineKeyboardButton("🏆 Top Referrers", callback_data="refer:top"),
         InlineKeyboardButton("🔙 Back to Menu", callback_data="menu:main"),
@@ -175,6 +176,36 @@ def game_result_keyboard(game: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🔁 Play Again", callback_data=f"game:play:{game}")],
         [InlineKeyboardButton("🔙 Games", callback_data="menu:snapgame")],
     ])
+
+
+def star_amount_keyboard() -> InlineKeyboardMarkup:
+    star_vals = [1, 5, 10, 25, 50, 100]
+    keyboard = []
+    row = []
+    for i, s in enumerate(star_vals):
+        row.append(InlineKeyboardButton(f"{s}⭐ (₹{s*2})", callback_data=f"withdraw:stars_amount:{s}"))
+        if (i + 1) % 3 == 0:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="menu:withdraw")])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def withdraw_amount_keyboard(method: str, extra: str = "") -> InlineKeyboardMarkup:
+    amounts = [10, 25, 50, 100, 250, 500]
+    keyboard = []
+    row = []
+    for i, a in enumerate(amounts):
+        row.append(InlineKeyboardButton(f"₹{a}", callback_data=f"withdraw:amount_sel:{method}:{a}:{extra}"))
+        if (i + 1) % 3 == 0:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+    keyboard.append([InlineKeyboardButton("❌ Cancel", callback_data="menu:withdraw")])
+    return InlineKeyboardMarkup(keyboard)
 
 
 def daily_bonus_keyboard(can_claim: bool) -> InlineKeyboardMarkup:

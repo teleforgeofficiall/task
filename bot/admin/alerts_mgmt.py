@@ -93,4 +93,4 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(alerts_manager_handler, pattern="^admin:alerts_mgmt$"))
     application.add_handler(CallbackQueryHandler(alerts_set_msg, pattern="^admin:alerts_set_msg$"))
     application.add_handler(CallbackQueryHandler(alerts_clear, pattern="^admin:alerts_clear$"))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, alerts_text_handler), group=12)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, alerts_text_handler), group=21)

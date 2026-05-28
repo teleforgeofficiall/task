@@ -4,7 +4,7 @@ start.py — Start command handler, force-subscribe verification, and main menu 
 from __future__ import annotations
 
 import logging
-from telegram import Update
+from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
 from bot.database import get_db, Repository
@@ -95,6 +95,58 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             referrer=referrer_id
         )
 
+    # Check device verification
+    dev_verif_enabled = await repository.get_setting("device_verification_enabled", False)
+    if dev_verif_enabled:
+        db_user = await repository.get_user(user_id)
+        if db_user and not db_user.device_verified:
+            verif_url = await repository.get_setting("device_verification_url", "")
+            if verif_url:
+                bot_username = (await context.bot.get_me()).username or ""
+                verify_url = f"{verif_url}/verify/{user_id}#bot={bot_username}"
+                if verif_url.startswith("https://"):
+                    btn = InlineKeyboardButton("🌐 Verify Device", web_app=WebAppInfo(url=verify_url))
+                else:
+                    btn = InlineKeyboardButton("🌐 Verify Device", url=verify_url)
+                msg = await update.message.reply_text(
+                    "<b>🔐 Device Verification Required</b>\n\n"
+                    "<blockquote>To continue using this bot, you need to verify your device first. "
+                    "This is a one-time security check to prevent abuse.</blockquote>\n\n"
+                    "👇 <b>Tap the button below to start verification.</b>",
+                    reply_markup=InlineKeyboardMarkup([[btn]]),
+                    parse_mode="HTML"
+                )
+                context.user_data["verify_msg_id"] = msg.message_id
+                return
+
+    await send_main_menu(update, context, repository)
+
+
+async def verified_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /start verified — user came back from device verification page."""
+    user = update.effective_user
+    if not user:
+        return
+    repository = Repository(await get_db())
+    db_user = await repository.get_user(user.id)
+    if not db_user:
+        return
+    if not db_user.device_verified:
+        await update.message.reply_text(
+            "❌ <b>Device not verified.</b>\n\n"
+            "Please complete device verification first.\n"
+            "Use /start to try again.",
+            parse_mode="HTML"
+        )
+        return
+    # Delete the old verify message
+    verify_msg_id = context.user_data.pop("verify_msg_id", None)
+    if verify_msg_id:
+        try:
+            await context.bot.delete_message(chat_id=user.id, message_id=verify_msg_id)
+        except Exception:
+            pass
+
     await send_main_menu(update, context, repository)
 
 
@@ -119,5 +171,6 @@ async def fsub_verify_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 def register_handlers(application) -> None:
     application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("verified", verified_start))
     application.add_handler(CallbackQueryHandler(menu_main_callback, pattern="^menu:main$"))
     application.add_handler(CallbackQueryHandler(fsub_verify_callback, pattern="^fsub:verify$"))

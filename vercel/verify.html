@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Device Verification</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-deep: #0d0d1a;
+    --bg-mid: #12122a;
+    --surface: #16163a;
+    --surface2: #1c1c40;
+    --border: rgba(100,100,200,0.15);
+    --accent-purple: #7b5ef8;
+    --accent-blue: #4da6ff;
+    --accent-green: #00e5a0;
+    --text-primary: #e8e8ff;
+    --text-secondary: rgba(200,200,255,0.55);
+    --text-muted: rgba(160,160,220,0.4);
+    --dot-color: rgba(100,100,200,0.18);
+    --scanning-pill: rgba(120,100,255,0.18);
+    --verified-pill: rgba(0,229,160,0.15);
+    --font-display: 'Rajdhani', sans-serif;
+    --font-body: 'Nunito', sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg-deep);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  .particles {
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 0;
+    overflow: hidden;
+  }
+  .dot {
+    position: absolute; border-radius: 50%;
+    background: var(--dot-color);
+    animation: floatDot linear infinite;
+  }
+
+  @keyframes floatDot {
+    0%   { transform: translateY(0)   scale(1);   opacity: 0.6; }
+    50%  { transform: translateY(-30px) scale(1.1); opacity: 0.9; }
+    100% { transform: translateY(0)   scale(1);   opacity: 0.6; }
+  }
+
+  .user-row {
+    position: relative; z-index: 10;
+    width: 100%; max-width: 480px;
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px;
+    background: rgba(13,13,26,0.88);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+  }
+  .pfp {
+    width: 46px; height: 46px; border-radius: 50%;
+    object-fit: cover; flex-shrink: 0;
+    border: 2px solid var(--accent-purple);
+    background: var(--surface2);
+    box-shadow: 0 0 0 4px rgba(123,94,248,0.18);
+  }
+  .user-info { flex: 1; min-width: 0; }
+  .user-name {
+    font-family: var(--font-display);
+    font-size: 16px; font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .user-id { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid;
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: all 0.5s ease;
+  }
+  .pill-scanning {
+    background: var(--scanning-pill);
+    border-color: rgba(123,94,248,0.35);
+    color: var(--accent-purple);
+  }
+  .pill-verified {
+    background: var(--verified-pill);
+    border-color: rgba(0,229,160,0.35);
+    color: var(--accent-green);
+  }
+  .pill-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: currentColor;
+    animation: pulseDot 1.4s ease-in-out infinite;
+  }
+  .pill-verified .pill-dot { animation: none; }
+  @keyframes pulseDot {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .main {
+    position: relative; z-index: 5;
+    width: 100%; max-width: 480px;
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 28px 20px 20px;
+    min-height: calc(100vh - 120px);
+  }
+
+  .verify-card {
+    width: 100%;
+    background: rgba(22,22,58,0.72);
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    padding: 40px 28px 36px;
+    display: flex; flex-direction: column; align-items: center;
+    backdrop-filter: blur(18px);
+    box-shadow: 0 20px 60px rgba(0,0,10,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  .ring-wrap {
+    position: relative; width: 150px; height: 150px;
+    margin-bottom: 28px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ring-svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    animation: rotateSvg 2.4s linear infinite;
+  }
+  @keyframes rotateSvg { to { transform: rotate(360deg); } }
+
+  .ring-svg .track { fill: none; stroke: rgba(100,100,200,0.12); stroke-width: 4; }
+  .ring-svg .arc-purple {
+    fill: none; stroke: var(--accent-purple); stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 220; stroke-dashoffset: 60;
+  }
+  .ring-svg .arc-green {
+    fill: none; stroke: var(--accent-green); stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 220; stroke-dashoffset: 150;
+    animation: rotateSvg 2.4s linear infinite reverse;
+  }
+
+  .ring-inner {
+    position: relative; z-index: 2;
+    width: 90px; height: 90px; border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid rgba(100,100,200,0.2);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 32px rgba(123,94,248,0.25), inset 0 0 20px rgba(0,0,0,0.3);
+  }
+  .ring-icon { font-size: 38px; line-height: 1; }
+
+  .ring-svg.success-ring .arc-purple,
+  .ring-svg.success-ring .arc-green { display: none; }
+  .ring-svg.success-ring .success-circle {
+    fill: none; stroke: var(--accent-green); stroke-width: 4;
+    stroke-dasharray: 440; stroke-dashoffset: 440;
+    animation: drawCircle 0.7s ease forwards;
+  }
+  @keyframes drawCircle { to { stroke-dashoffset: 0; } }
+
+  .verify-title {
+    font-family: var(--font-display);
+    font-size: 26px; font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 1px; margin-bottom: 6px;
+    text-align: center;
+  }
+  .verify-title.green { color: var(--accent-green); }
+  .verify-subtitle {
+    font-size: 14px; color: var(--text-secondary);
+    text-align: center; line-height: 1.5;
+    margin-bottom: 24px;
+  }
+
+  .progress-wrap { width: 100%; margin-bottom: 10px; }
+  .progress-track {
+    width: 100%; height: 5px;
+    background: rgba(100,100,200,0.12);
+    border-radius: 3px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue), var(--accent-green));
+    border-radius: 3px;
+    transition: width 0.35s ease;
+  }
+  .progress-label {
+    display: flex; justify-content: space-between;
+    margin-top: 8px;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .progress-label .spin-row {
+    display: flex; align-items: center; gap: 6px; color: var(--text-secondary);
+  }
+  .mini-spinner {
+    width: 12px; height: 12px;
+    border: 2px solid rgba(123,94,248,0.2);
+    border-top-color: var(--accent-purple);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .btn-continue {
+    display: none;
+    width: 100%; padding: 18px;
+    background: var(--accent-green);
+    color: #071a11;
+    font-family: var(--font-display);
+    font-size: 18px; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase;
+    border: none; border-radius: 16px; cursor: pointer;
+    margin-top: 8px;
+    box-shadow: 0 4px 24px rgba(0,229,160,0.3);
+    transition: transform 0.15s, box-shadow 0.15s;
+    animation: fadeSlideUp 0.5s ease forwards;
+  }
+  .btn-continue:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,229,160,0.45); }
+  .btn-continue:active { transform: scale(0.97); }
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .footer {
+    position: relative; z-index: 5;
+    width: 100%; max-width: 480px;
+    text-align: center;
+    padding: 14px 20px 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+  }
+
+  .fade-scale-in {
+    animation: fadeScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  }
+  @keyframes fadeScaleIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .hidden { display: none !important; }
+
+  .ring-svg.fail-ring .arc-purple { stroke: #ff4f5e; }
+  .ring-svg.fail-ring .arc-green  { stroke: #ff8c42; }
+  .verify-title.red { color: #ff4f5e; }
+
+</style>
+</head>
+<body>
+
+<div class="particles" id="particles"></div>
+
+<div class="user-row">
+  <img class="pfp" id="pfpImg"
+    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23222'/%3E%3Ctext x='50' y='68' text-anchor='middle' fill='%23666' font-size='44'%3E?%3C/text%3E%3C/svg%3E" alt="">
+  <div class="user-info">
+    <div class="user-name" id="userName">Loading...</div>
+    <div class="user-id" id="userId">ID: —</div>
+  </div>
+  <div class="status-pill pill-scanning" id="statusPill">
+    <span class="pill-dot"></span>
+    <span id="pillText">SCANNING</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="verify-card" id="verifyCard">
+
+    <div class="ring-wrap">
+      <svg class="ring-svg" id="ringSvg" viewBox="0 0 150 150">
+        <circle class="track" cx="75" cy="75" r="68"/>
+        <circle class="arc-purple" cx="75" cy="75" r="68"/>
+        <circle class="arc-green"  cx="75" cy="75" r="68"/>
+        <circle class="success-circle hidden" id="successCircle" cx="75" cy="75" r="68"/>
+      </svg>
+      <div class="ring-inner">
+        <span class="ring-icon" id="ringIcon">🔐</span>
+      </div>
+    </div>
+
+    <div id="scanState">
+      <div class="verify-title" id="stateTitle">Device Verification</div>
+      <div class="verify-subtitle" id="stateSubtitle">Completing authorization...</div>
+      <div class="progress-wrap">
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-label">
+          <span class="spin-row"><span class="mini-spinner"></span> Scanning device</span>
+          <span id="pctLabel">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-continue" id="continueBtn" onclick="continueToBot()">Continue to Bot</button>
+
+  </div>
+</div>
+
+<div class="footer">Made by <a href="https://t.me/TeleforgeOfficial" target="_blank" style="color:var(--accent-purple);text-decoration:none;font-weight:700;">TELEFORGE</a></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+<script>
+(function spawnDots() {
+  const wrap = document.getElementById('particles');
+  for (let i = 0; i < 22; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    const size = 6 + Math.random() * 18;
+    d.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%;
+      top:${Math.random()*100}%;
+      animation-duration:${4 + Math.random()*6}s;
+      animation-delay:-${Math.random()*6}s;
+      opacity:${0.3 + Math.random()*0.5};
+    `;
+    wrap.appendChild(d);
+  }
+})();
+
+const params = new URLSearchParams(window.location.search);
+const userId = window.location.pathname.split('/').pop() || params.get('user_id') || '7371674958';
+const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+const BOT_USERNAME = hashParams.get('bot') || params.get('bot') || '';
+const API_BASE = window.location.origin;
+
+async function fetchUser() {
+  try {
+    const res = await fetch(`${API_BASE}/api/user/${userId}`);
+    const data = await res.json();
+    if (data.ok && data.user) {
+      document.getElementById('userName').textContent = data.user.first_name || 'User';
+      document.getElementById('userId').textContent = 'ID: ' + data.user.id;
+      if (data.user.pfp_url) {
+        const fr = await fetch(`${API_BASE}/api/user/${userId}/photo`);
+        if (fr.ok) { const fd = await fr.json(); if (fd.url) document.getElementById('pfpImg').src = fd.url; }
+      }
+    }
+  } catch(_) {
+    document.getElementById('userName').textContent = 'User';
+    document.getElementById('userId').textContent = 'ID: ' + userId;
+  }
+}
+
+let pct = 0;
+let progInterval;
+
+function startProgress() {
+  progInterval = setInterval(() => {
+    pct += Math.random() * 14 + 3;
+    if (pct > 92) pct = 92;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('pctLabel').textContent = Math.floor(pct) + '%';
+  }, 380);
+}
+
+function completeProgress(cb) {
+  clearInterval(progInterval);
+  pct = 100;
+  document.getElementById('progressFill').style.width = '100%';
+  document.getElementById('pctLabel').textContent = '100%';
+  setTimeout(cb, 500);
+}
+
+function showSuccess() {
+  completeProgress(() => {
+    const pill = document.getElementById('statusPill');
+    pill.classList.remove('pill-scanning'); pill.classList.add('pill-verified');
+    document.getElementById('pillText').textContent = 'VERIFIED';
+
+    const svg = document.getElementById('ringSvg');
+    svg.querySelectorAll('.arc-purple,.arc-green').forEach(e => e.classList.add('hidden'));
+    const sc = document.getElementById('successCircle');
+    sc.classList.remove('hidden');
+    svg.style.animation = 'none';
+
+    document.getElementById('ringIcon').textContent = '✔';
+    document.getElementById('ringIcon').style.color = 'var(--accent-green)';
+    document.getElementById('ringIcon').style.fontSize = '44px';
+
+    const t = document.getElementById('stateTitle');
+    t.textContent = 'Verification Complete';
+    t.classList.add('green');
+    document.getElementById('stateSubtitle').textContent = 'Your device has been verified.';
+
+    document.querySelector('.progress-wrap').style.display = 'none';
+    const btn = document.getElementById('continueBtn');
+    btn.style.display = 'block';
+
+    document.getElementById('verifyCard').classList.add('fade-scale-in');
+  });
+}
+
+function showFail() {
+  completeProgress(() => {
+    const t = document.getElementById('stateTitle');
+    t.textContent = 'Verification Failed';
+    t.classList.add('red');
+    document.getElementById('stateSubtitle').textContent = 'This device is already linked to another account.';
+    document.getElementById('ringIcon').textContent = '✕';
+    document.getElementById('ringIcon').style.color = '#ff4f5e';
+    document.getElementById('ringSvg').classList.add('fail-ring');
+    document.querySelector('.progress-wrap').style.display = 'none';
+    document.getElementById('statusPill').style.background = 'rgba(255,79,94,0.1)';
+    document.getElementById('statusPill').style.borderColor = 'rgba(255,79,94,0.3)';
+    document.getElementById('statusPill').style.color = '#ff4f5e';
+    document.getElementById('pillText').textContent = 'FAILED';
+  });
+}
+
+async function startVerification() {
+  startProgress();
+
+  let fingerprint;
+  try {
+    const fp = await FingerprintJS.load();
+    const result = await fp.get();
+    fingerprint = result.visitorId;
+  } catch(e) {
+    fingerprint = 'fp_' + Date.now() + '_' + Math.random().toString(36).substr(2,9);
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/verify-device`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_hash: fingerprint, user_id: parseInt(userId) }),
+    });
+    const data = await res.json();
+    data.ok ? showSuccess() : showFail();
+  } catch(_) {
+    showSuccess();
+  }
+}
+
+function continueToBot() {
+  const bot = BOT_USERNAME || '__BOT_USERNAME__';
+  window.location.href = `https://t.me/${bot}?start=verified`;
+}
+
+(async () => {
+  await fetchUser();
+  startVerification();
+})();
+</script>
+</body>
+</html>

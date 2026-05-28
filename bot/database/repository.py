@@ -21,6 +21,7 @@ from bot.database.models_sql import (
     UserTable, TaskTable, ProofTable, WithdrawalTable,
     TransactionTable, AdminLogTable,
     SettingTable, GameStateTable, BackupRecordTable, GameRoundTable,
+    RedeemCodeTable, DeviceFingerprintTable,
 )
 from bot.database.session import get_db as get_db_session, get_database_url
 from bot.models.transaction import (
@@ -78,6 +79,10 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "min_withdraw": settings.MIN_WITHDRAW,
     "max_withdraw": settings.MAX_WITHDRAW,
     "daily_withdraw_limit": 3,
+    "star_rate": 2.0,
+    "star_withdraw_enabled": True,
+    "min_star_withdraw": 1,
+    "max_star_withdraw": 500,
     "refer_min_tasks": 1,
     "refer_paused": False,
     "daily_bonus": 5.0,
@@ -104,7 +109,15 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "img_bonus_drop": "https://telegra.ph/file/246af8dcd72ce749589fb-ddec441baa01f7ef5b.jpg",
     "img_treasure": "https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg",
     "img_channel_task": "https://telegra.ph/file/8169af7a7a4a846c08aae-785a9c0e0843d922ea.jpg",
+    "img_tasks_list": "https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg",
+    "img_leaderboard": "https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg",
     "img_drop_rain": "https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg",
+    "img_redeem_success": "https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg",
+    "redeem_low_stock_threshold": 5,
+    "redeem_stock_enabled": True,
+    "redeem_method_name": "Google Redeem Code",
+    "device_verification_enabled": False,
+    "device_verification_url": "",
 }
 
 _DEFAULT_GAME_STATE: Dict[str, Any] = {
@@ -233,6 +246,14 @@ class Repository:
             existing = await session.get(SettingTable, gk)
             if existing is None:
                 session.add(SettingTable(key=gk, value=hub_val))
+
+        # Seed tasks_list and leaderboard images from existing img_treasure
+        treasure_img = await session.get(SettingTable, "img_treasure")
+        treasure_val = treasure_img.value if treasure_img else json.dumps(_DEFAULT_SETTINGS["img_treasure"])
+        for nk in ("img_tasks_list", "img_leaderboard"):
+            existing = await session.get(SettingTable, nk)
+            if existing is None:
+                session.add(SettingTable(key=nk, value=treasure_val))
 
         gs = await session.get(GameStateTable, "state")
         if gs is None:
@@ -635,12 +656,13 @@ class Repository:
 
     async def add_withdrawal(
         self, user_id: int, amount: float, upi_id: Optional[str] = None,
-        method: str = "upi",
+        method: str = "upi", stars: int = 0, channel_link: str = "",
     ) -> WithdrawalModel:
         session = await self._session()
         row = WithdrawalTable(
             user_id=user_id, amount=amount,
             method=method, upi_id=upi_id,
+            stars=stars, channel_link=channel_link,
         )
         session.add(row)
         await session.flush()
@@ -728,6 +750,20 @@ class Repository:
         )
         return [_row_to_dict(r) for r in rows.scalars().all()]
 
+    async def get_pending_star_withdrawals(self) -> List[dict]:
+        session = await self._session()
+        rows = await session.execute(
+            select(WithdrawalTable)
+            .where(
+                and_(
+                    WithdrawalTable.method == "stars",
+                    WithdrawalTable.status == "pending",
+                )
+            )
+            .order_by(WithdrawalTable.date.desc())
+        )
+        return [_row_to_dict(r) for r in rows.scalars().all()]
+
     async def update_withdrawal_redeem_code(self, wid: int, code: str) -> None:
         session = await self._session()
         row = await session.get(WithdrawalTable, int(wid))
@@ -744,6 +780,156 @@ class Repository:
             .limit(limit)
         )
         return [_row_to_dict(r) for r in rows.scalars().all()]
+
+    # =========================================================================
+    # REDEEM CODE INVENTORY
+    # =========================================================================
+
+    async def add_redeem_codes(self, codes: List[str], amount: float) -> int:
+        session = await self._session()
+        count = 0
+        for code in codes:
+            code = code.strip()
+            if not code:
+                continue
+            existing = await session.execute(
+                select(RedeemCodeTable).where(RedeemCodeTable.code == code)
+            )
+            if existing.scalar_one_or_none():
+                continue
+            session.add(RedeemCodeTable(code=code, amount=amount))
+            count += 1
+        await session.commit()
+        return count
+
+    async def get_available_redeem_code(self, amount: float) -> Optional[str]:
+        session = await self._session()
+        row = await session.execute(
+            select(RedeemCodeTable)
+            .where(RedeemCodeTable.amount == amount, RedeemCodeTable.used == False)
+            .limit(1)
+            .with_for_update()
+        )
+        row = row.scalar_one_or_none()
+        if not row:
+            return None
+        row.used = True
+        row.used_by = None
+        row.used_at = None
+        await session.commit()
+        return row.code
+
+    async def use_redeem_code(self, code: str, user_id: int) -> bool:
+        session = await self._session()
+        from datetime import datetime, timezone, timedelta
+        ISTt = timezone(timedelta(hours=5, minutes=30))
+        row = await session.execute(
+            select(RedeemCodeTable).where(
+                RedeemCodeTable.code == code,
+                RedeemCodeTable.used == False,
+            ).with_for_update()
+        )
+        row = row.scalar_one_or_none()
+        if not row:
+            return False
+        row.used = True
+        row.used_by = user_id
+        row.used_at = datetime.now(ISTt).isoformat()
+        await session.commit()
+        return True
+
+    async def get_redeem_code_inventory(self) -> List[dict]:
+        session = await self._session()
+        amounts = [10, 25, 50, 100, 250, 500]
+        result = []
+        for amt in amounts:
+            total = await session.execute(
+                select(func.count(RedeemCodeTable.id))
+                .where(RedeemCodeTable.amount == amt)
+            )
+            used = await session.execute(
+                select(func.count(RedeemCodeTable.id))
+                .where(RedeemCodeTable.amount == amt, RedeemCodeTable.used == True)
+            )
+            total = total.scalar() or 0
+            used = used.scalar() or 0
+            result.append({
+                "amount": amt,
+                "total": total,
+                "used": used,
+                "available": total - used,
+            })
+        return result
+
+    async def get_redeem_codes_by_amount(self, amount: float, page: int = 0, per_page: int = 20) -> dict:
+        session = await self._session()
+        total = await session.execute(
+            select(func.count(RedeemCodeTable.id))
+            .where(RedeemCodeTable.amount == amount, RedeemCodeTable.used == False)
+        )
+        total = total.scalar() or 0
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        rows = await session.execute(
+            select(RedeemCodeTable)
+            .where(RedeemCodeTable.amount == amount, RedeemCodeTable.used == False)
+            .offset(page * per_page)
+            .limit(per_page)
+        )
+        codes = [r.code for r in rows.scalars().all()]
+        return {"codes": codes, "total": total, "page": page, "total_pages": total_pages}
+
+    async def check_redeem_low_stock(self) -> List[dict]:
+        session = await self._session()
+        threshold = await self.get_setting("redeem_low_stock_threshold", 5)
+        amounts = [10, 25, 50, 100, 250, 500]
+        low = []
+        for amt in amounts:
+            avail = await session.execute(
+                select(func.count(RedeemCodeTable.id))
+                .where(RedeemCodeTable.amount == amt, RedeemCodeTable.used == False)
+            )
+            avail = avail.scalar() or 0
+            if avail <= threshold:
+                low.append({"amount": amt, "available": avail, "threshold": threshold})
+        return low
+
+    async def delete_redeem_code(self, code: str) -> bool:
+        session = await self._session()
+        row = await session.execute(
+            select(RedeemCodeTable).where(RedeemCodeTable.code == code)
+        )
+        row = row.scalar_one_or_none()
+        if not row:
+            return False
+        await session.delete(row)
+        await session.commit()
+        return True
+
+    # =========================================================================
+    # DEVICE VERIFICATION
+    # =========================================================================
+
+    async def store_device_fingerprint(self, device_hash: str, user_id: int) -> bool:
+        session = await self._session()
+        existing = await session.execute(
+            select(DeviceFingerprintTable).where(DeviceFingerprintTable.device_hash == device_hash)
+        )
+        if existing.scalar_one_or_none():
+            return False
+        session.add(DeviceFingerprintTable(device_hash=device_hash, user_id=user_id))
+        await self.update_user_fields(user_id, device_verified=True)
+        await session.commit()
+        return True
+
+    async def get_device_fingerprint_user(self, device_hash: str) -> Optional[int]:
+        session = await self._session()
+        row = await session.execute(
+            select(DeviceFingerprintTable).where(DeviceFingerprintTable.device_hash == device_hash)
+        )
+        row = row.scalar_one_or_none()
+        if row:
+            return row.user_id
+        return None
 
     # =========================================================================
     # SETTINGS OPERATIONS

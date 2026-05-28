@@ -1,110 +1,150 @@
 """
-security.py — Security dashboard and admin auditing logs.
+security.py — Security dashboard: Contact Mandatory, Device Verification, URL config.
 """
 from __future__ import annotations
 
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler
+from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
 
 from bot.database import get_db, Repository
 from bot.admin.panel import is_admin
-from bot.keyboards.admin_kb import security_menu
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 
 async def admin_security_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show the security and log viewer options."""
+    """Show security dashboard with Contact/Device toggles."""
     query = update.callback_query
     if not query or not is_admin(query.from_user.id):
         return
 
+    context.user_data.pop("admin_state", None)
+    repository = Repository(await get_db())
+
+    contact = await repository.get_setting("require_contact", True)
+    device = await repository.get_setting("device_verification_enabled", False)
+    verif_url = await repository.get_setting("device_verification_url", "")
+
     text = (
-        "🔒 <b>Security & Operations Logs</b>\n\n"
-        "Audit administrative logs to inspect balance adjustments, warnings, bans, "
-        "and settings modifications performed by all administrators."
+        "🔒 <b>Security Dashboard</b>\n\n"
+        f"📞 <b>Contact Mandatory:</b> {'ON ✅' if contact else 'OFF ❌'}\n"
+        f"🔐 <b>Device Verification:</b> {'ON ✅' if device else 'OFF ❌'}\n"
+        + (f"🌐 <b>Verify URL:</b> <code>{verif_url}</code>\n" if verif_url else "")
+        + "\nToggle options below. Only one verification method can be active at a time."
+    )
+
+    from bot.keyboards.admin_kb import security_menu
+    await query.edit_message_text(text=text, reply_markup=security_menu(contact, device), parse_mode="HTML")
+    await query.answer()
+
+
+async def admin_sec_toggle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Toggle Contact Mandatory ON/OFF. Disables Device Verification when ON."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    repository = Repository(await get_db())
+    current = await repository.get_setting("require_contact", True)
+    new_val = not current
+    await repository.update_setting("require_contact", new_val)
+    if new_val:
+        await repository.update_setting("device_verification_enabled", False)
+    await query.answer(f"Contact Mandatory {'ON ✅' if new_val else 'OFF ❌'}!")
+    await admin_security_menu_handler(update, context)
+
+
+async def admin_sec_toggle_device(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Toggle Device Verification ON/OFF. Disables Contact when ON."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    repository = Repository(await get_db())
+    current = await repository.get_setting("device_verification_enabled", False)
+    new_val = not current
+    await repository.update_setting("device_verification_enabled", new_val)
+    if new_val:
+        await repository.update_setting("require_contact", False)
+    await query.answer(f"Device Verification {'ON ✅' if new_val else 'OFF ❌'}!")
+    await admin_security_menu_handler(update, context)
+
+
+async def admin_sec_set_url_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Prompt admin to set device verification URL."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    context.user_data["admin_state"] = "sec_set_verif_url"
+    repository = Repository(await get_db())
+    current = await repository.get_setting("device_verification_url", "")
+
+    text = (
+        "🔧 <b>Set Device Verification URL</b>\n\n"
+        "Send the Vercel deployment URL for the verification page.\n"
+        "Example: <code>https://verify-taskhub.vercel.app</code>\n\n"
+        f"Current: {f'<code>{current}</code>' if current else '<i>Not set</i>'}\n\n"
+        "Tap ❌ Cancel to abort."
     )
 
     await query.edit_message_text(
         text=text,
-        reply_markup=security_menu(),
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ Cancel", callback_data="admin:security_menu")]
+        ]),
         parse_mode="HTML"
     )
     await query.answer()
 
 
-async def admin_sec_logs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """View paginated admin log history."""
-    query = update.callback_query
-    if not query or not is_admin(query.from_user.id):
+async def admin_sec_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Process text input for security settings."""
+    admin_state = context.user_data.get("admin_state", "")
+    if not admin_state.startswith("sec_"):
         return
 
-    page = int(query.data.split(":")[2])
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        return
+
+    msg = update.message
+    text = msg.text.strip()
     repository = Repository(await get_db())
 
-    # Get last 50 admin logs
-    logs = await repository.get_admin_logs(limit=50)
-    if not logs:
-        await query.answer("No administrative logs found.", show_alert=True)
-        return
+    if admin_state == "sec_set_verif_url":
+        url = text.rstrip("/")
+        if not settings.is_production:
+            url = url.replace("localhost", "127.0.0.1")
+        await repository.update_setting("device_verification_url", url)
+        await msg.reply_text(f"✅ Verification URL set to:\n<code>{url}</code>", parse_mode="HTML")
 
-    per_page = 5
-    total_pages = (len(logs) + per_page - 1) // per_page
-    
-    if page < 0:
-        page = 0
-    elif page >= total_pages:
-        page = total_pages - 1
-
-    start_idx = page * per_page
-    end_idx = start_idx + per_page
-    page_logs = logs[start_idx:end_idx]
-
-    lines = []
-    for doc in page_logs:
-        date = doc["timestamp"].split("T")[0] if "T" in doc["timestamp"] else doc["timestamp"]
-        admin = doc["admin_id"]
-        action = doc["action"].upper()
-        target = doc.get("target") or "System"
-        details = doc.get("details", {})
-        
-        detail_desc = ""
-        if action == "BALANCE_ADJUST":
-            detail_desc = f" (Amount: {details.get('amount')})"
-        elif action == "WARN_ADD":
-            detail_desc = f" (Warning total: {details.get('new_warnings')})"
-
-        lines.append(
-            f"📅 <b>{date}</b> | Admin <code>{admin}</code>\n"
-            f"└ <b>{action}</b> target <code>{target}</code>{detail_desc}"
-        )
-
+    context.user_data.pop("admin_state", None)
+    # Re-fetch and show the security menu as a new message
+    contact = await repository.get_setting("require_contact", True)
+    device = await repository.get_setting("device_verification_enabled", False)
+    new_verif_url = await repository.get_setting("device_verification_url", "")
     text = (
-        f"📜 <b>Admin Action Logs (Page {page+1}/{total_pages})</b>\n\n"
-        + "\n\n".join(lines)
+        "🔒 <b>Security Dashboard</b>\n\n"
+        f"📞 <b>Contact Mandatory:</b> {'ON ✅' if contact else 'OFF ❌'}\n"
+        f"🔐 <b>Device Verification:</b> {'ON ✅' if device else 'OFF ❌'}\n"
+        + (f"🌐 <b>Verify URL:</b> <code>{new_verif_url}</code>\n" if new_verif_url else "")
+        + "\nToggle options below. Only one verification method can be active at a time."
     )
-
-    # Navigation keys
-    nav_row = []
-    if page > 0:
-        nav_row.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"admin:sec_logs:{page-1}"))
-    if page < total_pages - 1:
-        nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"admin:sec_logs:{page+1}"))
-
-    keyboard = []
-    if nav_row:
-        keyboard.append(nav_row)
-    keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="admin:security_menu")])
-
-    await query.edit_message_text(
-        text=text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode="HTML"
-    )
+    from bot.keyboards.admin_kb import security_menu
+    await msg.reply_text(text=text, reply_markup=security_menu(contact, device), parse_mode="HTML")
 
 
 def register_handlers(application) -> None:
     """Register security handlers."""
     application.add_handler(CallbackQueryHandler(admin_security_menu_handler, pattern="^admin:security_menu$"))
-    application.add_handler(CallbackQueryHandler(admin_sec_logs_handler, pattern="^admin:sec_logs:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_sec_toggle_contact, pattern="^admin:sec_toggle_contact$"))
+    application.add_handler(CallbackQueryHandler(admin_sec_toggle_device, pattern="^admin:sec_toggle_device$"))
+    application.add_handler(CallbackQueryHandler(admin_sec_set_url_start, pattern="^admin:sec_set_verif_url$"))
+
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        admin_sec_text_handler
+    ), group=8)

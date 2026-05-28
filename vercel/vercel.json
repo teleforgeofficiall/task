@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/verify/:user_id",
+      "destination": "/verify.html"
+    }
+  ]
+}

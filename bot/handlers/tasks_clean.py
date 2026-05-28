@@ -50,7 +50,7 @@ async def tasks_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "<blockquote>???? <b>Amazing! You have completed all available tasks.</b>\n"
             "Check back later for new tasks, or refer friends to keep earning!</blockquote>"
         )
-        banner_url = await repository.get_image("img_treasure")
+        banner_url = await repository.get_image("img_tasks_list")
         await edit_or_reply(
             update=update,
             context=context,
@@ -82,7 +82,7 @@ async def tasks_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"Rewards are credited instantly for channel joins, and upon review for manual tasks.</blockquote>"
     )
 
-    banner_url = await repository.get_image("img_treasure")
+    banner_url = await repository.get_image("img_tasks_list")
     await edit_or_reply(
         update=update,
         context=context,

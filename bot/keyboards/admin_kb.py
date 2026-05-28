@@ -26,9 +26,10 @@ def admin_main_menu() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("💳 Withdrawals", callback_data="admin:withdraws_menu"),
-            InlineKeyboardButton("💰 Wd Config", callback_data="admin:withdraw_config"),
+            InlineKeyboardButton("🎫 Google Redeem", callback_data="admin:redeem_manager"),
         ],
         [
+            InlineKeyboardButton("💰 Wd Config", callback_data="admin:withdraw_config"),
             InlineKeyboardButton("📢 Broadcast", callback_data="admin:broadcast_menu"),
         ],
         [
@@ -147,20 +148,42 @@ def proof_review_keyboard(proof_id: int, page: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def withdraws_menu() -> InlineKeyboardMarkup:
-    """Withdrawals management menu."""
+def withdraws_menu(upi: int = 0, redeem: int = 0, stars: int = 0) -> InlineKeyboardMarkup:
+    """Withdrawals management menu with live pending counts."""
+    upi_label = f"⏳ UPI Pending ({upi})" if upi else "⏳ UPI Pending"
+    stars_label = f"⭐ Stars Pending ({stars})" if stars else "⭐ Stars Pending"
     keyboard = [
-        [InlineKeyboardButton("⏳ Review Pending Withdrawals", callback_data="admin:withdraws_queue:0")],
-        [InlineKeyboardButton("🎫 Redeem Pending", callback_data="admin:redeems_queue:0")],
+        [InlineKeyboardButton(upi_label, callback_data="admin:withdraws_queue:0")],
+        [InlineKeyboardButton(stars_label, callback_data="admin:stars_queue:0")],
+        [InlineKeyboardButton("🎫 Google Redeem Manager", callback_data="admin:redeem_manager")],
         [InlineKeyboardButton("🔙 Back to Main", callback_data="admin:main")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
+def redeem_code_manager_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [InlineKeyboardButton("➕ Add Code", callback_data="admin:rc_add_code")],
+        [InlineKeyboardButton("⚙️ Settings", callback_data="admin:rc_settings")],
+        [InlineKeyboardButton("🔙 Back to Menu", callback_data="admin:withdraws_menu")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def redeem_code_settings_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [InlineKeyboardButton("🔽 Set Low Stock Threshold", callback_data="admin:rc_set_threshold")],
+        [InlineKeyboardButton("🟢 Toggle Stock Enabled", callback_data="admin:rc_toggle")],
+        [InlineKeyboardButton("🔙 Back", callback_data="admin:redeem_manager")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
 def withdrawal_alert_keyboard(user_id: int, wid: int) -> InlineKeyboardMarkup:
-    """Keyboard for withdrawal admin alert — view profile."""
+    """Keyboard for withdrawal admin alert — view profile + go to queue."""
     keyboard = [
         [InlineKeyboardButton("👤 View User Profile", callback_data=f"admin:usr_profile_{user_id}")],
+        [InlineKeyboardButton("💳 Go to Withdrawals", callback_data="admin:withdraws_menu")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -173,8 +196,38 @@ def withdraw_config_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("📅 Set Daily Limit", callback_data="admin:wc_set_daily"),
+            InlineKeyboardButton("⭐ Star Config", callback_data="admin:star_config"),
         ],
         [InlineKeyboardButton("🔙 Back to Main", callback_data="admin:main")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def star_config_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [
+            InlineKeyboardButton("⭐ Set Star Rate (₹)", callback_data="admin:sc_set_rate"),
+            InlineKeyboardButton("🔽 Min Stars", callback_data="admin:sc_set_min_stars"),
+        ],
+        [
+            InlineKeyboardButton("🔼 Max Stars", callback_data="admin:sc_set_max_stars"),
+            InlineKeyboardButton("🟢 Toggle Enable", callback_data="admin:sc_toggle_enable"),
+        ],
+        [InlineKeyboardButton("🔙 Back", callback_data="admin:withdraw_config")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def star_withdrawal_action_keyboard(wid: int, page: int) -> InlineKeyboardMarkup:
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Approve (Mark Paid)", callback_data=f"admin:star_decide:approve:{wid}:{page}"),
+            InlineKeyboardButton("❌ Reject & Refund", callback_data=f"admin:star_decide:reject:{wid}:{page}"),
+        ],
+        [
+            InlineKeyboardButton("❌ Reject with Reason", callback_data=f"admin:star_reason:{wid}:{page}"),
+            InlineKeyboardButton("🔙 Back to Queue", callback_data=f"admin:stars_queue:{page}"),
+        ]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -217,14 +270,12 @@ def broadcast_cancel_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
-def settings_menu(require_contact: bool, refer_paused: bool) -> InlineKeyboardMarkup:
+def settings_menu(require_contact: bool = True, refer_paused: bool = False) -> InlineKeyboardMarkup:
     """General settings dashboard."""
-    contact_toggle = "🟢 Contact Mandatory" if require_contact else "🔴 Contact Optional"
     referral_toggle = "🔴 Referrals Paused" if refer_paused else "🟢 Referrals Active"
     
     keyboard = [
         [
-            InlineKeyboardButton(contact_toggle, callback_data="admin:set_toggle_contact"),
             InlineKeyboardButton(referral_toggle, callback_data="admin:set_toggle_refer"),
         ],
         [
@@ -246,6 +297,9 @@ def settings_menu(require_contact: bool, refer_paused: bool) -> InlineKeyboardMa
         ],
         [
             InlineKeyboardButton("💾 Backup & Restore", callback_data="admin:backup_menu"),
+            InlineKeyboardButton("⚠️ Reset Data", callback_data="admin:reset_data"),
+        ],
+        [
             InlineKeyboardButton("🔙 Back to Main", callback_data="admin:main")
         ]
     ]
@@ -307,6 +361,11 @@ def images_manager_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("📸 Force Subscribe", callback_data="admin:img_replace:img_channel_task"),
+            InlineKeyboardButton("📸 Tasks List", callback_data="admin:img_replace:img_tasks_list"),
+        ],
+        [
+            InlineKeyboardButton("📸 Leaderboard", callback_data="admin:img_replace:img_leaderboard"),
+            InlineKeyboardButton("📸 Google Redeem", callback_data="admin:img_replace:img_redeem_success"),
         ],
         [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")]
     ]
@@ -339,10 +398,14 @@ def custom_cmds_keyboard(commands: dict) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def security_menu() -> InlineKeyboardMarkup:
-    """Security dashboard and logs panel."""
+def security_menu(contact: bool = True, device: bool = False) -> InlineKeyboardMarkup:
+    """Security dashboard with contact/device toggles and URL config."""
+    contact_label = f"📞 Contact Mandatory: {'ON ✅' if contact else 'OFF ❌'}"
+    device_label = f"🔐 Device Verification: {'ON ✅' if device else 'OFF ❌'}"
     keyboard = [
-        [InlineKeyboardButton("📜 View Admin Log History", callback_data="admin:sec_logs:0")],
+        [InlineKeyboardButton(contact_label, callback_data="admin:sec_toggle_contact")],
+        [InlineKeyboardButton(device_label, callback_data="admin:sec_toggle_device")],
+        [InlineKeyboardButton("🔧 Set Verification URL", callback_data="admin:sec_set_verif_url")],
         [InlineKeyboardButton("🔙 Back to Main", callback_data="admin:main")]
     ]
     return InlineKeyboardMarkup(keyboard)

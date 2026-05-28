@@ -44,7 +44,7 @@ async def tasks_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "<blockquote>Amazing! You have completed all available tasks.\n"
             "Check back later for new tasks, or refer friends to keep earning!</blockquote>"
         )
-        banner_url = await repository.get_image("img_treasure")
+        banner_url = await repository.get_image("img_tasks_list")
         await edit_or_reply(
             update=update,
             context=context,
@@ -75,7 +75,7 @@ async def tasks_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"🔄 Manual tasks — credited after admin review</blockquote>"
     )
 
-    banner_url = await repository.get_image("img_treasure")
+    banner_url = await repository.get_image("img_tasks_list")
     await edit_or_reply(
         update=update,
         context=context,

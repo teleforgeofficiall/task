@@ -25,7 +25,6 @@ async def admin_settings_menu_handler(update: Update, context: ContextTypes.DEFA
     context.user_data.pop("admin_state", None)
 
     repository = Repository(await get_db())
-    require_contact = await repository.get_setting("require_contact", True)
     refer_paused = await repository.get_setting("refer_paused", False)
     min_w = await repository.get_setting("min_withdraw", 10.0)
     max_w = await repository.get_setting("max_withdraw", 10000.0)
@@ -45,31 +44,13 @@ async def admin_settings_menu_handler(update: Update, context: ContextTypes.DEFA
     try:
         await query.edit_message_text(
             text=text,
-            reply_markup=settings_menu(require_contact, refer_paused),
+            reply_markup=settings_menu(refer_paused=refer_paused),
             parse_mode="HTML"
         )
     except BadRequest as e:
         if "message is not modified" not in str(e).lower():
             raise
     await query.answer()
-
-
-async def admin_settings_toggle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Toggle phone share contact verification requirement."""
-    query = update.callback_query
-    if not query or not is_admin(query.from_user.id):
-        return
-
-    repository = Repository(await get_db())
-    current = await repository.get_setting("require_contact", True)
-    new_val = not current
-    await repository.update_setting("require_contact", new_val)
-    
-    status = "mandatory" if new_val else "optional"
-    await query.answer(f"Phone verification is now {status}!")
-
-    # Refresh
-    await admin_settings_menu_handler(update, context)
 
 
 async def admin_settings_toggle_refer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -174,13 +155,71 @@ async def admin_settings_text_handler(update: Update, context: ContextTypes.DEFA
     )
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# RESET DATA
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def admin_reset_data_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show reset data confirmation."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    await query.edit_message_text(
+        text=(
+            "⚠️ <b>Reset All Data</b>\n\n"
+            "Are you sure? This will <b>permanently delete ALL</b> data:\n"
+            "• All users, balances & history\n"
+            "• All tasks & proofs\n"
+            "• All withdrawals & transactions\n"
+            "• All settings will reset to defaults\n\n"
+            "<b>This action cannot be undone!</b>"
+        ),
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Yes, Reset Everything", callback_data="admin:reset_data_confirm")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="admin:settings_menu")]
+        ]),
+        parse_mode="HTML"
+    )
+    await query.answer()
+
+
+async def admin_reset_data_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Execute full database reset."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    from bot.database.session import reset_all_data
+
+    try:
+        await reset_all_data()
+        await query.edit_message_text(
+            "✅ <b>All data has been reset to factory defaults.</b>\n\n"
+            "The bot is ready for fresh use.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back to Admin", callback_data="admin:main")]
+            ]),
+            parse_mode="HTML"
+        )
+        await query.answer("✅ Database reset complete!")
+    except Exception as exc:
+        logger.exception("Reset failed: %s", exc)
+        await query.edit_message_text(
+            f"❌ <b>Reset failed:</b> {escape_html(str(exc))}",
+            parse_mode="HTML"
+        )
+        await query.answer("❌ Reset failed!")
+
+
 def register_handlers(application) -> None:
     """Register settings admin handlers."""
     application.add_handler(CallbackQueryHandler(admin_settings_menu_handler, pattern="^admin:settings_menu$"))
-    application.add_handler(CallbackQueryHandler(admin_settings_toggle_contact, pattern="^admin:set_toggle_contact$"))
     application.add_handler(CallbackQueryHandler(admin_settings_toggle_refer, pattern="^admin:set_toggle_refer$"))
     application.add_handler(CallbackQueryHandler(admin_messages_menu_handler, pattern="^admin:set_messages$"))
     application.add_handler(CallbackQueryHandler(admin_msg_edit_start, pattern="^admin:msg_edit:[a-z_]+$"))
+    application.add_handler(CallbackQueryHandler(admin_reset_data_start, pattern="^admin:reset_data$"))
+    application.add_handler(CallbackQueryHandler(admin_reset_data_confirm, pattern="^admin:reset_data_confirm$"))
     
     # Text input handlers for updating templates
     application.add_handler(MessageHandler(

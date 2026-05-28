@@ -329,5 +329,5 @@ def register_handlers(application) -> None:
     # File upload handler for restore
     application.add_handler(
         MessageHandler(filters.Document.FileExtension("gz"), backup_create_file_handler),
-        group=6,
+        group=18,
     )

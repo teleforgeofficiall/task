@@ -40,7 +40,7 @@ async def notify_user(
             if user:
                 notifs = user.notifications[:49]  # keep max 50
                 notifs.insert(0, text[:200])
-                await repository.update_user(user_id, {"notifications": notifs})
+                await repository.update_user_fields(user_id, notifications=notifs)
         return True
     except Forbidden:
         logger.info("Failed to notify user %d: Bot was blocked by the user.", user_id)

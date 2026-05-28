@@ -91,4 +91,4 @@ def register_router(application) -> None:
     application.add_handler(CallbackQueryHandler(
         fallback_callback_handler,
         pattern=".*"
-    ), group=9)
+    ), group=19)

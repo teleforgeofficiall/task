@@ -145,6 +145,90 @@ async def db_health_detail():
     }
 
 
+@app.get("/api/user/{user_id}")
+async def api_user_info(user_id: int):
+    """Return user profile info for device verification page."""
+    from bot.database import get_db, Repository
+    db = await get_db()
+    repo = Repository(db)
+    user = await repo.get_user(user_id)
+    if not user:
+        return {"ok": False, "error": "User not found"}
+    try:
+        photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
+        pfp_url = photos.photos[0][-1].file_id if photos.photos else ""
+    except Exception:
+        pfp_url = ""
+    return {
+        "ok": True,
+        "user": {
+            "id": user.user_id,
+            "first_name": user.first_name,
+            "username": user.username,
+            "pfp_url": pfp_url,
+        },
+    }
+
+
+@app.post("/api/verify-device")
+async def api_verify_device(request: Request):
+    """Store device fingerprint and verify device uniqueness."""
+    from bot.database import get_db, Repository
+    from fastapi import HTTPException
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    device_hash = data.get("device_hash")
+    user_id = data.get("user_id")
+    if not device_hash or not user_id:
+        raise HTTPException(status_code=400, detail="Missing device_hash or user_id")
+    db = await get_db()
+    repo = Repository(db)
+    # Check if device_hash already used
+    existing_user = await repo.get_device_fingerprint_user(device_hash)
+    if existing_user is not None:
+        return {"ok": False, "error": "Device already registered", "existing_user": existing_user}
+    success = await repo.store_device_fingerprint(device_hash, user_id)
+    if not success:
+        return {"ok": False, "error": "Failed to store fingerprint"}
+    return {"ok": True, "message": "Device verified"}
+
+
+@app.get("/api/user/{user_id}/photo")
+async def api_user_photo(user_id: int):
+    """Return downloadable URL for user's profile photo."""
+    try:
+        photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
+        if not photos.photos:
+            return {"ok": False, "error": "No photo"}
+        file_id = photos.photos[0][-1].file_id
+        file = await ptb_app.bot.get_file(file_id)
+        return {"ok": True, "url": file.file_path}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@app.get("/verify/{user_id}")
+async def verify_page(user_id: int):
+    """Serve the device verification HTML page with bot username injected."""
+    import os
+    bot_username = ""
+    try:
+        bot_user = await ptb_app.bot.get_me()
+        bot_username = bot_user.username or ""
+    except Exception:
+        pass
+    html_path = os.path.join(os.path.dirname(__file__), "..", "vercel", "verify.html")
+    if os.path.exists(html_path):
+        with open(html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+    else:
+        html = "<html><body><h2>Verification page not found</h2></body></html>"
+    html = html.replace("__BOT_USERNAME__", bot_username)
+    return Response(content=html, media_type="text/html")
+
+
 @app.post("/webhook")
 async def webhook_handler(request: Request):
     """Telegram Webhook Update Endpoint."""
