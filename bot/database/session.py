@@ -62,8 +62,8 @@ async def init_db() -> None:
         if is_postgres:
             _engine = create_async_engine(
                 database_url,
-                pool_size=20,
-                max_overflow=10,
+                pool_size=5,
+                max_overflow=3,
                 pool_pre_ping=True,
                 pool_recycle=3600,
                 echo=False,
