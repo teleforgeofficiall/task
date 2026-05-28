@@ -70,7 +70,7 @@ async def init_db() -> None:
                 connect_args={
                     "command_timeout": 30,
                     "ssl": "require" if settings.is_production else "prefer",
-                    "prepared_statement_cache_size": 0,
+                    "statement_cache_size": 0,
                 },
             )
         else:
