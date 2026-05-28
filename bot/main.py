@@ -117,6 +117,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+@app.get("/")
+async def root():
+    return Response(content="Bot is Running", media_type="text/plain")
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint for Render deployment."""
