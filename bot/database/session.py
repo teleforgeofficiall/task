@@ -35,18 +35,19 @@ def get_database_url() -> str:
     """Return the async database connection string."""
     url = settings.DATABASE_URL
     if url:
-        if not url.startswith("postgresql+asyncpg://") and "postgres" in url:
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-        if "postgres" in url and "prepared_statement_cache_size" not in url:
-            sep = "&" if "?" in url else "?"
-            url = f"{url}{sep}prepared_statement_cache_size=0"
+        if "postgresql+asyncpg://" in url:
+            url = url.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
+            url = url.replace("?prepared_statement_cache_size=0", "")
+        elif "postgresql+psycopg://" not in url and "postgres" in url:
+            url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+            url = url.replace("postgres://", "postgresql+psycopg://", 1)
+            url = url.split("?")[0]
         return url
     # Fallback to SQLite for local development
     if not settings.is_production:
         return "sqlite+aiosqlite:///./taskhub.db"
     # Production: build from components
-    url = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}?prepared_statement_cache_size=0"
+    url = f"postgresql+psycopg://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
     return url
 
 
@@ -74,10 +75,7 @@ async def init_db() -> None:
                 pool_recycle=1800,
                 echo=False,
                 connect_args={
-                    "prepared_statement_cache_size": 0,
-                    "statement_cache_size": 0,
-                    "command_timeout": 30,
-                    "ssl": "require" if settings.is_production else "prefer",
+                    "sslmode": "require" if settings.is_production else "prefer",
                 },
             )
         else:
@@ -210,10 +208,6 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
     async with _session_factory() as session:  # type: ignore[union-attr]
         try:
-            await session.execute(text("DEALLOCATE ALL"))
-        except Exception:
-            pass
-        try:
             yield session
             await session.commit()
         except Exception:
@@ -225,12 +219,7 @@ async def get_db() -> AsyncSession:
     """Return a standalone session (for backward compatibility with get_db() calls)."""
     if _session_factory is None:
         await init_db()
-    session = _session_factory()  # type: ignore[union-attr]
-    try:
-        await session.execute(text("DEALLOCATE ALL"))
-    except Exception:
-        pass
-    return session
+    return _session_factory()  # type: ignore[union-attr]
 
 
 async def close_db() -> None:

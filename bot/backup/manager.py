@@ -30,6 +30,7 @@ class BackupError(Exception):
 
 def _parse_db_url(url: str) -> dict:
     """Parse a PostgreSQL connection string into components."""
+    url = url.replace("postgresql+psycopg://", "postgresql://", 1)
     url = url.replace("postgresql+asyncpg://", "postgresql://", 1)
     url = url.replace("postgres://", "postgresql://", 1)
     parts = url.replace("postgresql://", "").split("@")

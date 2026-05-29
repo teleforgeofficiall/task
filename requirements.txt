@@ -9,6 +9,7 @@ pydantic-settings==2.5.2
 
 # Database (PostgreSQL)
 sqlalchemy[asyncio]==2.0.35
+psycopg[binary]==3.2.3
 asyncpg==0.29.0
 alembic==1.13.2
 aiosqlite==0.22.1
