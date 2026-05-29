@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager
 
@@ -56,6 +57,13 @@ ptb_app.add_error_handler(global_error_handler)
 async def lifespan(app: FastAPI):
     """Handles async startup and shutdown hooks cleanly."""
     try:
+        _webhook_url = settings.WEBHOOK_URL
+        if not _webhook_url:
+            render_url = os.environ.get("RENDER_EXTERNAL_URL", "")
+            if render_url:
+                _webhook_url = render_url
+                logger.info("Auto-detected Render URL: %s", _webhook_url)
+
         # Initialize database tables and defaults
         await init_db()
         db = await get_db()
@@ -79,8 +87,8 @@ async def lifespan(app: FastAPI):
             await ptb_app.start()
 
             # Start listening for updates
-            if settings.WEBHOOK_URL:
-                webhook_uri = f"{settings.WEBHOOK_URL}/webhook"
+            if _webhook_url:
+                webhook_uri = f"{_webhook_url}/webhook"
                 await ptb_app.bot.set_webhook(
                     url=webhook_uri,
                     secret_token=settings.WEBHOOK_SECRET if settings.WEBHOOK_SECRET else None
@@ -98,7 +106,7 @@ async def lifespan(app: FastAPI):
         logger.info("Stopping bot service...")
         if not settings.DISABLE_TELEGRAM_NETWORK:
             try:
-                if not settings.WEBHOOK_URL:
+                if not _webhook_url:
                     await ptb_app.updater.stop()
                 await ptb_app.stop()
                 await ptb_app.shutdown()

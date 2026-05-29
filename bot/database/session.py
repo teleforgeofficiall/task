@@ -258,11 +258,9 @@ async def reset_all_data() -> None:
     ]
 
     async with _engine.begin() as conn:
-        await conn.execute(text("SET session_replication_role = 'replica'"))
         for table_name in table_names:
             await conn.execute(text(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE"))
             logger.info("Truncated %s", table_name)
-        await conn.execute(text("SET session_replication_role = 'origin'"))
 
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
