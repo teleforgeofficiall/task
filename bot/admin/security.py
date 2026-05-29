@@ -84,7 +84,7 @@ async def admin_sec_set_url_start(update: Update, context: ContextTypes.DEFAULT_
 
     text = (
         "🔧 <b>Set Device Verification URL</b>\n\n"
-        "Send the Vercel deployment URL for the verification page.\n"
+        "Send the Render deployment URL for the verification page.\n"
         "Example: <code>https://teleforge-task-earn.onrender.com</code>\n\n"
         f"Current: {f'<code>{current}</code>' if current else '<i>Not set</i>'}\n\n"
         "Tap ❌ Cancel to abort."

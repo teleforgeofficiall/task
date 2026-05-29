@@ -140,7 +140,6 @@ async def game_dice_play_handler(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     if not query:
         return
-    await query.answer()
     parts = query.data.split(":")
     amount = float(parts[3])
     user_id = query.from_user.id
@@ -211,7 +210,6 @@ async def game_slots_play_handler(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     if not query:
         return
-    await query.answer()
     parts = query.data.split(":")
     amount = float(parts[3])
     user_id = query.from_user.id
@@ -288,7 +286,6 @@ async def game_mines_start_handler(update: Update, context: ContextTypes.DEFAULT
     query = update.callback_query
     if not query:
         return
-    await query.answer()
     parts = query.data.split(":")
     amount = float(parts[3])
     user_id = query.from_user.id
@@ -448,7 +445,6 @@ async def game_crash_start_handler(update: Update, context: ContextTypes.DEFAULT
     query = update.callback_query
     if not query:
         return
-    await query.answer()
     parts = query.data.split(":")
     amount = float(parts[3])
     user_id = query.from_user.id

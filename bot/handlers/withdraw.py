@@ -314,48 +314,7 @@ async def withdraw_amount_sel_handler(update: Update, context: ContextTypes.DEFA
             await query.answer(f"❌ Daily withdrawal limit reached ({daily_limit}/day).", show_alert=True)
             return
 
-    if method == "upi":
-        if await repository.has_pending_withdrawal(user_id):
-            await query.answer("❌ You already have a pending withdrawal request.", show_alert=True)
-            return
-
-        context.user_data.pop("state", None)
-
-        await repository.debit_balance(
-            user_id=user_id, amount=amount,
-            tx_type="withdrawal_pending",
-            description=f"Withdrawal request of {format_currency(amount)} via UPI"
-        )
-
-        w_req = await repository.add_withdrawal(user_id, amount, extra, method="upi")
-
-        await query.answer()
-        success_text = (
-            f"✅ <b>Withdrawal Submitted</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"• <b>Request ID:</b> <code>#{w_req.id}</code>\n"
-            f"• <b>Amount:</b> <code>{format_currency(amount)}</code>\n"
-            f"• <b>Method:</b> 💳 UPI\n"
-            f"• <b>Target UPI:</b> <code>{extra}</code>\n"
-            f"━━━━━━━━━━━━━━━━━━\n\n"
-            f"<blockquote>⏰ Your request will be reviewed by an admin within 24–48 hours.\n"
-            f"⚠️ Any suspicious activity may result in account suspension.</blockquote>"
-        )
-
-        await edit_or_reply(
-            update=update,
-            context=context,
-            text=success_text,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📋 Back to Wallet", callback_data="menu:wallet")]
-            ])
-        )
-
-        await send_admin_withdrawal_alert(
-            context.bot, repository, user, w_req.id, amount,
-            method_label="UPI 💳", target_detail=extra
-        )
-    else:
+    if method == "redeem":
         # Redeem: instant flow — check inventory, assign code, mark paid
         redeem_enabled = await repository.get_setting("redeem_stock_enabled", True)
         if not redeem_enabled:
@@ -487,9 +446,81 @@ async def withdraw_text_input_handler(update: Update, context: ContextTypes.DEFA
             f"<b>UPI Target:</b> <code>{text}</code>\n"
             f"<b>Available Balance:</b> <code>{format_currency(user.balance)}</code>\n"
             f"━━━━━━━━━━━━━━━━━━\n\n"
-            "Select the amount you wish to withdraw:",
+            "Please send the amount you wish to withdraw (e.g. <code>100</code>):",
+            parse_mode="HTML"
+        )
+        return
+
+    # ── Step 2: Receiving amount for UPI Withdrawal ──────────────────────────
+    if state.startswith("withdraw_awaiting_amount_upi|"):
+        upi_id = state.split("|", 1)[1]
+        try:
+            amount = float(text)
+        except ValueError:
+            await msg.reply_text("❌ Invalid amount. Please enter a valid number.")
+            return
+
+        if amount <= 0:
+            await msg.reply_text("❌ Amount must be greater than 0.")
+            return
+
+        min_w = await repository.get_setting("min_withdraw", 10.0)
+        max_w = await repository.get_setting("max_withdraw", 10000.0)
+
+        if amount < min_w:
+            await msg.reply_text(f"❌ Minimum withdrawal amount is {format_currency(min_w)}.")
+            return
+        if amount > max_w:
+            await msg.reply_text(f"❌ Maximum withdrawal amount is {format_currency(max_w)}.")
+            return
+        if amount > user.balance:
+            await msg.reply_text(f"❌ Insufficient balance! You need {format_currency(amount)} but have {format_currency(user.balance)}.")
+            return
+
+        daily_limit = await repository.get_setting("daily_withdraw_limit", 3)
+        if daily_limit > 0:
+            today_count = await repository.count_today_withdrawals(user_id)
+            if today_count >= daily_limit:
+                await msg.reply_text(f"❌ Daily withdrawal limit reached ({daily_limit}/day).")
+                return
+
+        if await repository.has_pending_withdrawal(user_id):
+            await msg.reply_text("❌ You already have a pending withdrawal request.")
+            return
+
+        context.user_data.pop("state", None)
+
+        await repository.debit_balance(
+            user_id=user_id, amount=amount,
+            tx_type="withdrawal_pending",
+            description=f"Withdrawal request of {format_currency(amount)} via UPI"
+        )
+
+        w_req = await repository.add_withdrawal(user_id, amount, upi_id, method="upi")
+
+        success_text = (
+            f"✅ <b>Withdrawal Submitted</b>\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"• <b>Request ID:</b> <code>#{w_req.id}</code>\n"
+            f"• <b>Amount:</b> <code>{format_currency(amount)}</code>\n"
+            f"• <b>Method:</b> 💳 UPI\n"
+            f"• <b>Target UPI:</b> <code>{upi_id}</code>\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"<blockquote>⏰ Your request will be reviewed by an admin within 24–48 hours.\n"
+            f"⚠️ Any suspicious activity may result in account suspension.</blockquote>"
+        )
+
+        await msg.reply_text(
+            success_text,
             parse_mode="HTML",
-            reply_markup=withdraw_amount_keyboard("upi", text)
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📋 Back to Wallet", callback_data="menu:wallet")]
+            ])
+        )
+
+        await send_admin_withdrawal_alert(
+            context.bot, repository, user, w_req.id, amount,
+            method_label="UPI 💳", target_detail=upi_id
         )
         return
 
