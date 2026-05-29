@@ -12,7 +12,7 @@ from bot.database import get_db, Repository
 from bot.admin.panel import is_admin
 from bot.keyboards.admin_kb import broadcast_menu, back_to_admin
 from bot.services.broadcaster import Broadcaster
-from bot.utils import get_ist_now, format_currency
+from bot.utils import get_ist_now, format_currency, escape_html
 
 logger = logging.getLogger(__name__)
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -140,7 +140,7 @@ async def admin_drop_rain_config_handler(update: Update, context: ContextTypes.D
     # Send progress message
     prog_msg = await msg.reply_text(
         f"💰 <b>Bonus Drop Started!</b>\n\n"
-        f"Sending to <code>{len(all_users)}</code> users...",
+        f"Targeting <code>{len(all_users)}</code> users (max <code>{max_users}</code> claims)",
         parse_mode="HTML"
     )
 
@@ -167,11 +167,13 @@ async def admin_drop_rain_config_handler(update: Update, context: ContextTypes.D
         details={"amount": amount, "max_users": max_users, "drop_id": drop_id}
     )
 
-    # Fire-and-forget broadcast
+    # Fire-and-forget broadcast with fresh session
+    repo_session = await get_db()
+    fresh_repo = Repository(repo_session)
     asyncio.create_task(
         run_bonus_drop_broadcast(
             bot=context.bot,
-            repository=repository,
+            repository=fresh_repo,
             admin_chat_id=user_id,
             progress_message_id=prog_msg.message_id,
             user_ids=all_users,
@@ -192,84 +194,111 @@ async def run_bonus_drop_broadcast(
     blocked = 0
     failed = 0
 
-    for idx, uid in enumerate(user_ids):
-        try:
-            if image_url:
-                await bot.send_photo(
-                    chat_id=uid,
-                    photo=image_url,
-                    caption=caption,
-                    reply_markup=reply_markup,
-                    parse_mode="HTML"
-                )
-            else:
-                await bot.send_message(
-                    chat_id=uid,
-                    text=caption,
-                    reply_markup=reply_markup,
-                    parse_mode="HTML"
-                )
-            sent += 1
-        except (Forbidden, BadRequest):
-            blocked += 1
-        except RetryAfter as e:
-            await asyncio.sleep(e.retry_after)
+    try:
+        for idx, uid in enumerate(user_ids):
             try:
                 if image_url:
-                    await bot.send_photo(chat_id=uid, photo=image_url, caption=caption, reply_markup=reply_markup, parse_mode="HTML")
+                    await bot.send_photo(
+                        chat_id=uid,
+                        photo=image_url,
+                        caption=caption,
+                        reply_markup=reply_markup,
+                        parse_mode="HTML"
+                    )
                 else:
-                    await bot.send_message(chat_id=uid, text=caption, reply_markup=reply_markup, parse_mode="HTML")
+                    await bot.send_message(
+                        chat_id=uid,
+                        text=caption,
+                        reply_markup=reply_markup,
+                        parse_mode="HTML"
+                    )
                 sent += 1
-            except Exception:
+            except (Forbidden, BadRequest):
+                # Fallback: try plain text if photo fails
+                if image_url:
+                    try:
+                        await bot.send_message(chat_id=uid, text=caption, reply_markup=reply_markup, parse_mode="HTML")
+                        sent += 1
+                        continue
+                    except Exception:
+                        pass
                 blocked += 1
-        except Exception:
-            failed += 1
-
-        if (idx + 1) % 25 == 0 or idx == total - 1:
-            try:
-                pct = ((idx + 1) / total) * 100
-                await bot.edit_message_text(
-                    chat_id=admin_chat_id,
-                    message_id=progress_message_id,
-                    text=(
-                        f"💰 <b>Bonus Drop Progress ({pct:.1f}%)</b>\n\n"
-                        f"Total: <code>{total}</code>\n"
-                        f"✅ Sent: <code>{sent}</code>\n"
-                        f"🚫 Blocked: <code>{blocked}</code>\n"
-                        f"❌ Failed: <code>{failed}</code>"
-                    ),
-                    parse_mode="HTML"
-                )
+            except RetryAfter as e:
+                await asyncio.sleep(e.retry_after)
+                try:
+                    if image_url:
+                        await bot.send_photo(chat_id=uid, photo=image_url, caption=caption, reply_markup=reply_markup, parse_mode="HTML")
+                    else:
+                        await bot.send_message(chat_id=uid, text=caption, reply_markup=reply_markup, parse_mode="HTML")
+                    sent += 1
+                except Exception:
+                    blocked += 1
             except Exception:
-                pass
+                failed += 1
 
-        await asyncio.sleep(0.04)
+            if (idx + 1) % 25 == 0 or idx == total - 1:
+                try:
+                    pct = ((idx + 1) / total) * 100
+                    await bot.edit_message_text(
+                        chat_id=admin_chat_id,
+                        message_id=progress_message_id,
+                        text=(
+                            f"💰 <b>Bonus Drop Progress ({pct:.1f}%)</b>\n\n"
+                            f"Total: <code>{total}</code>\n"
+                            f"✅ Sent: <code>{sent}</code>\n"
+                            f"🚫 Blocked: <code>{blocked}</code>\n"
+                            f"❌ Failed: <code>{failed}</code>"
+                        ),
+                        parse_mode="HTML"
+                    )
+                except Exception:
+                    pass
 
-    try:
-        await bot.delete_message(chat_id=admin_chat_id, message_id=progress_message_id)
-    except Exception:
-        pass
+            await asyncio.sleep(0.04)
 
-    await bot.send_message(
-        chat_id=admin_chat_id,
-        text=(
-            f"✅ <b>Bonus Drop Complete!</b>\n\n"
-            f"• Total users targeted: <code>{total}</code>\n"
-            f"• Successfully sent: <code>{sent}</code>\n"
-            f"• Blocked/Invalid: <code>{blocked}</code>\n"
-            f"• Failed: <code>{failed}</code>\n\n"
-            f"Users can now claim via the button in their message."
-        ),
-        reply_markup=back_to_admin(),
-        parse_mode="HTML"
-    )
+        try:
+            await bot.delete_message(chat_id=admin_chat_id, message_id=progress_message_id)
+        except Exception:
+            pass
 
-    await repository.log_admin_action(
-        admin_id=admin_chat_id,
-        action="bonus_drop_finish",
-        target="all_users",
-        details={"sent": sent, "blocked": blocked, "failed": failed, "drop_id": drop_id}
-    )
+        try:
+            await bot.send_message(
+                chat_id=admin_chat_id,
+                text=(
+                    f"✅ <b>Bonus Drop Complete!</b>\n\n"
+                    f"• Total users targeted: <code>{total}</code>\n"
+                    f"• Successfully sent: <code>{sent}</code>\n"
+                    f"• Blocked/Invalid: <code>{blocked}</code>\n"
+                    f"• Failed: <code>{failed}</code>\n\n"
+                    f"Users can now claim via the button in their message."
+                ),
+                reply_markup=back_to_admin(),
+                parse_mode="HTML"
+            )
+        except Exception as exc:
+            logger.error("Failed to send bonus drop summary: %s", exc)
+
+        try:
+            await repository.log_admin_action(
+                admin_id=admin_chat_id,
+                action="bonus_drop_finish",
+                target="all_users",
+                details={"sent": sent, "blocked": blocked, "failed": failed, "drop_id": drop_id}
+            )
+        except Exception as exc:
+            logger.error("Failed to log bonus drop finish: %s", exc)
+
+    except Exception as exc:
+        logger.exception("Bonus drop broadcast crashed: %s", exc)
+        try:
+            await bot.send_message(
+                chat_id=admin_chat_id,
+                text=f"❌ <b>Bonus Drop Failed!</b>\n\n<code>{escape_html(str(exc))}</code>",
+                reply_markup=back_to_admin(),
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
 
 
 # ─── Drop Rain Claim Handler (user-facing) ─────────────────────────────────────
