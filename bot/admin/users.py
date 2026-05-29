@@ -261,6 +261,7 @@ async def admin_user_bal_start(update: Update, context: ContextTypes.DEFAULT_TYP
 
     target_uid = int(query.data.split(":")[2])
     context.user_data["admin_state"] = f"usr_bal_adj_{target_uid}"
+    context.user_data.pop("state", None)
 
     text = (
         "💵 <b>Adjust Wallet Balance</b>\n\n"

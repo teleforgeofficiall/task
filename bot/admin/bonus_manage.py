@@ -82,6 +82,7 @@ async def admin_bonus_set_amount_prompt(update: Update, context: ContextTypes.DE
     if not query or not is_admin(query.from_user.id):
         return
     context.user_data["admin_state"] = "bonus_set_amount"
+    context.user_data.pop("state", None)
     await query.edit_message_text(
         "💰 <b>Set Bonus Reward Amount</b>\n\n"
         "Send the new reward amount (e.g. <code>10</code> for \u20b910).\n\n"
@@ -194,4 +195,4 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(admin_bonus_set_cooldown_menu, pattern="^admin:bonus_set_cooldown$"))
     application.add_handler(CallbackQueryHandler(admin_bonus_set_cooldown_choice, pattern=r"^admin:bonus_cooldown:\d+$"))
     application.add_handler(CallbackQueryHandler(admin_bonus_set_tasks_prompt, pattern="^admin:bonus_set_tasks$"))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_bonus_handle_text))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_bonus_handle_text), group=22)
