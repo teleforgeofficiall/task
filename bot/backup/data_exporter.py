@@ -72,40 +72,46 @@ async def export_all_tables(session: AsyncSession) -> Dict[str, List[Dict[str, A
 
 
 async def import_all_tables(session: AsyncSession, data: Dict[str, List[Dict[str, Any]]]) -> None:
-    """Truncate all tables and insert exported data back using ORM."""
+    """Clear all tables via DELETE and insert exported data back via ORM."""
     for table_name in TABLE_NAMES:
         rows = data.get(table_name, [])
         if rows:
             _deserialize_rows(rows)
 
-    # Build model map: tablename -> class
     model_map = {}
     for sub in _all_subclasses(Base):
         if hasattr(sub, "__tablename__") and sub.__tablename__ in TABLE_NAMES:
             model_map[sub.__tablename__] = sub
 
-    async with session.begin():
-        await session.execute(text("SET session_replication_role = 'replica'"))
-        try:
-            for table_name in TABLE_NAMES:
-                await session.execute(text(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE"))
-                logger.info("Truncated %s", table_name)
+    seq_tables = [
+        "users", "tasks", "proofs", "withdrawals", "redeem_codes",
+        "transactions", "admin_logs", "game_rounds", "backup_records",
+        "game_sessions", "device_fingerprints", "jackpot_events", "retention_events",
+    ]
 
-            for table_name in TABLE_NAMES:
-                rows = data.get(table_name, [])
-                if not rows:
-                    continue
-                model_class = model_map.get(table_name)
-                if model_class is None:
-                    logger.warning("No model class found for %s, skipping", table_name)
-                    continue
-                for row_data in rows:
-                    instance = model_class(**row_data)
-                    session.add(instance)
-                await session.flush()
-                logger.info("Imported %d rows into %s", len(rows), table_name)
-        finally:
-            await session.execute(text("SET session_replication_role = 'origin'"))
+    async with session.begin():
+        for table_name in TABLE_NAMES:
+            await session.execute(text(f"DELETE FROM {table_name}"))
+        for table_name in seq_tables:
+            try:
+                await session.execute(text(f"ALTER SEQUENCE {table_name}_id_seq RESTART WITH 1"))
+            except Exception:
+                pass
+
+    async with session.begin():
+        for table_name in TABLE_NAMES:
+            rows = data.get(table_name, [])
+            if not rows:
+                continue
+            model_class = model_map.get(table_name)
+            if model_class is None:
+                logger.warning("No model class found for %s, skipping", table_name)
+                continue
+            for row_data in rows:
+                instance = model_class(**row_data)
+                session.add(instance)
+            await session.flush()
+            logger.info("Imported %d rows into %s", len(rows), table_name)
     logger.info("Database restore complete")
 
 

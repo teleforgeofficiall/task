@@ -459,18 +459,24 @@ async def backup_github_pull_confirm_handler(update: Update, context: ContextTyp
 
         import json as _json
 
-        db = await get_db()
-
-        # Restore database tables first
+        # Restore database tables — use a fresh session per phase
         if db_bytes:
             all_tables = _json.loads(db_bytes.decode("utf-8"))
-            await import_all_tables(db, all_tables)
+            db1 = await get_db()
+            try:
+                await import_all_tables(db1, all_tables)
+            finally:
+                await db1.close()
             logger.info("Database tables restored from GitHub backup")
 
-        # Restore images
+        # Restore images — fresh session
         if images_bytes:
             images = _json.loads(images_bytes.decode("utf-8"))
-            await import_images_settings(db, images)
+            db2 = await get_db()
+            try:
+                await import_images_settings(db2, images)
+            finally:
+                await db2.close()
             logger.info("Image settings restored from GitHub backup")
 
         text = (
