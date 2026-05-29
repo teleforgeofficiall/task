@@ -18,7 +18,7 @@ from bot.utils import format_currency, escape_html
 logger = logging.getLogger(__name__)
 
 
-REDEEM_AMOUNTS = [10, 25, 50, 100, 250, 500]
+REDEEM_AMOUNTS = [10, 30, 50]
 
 
 async def admin_redeem_manager_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

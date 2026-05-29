@@ -79,7 +79,7 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "min_withdraw": settings.MIN_WITHDRAW,
     "max_withdraw": settings.MAX_WITHDRAW,
     "daily_withdraw_limit": 3,
-    "star_withdraw_tiers": {"1": 3.0, "5": 15.0, "10": 25.0, "25": 55.0, "50": 120.0, "100": 220.0},
+    "star_withdraw_tiers": {"15": 25.0, "30": 50.0},
     "star_withdraw_enabled": True,
     "min_star_withdraw": 1,
     "max_star_withdraw": 500,
