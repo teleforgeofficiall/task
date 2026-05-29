@@ -242,25 +242,34 @@ async def check_db_health() -> bool:
 
 
 async def reset_all_data() -> None:
-    """Drop all tables and recreate them with default seed data."""
+    """Reset all data via TRUNCATE (works through pooler)."""
     global _engine, _session_factory
     from bot.database.models_sql import Base
+    from sqlalchemy import text
 
     if _engine is None:
         await init_db()
 
-    async with _engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        logger.info("All tables dropped.")
+    table_names = [
+        "settings", "game_state", "users", "tasks", "proofs",
+        "withdrawals", "redeem_codes", "transactions", "admin_logs",
+        "game_rounds", "backup_records", "game_sessions",
+        "device_fingerprints", "jackpot_events", "retention_events",
+    ]
 
-    # Recreate and seed
+    async with _engine.begin() as conn:
+        await conn.execute(text("SET session_replication_role = 'replica'"))
+        for table_name in table_names:
+            await conn.execute(text(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE"))
+            logger.info("Truncated %s", table_name)
+        await conn.execute(text("SET session_replication_role = 'origin'"))
+
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Seed defaults
     from bot.database.repository import Repository
     db = await get_db()
     repo = Repository(db)
     await repo.ensure_defaults()
 
-    logger.info("Database reset complete — all tables recreated and seeded.")
+    logger.info("Database reset complete — all tables truncated and seeded.")
