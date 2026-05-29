@@ -494,9 +494,10 @@ async function startVerification() {
 function continueToBot() {
   var bot = BOT_USERNAME || '__BOT_USERNAME__';
   if (window.Telegram && window.Telegram.WebApp) {
-    window.Telegram.WebApp.close();
+    Telegram.WebApp.openTelegramLink('https://t.me/' + bot + '?start=verified');
+  } else {
+    window.location.href = 'https://t.me/' + bot + '?start=verified';
   }
-  window.location.href = 'https://t.me/' + bot + '?start=verified';
 }
 
 (async function() {
