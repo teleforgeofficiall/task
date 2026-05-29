@@ -205,7 +205,7 @@ def withdraw_config_keyboard() -> InlineKeyboardMarkup:
 def star_config_keyboard() -> InlineKeyboardMarkup:
     keyboard = [
         [
-            InlineKeyboardButton("⭐ Set Star Rate (₹)", callback_data="admin:sc_set_rate"),
+            InlineKeyboardButton("⭐ Set Star Tiers", callback_data="admin:sc_set_tiers"),
             InlineKeyboardButton("🔽 Min Stars", callback_data="admin:sc_set_min_stars"),
         ],
         [

@@ -56,7 +56,7 @@ async def withdraw_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
         f"📌 <b>Select your withdrawal method:</b>"
     )
 
-    star_rate = await repository.get_setting("star_rate", 2.0)
+    star_tiers = await repository.get_setting("star_withdraw_tiers", {"1": 3.0})
     star_enabled = await repository.get_setting("star_withdraw_enabled", True)
 
     keyboard = []
@@ -64,7 +64,7 @@ async def withdraw_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
         keyboard.append([InlineKeyboardButton("💳 UPI Transfer", callback_data="withdraw:request:upi")])
         keyboard.append([InlineKeyboardButton("🎫 Google Redeem Code", callback_data="withdraw:request:redeem")])
         if star_enabled:
-            keyboard.append([InlineKeyboardButton(f"⭐ Stars Withdraw (1⭐ = ₹{star_rate:.0f})", callback_data="withdraw:request:stars")])
+            keyboard.append([InlineKeyboardButton(f"⭐ Stars Withdraw ({len(star_tiers)} tiers)", callback_data="withdraw:request:stars")])
     
     keyboard.append([InlineKeyboardButton("📜 Withdrawal History", callback_data="withdraw:history")])
     keyboard.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="menu:main")])
@@ -210,16 +210,15 @@ async def withdraw_star_amount_handler(update: Update, context: ContextTypes.DEF
         await query.answer("Profile not found.")
         return
 
-    star_rate = await repository.get_setting("star_rate", 2.0)
-    amount = stars * star_rate
-    min_w = await repository.get_setting("min_withdraw", 10.0)
-    max_w = await repository.get_setting("max_withdraw", 10000.0)
-
-    if amount < min_w:
-        await query.answer(f"❌ Minimum withdrawal is {format_currency(min_w)}. Select more stars.", show_alert=True)
+    tiers = await repository.get_setting("star_withdraw_tiers", {"1": 3.0})
+    if str(stars) not in tiers:
+        await query.answer("❌ Invalid star amount selected.", show_alert=True)
         return
-    if amount > max_w:
-        await query.answer(f"❌ Amount exceeds max limit of {format_currency(max_w)}.", show_alert=True)
+    amount = tiers[str(stars)]
+    min_stars = await repository.get_setting("min_star_withdraw", 1)
+    max_stars = await repository.get_setting("max_star_withdraw", 500)
+    if stars < min_stars or stars > max_stars:
+        await query.answer(f"❌ Star amount must be between {min_stars}⭐ and {max_stars}⭐.", show_alert=True)
         return
     if amount > user.balance:
         await query.answer(f"❌ Insufficient balance! You need {format_currency(amount)} but have {format_currency(user.balance)}.", show_alert=True)
@@ -417,11 +416,12 @@ async def withdraw_text_input_handler(update: Update, context: ContextTypes.DEFA
         # Save channel link
         context.user_data["state"] = f"withdraw_awaiting_star_amount|{text}"
 
+        tiers = await repository.get_setting("star_withdraw_tiers", {"1": 3.0})
         await msg.reply_text(
             "✅ <b>Link received!</b>\n\n"
             "Now select the number of <b>Stars</b> you want to withdraw:",
             parse_mode="HTML",
-            reply_markup=star_amount_keyboard()
+            reply_markup=star_amount_keyboard(tiers)
         )
         return
 

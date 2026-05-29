@@ -178,12 +178,13 @@ def game_result_keyboard(game: str) -> InlineKeyboardMarkup:
     ])
 
 
-def star_amount_keyboard() -> InlineKeyboardMarkup:
-    star_vals = [1, 5, 10, 25, 50, 100]
+def star_amount_keyboard(tiers: dict) -> InlineKeyboardMarkup:
     keyboard = []
     row = []
-    for i, s in enumerate(star_vals):
-        row.append(InlineKeyboardButton(f"{s}⭐ (₹{s*2})", callback_data=f"withdraw:stars_amount:{s}"))
+    items = sorted(tiers.items(), key=lambda x: int(x[0]))
+    for i, (stars, price) in enumerate(items):
+        s = int(stars)
+        row.append(InlineKeyboardButton(f"{s}⭐ (₹{price:.0f})", callback_data=f"withdraw:stars_amount:{s}"))
         if (i + 1) % 3 == 0:
             keyboard.append(row)
             row = []

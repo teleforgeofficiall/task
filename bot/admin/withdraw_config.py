@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -25,15 +26,16 @@ async def admin_withdraw_config_handler(update: Update, context: ContextTypes.DE
     min_w = await repository.get_setting("min_withdraw", 10.0)
     max_w = await repository.get_setting("max_withdraw", 10000.0)
     daily_limit = await repository.get_setting("daily_withdraw_limit", 3)
-    star_rate = await repository.get_setting("star_rate", 2.0)
+    star_tiers = await repository.get_setting("star_withdraw_tiers", {"1": 3.0})
     star_enabled = await repository.get_setting("star_withdraw_enabled", True)
 
+    lowest = min(star_tiers.values())
     text = (
         "💰 <b>Withdrawal Configuration</b>\n\n"
         f"• <b>Minimum per withdrawal:</b> <code>{format_currency(min_w)}</code>\n"
         f"• <b>Maximum per withdrawal:</b> <code>{format_currency(max_w)}</code>\n"
         f"• <b>Daily withdrawal limit:</b> <code>{daily_limit} times</code>\n"
-        f"• <b>Star Rate:</b> <code>1⭐ = ₹{star_rate:.0f}</code>\n"
+        f"• <b>Star tiers:</b> <code>{len(star_tiers)} tiers (from ₹{lowest:.0f})</code>\n"
         f"• <b>Star Withdraw:</b> <code>{'Enabled ✅' if star_enabled else 'Disabled ❌'}</code>\n\n"
         "Select an option below to change a value."
     )
@@ -161,12 +163,19 @@ async def admin_wc_text_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 limit_text = "unlimited" if value == 0 else f"{value} times per day"
                 await msg.reply_text(f"✅ Daily withdrawal limit set to <code>{limit_text}</code>.", parse_mode="HTML")
 
-            elif admin_state == "sc_set_rate":
-                value = round(float(text), 2)
-                if value <= 0:
+            elif admin_state == "sc_set_tiers":
+                parsed = json.loads(text)
+                if not isinstance(parsed, dict) or not parsed:
                     raise ValueError
-                await repository.update_setting("star_rate", value)
-                await msg.reply_text(f"✅ Star rate set to <code>1⭐ = ₹{value:.0f}</code>.", parse_mode="HTML")
+                cleaned = {}
+                for k, v in parsed.items():
+                    sk = str(int(float(k)))
+                    sv = float(v)
+                    if sv <= 0:
+                        raise ValueError
+                    cleaned[sk] = sv
+                await repository.update_setting("star_withdraw_tiers", cleaned)
+                await msg.reply_text(f"✅ Star tiers updated ({len(cleaned)} tiers).", parse_mode="HTML")
 
             elif admin_state == "sc_set_min_stars":
                 value = int(text)
@@ -203,15 +212,16 @@ async def admin_withdraw_config_redirect(msg, context, repository: Repository) -
     min_w = await repository.get_setting("min_withdraw", 10.0)
     max_w = await repository.get_setting("max_withdraw", 10000.0)
     daily_limit = await repository.get_setting("daily_withdraw_limit", 3)
-    star_rate = await repository.get_setting("star_rate", 2.0)
+    star_tiers = await repository.get_setting("star_withdraw_tiers", {"1": 3.0})
     star_enabled = await repository.get_setting("star_withdraw_enabled", True)
 
+    lowest = min(star_tiers.values())
     text = (
         "💰 <b>Withdrawal Configuration</b>\n\n"
         f"• <b>Minimum per withdrawal:</b> <code>{format_currency(min_w)}</code>\n"
         f"• <b>Maximum per withdrawal:</b> <code>{format_currency(max_w)}</code>\n"
         f"• <b>Daily withdrawal limit:</b> <code>{daily_limit} times</code>\n"
-        f"• <b>Star Rate:</b> <code>1⭐ = ₹{star_rate:.0f}</code>\n"
+        f"• <b>Star tiers:</b> <code>{len(star_tiers)} tiers (from ₹{lowest:.0f})</code>\n"
         f"• <b>Star Withdraw:</b> <code>{'Enabled ✅' if star_enabled else 'Disabled ❌'}</code>\n\n"
         "Select an option below to change a value."
     )
@@ -236,14 +246,17 @@ async def admin_star_config_handler(update: Update, context: ContextTypes.DEFAUL
     context.user_data.pop("admin_state", None)
     repository = Repository(await get_db())
 
-    star_rate = await repository.get_setting("star_rate", 2.0)
+    star_tiers = await repository.get_setting("star_withdraw_tiers", {"1": 3.0})
     star_enabled = await repository.get_setting("star_withdraw_enabled", True)
     min_stars = await repository.get_setting("min_star_withdraw", 1)
     max_stars = await repository.get_setting("max_star_withdraw", 500)
 
+    tiers_display = "\n".join(
+        f"• <code>{int(k)}⭐ = ₹{v:.0f}</code>" for k, v in sorted(star_tiers.items(), key=lambda x: int(x[0]))
+    )
     text = (
         "⭐ <b>Star Withdraw Configuration</b>\n\n"
-        f"• <b>Star Rate:</b> <code>1⭐ = ₹{star_rate:.0f}</code>\n"
+        f"<b>Tiers:</b>\n{tiers_display}\n\n"
         f"• <b>Status:</b> <code>{'Enabled ✅' if star_enabled else 'Disabled ❌'}</code>\n"
         f"• <b>Min Stars:</b> <code>{min_stars}⭐</code>\n"
         f"• <b>Max Stars:</b> <code>{max_stars}⭐</code>\n\n"
@@ -258,21 +271,26 @@ async def admin_star_config_handler(update: Update, context: ContextTypes.DEFAUL
     await query.answer()
 
 
-async def admin_sc_set_rate_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def admin_sc_set_tiers_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if not query or not is_admin(query.from_user.id):
         return
 
-    context.user_data["admin_state"] = "sc_set_rate"
+    context.user_data["admin_state"] = "sc_set_tiers"
+    context.user_data.pop("state", None)
 
     repository = Repository(await get_db())
-    current = await repository.get_setting("star_rate", 2.0)
+    current = await repository.get_setting("star_withdraw_tiers", {"1": 3.0})
 
+    tiers_display = "\n".join(
+        f"• <code>{int(k)}⭐ = ₹{v:.0f}</code>" for k, v in sorted(current.items(), key=lambda x: int(x[0]))
+    )
     await query.edit_message_text(
         text=(
-            f"⭐ <b>Set Star Rate</b>\n\n"
-            f"Current: <code>1⭐ = ₹{current:.0f}</code>\n\n"
-            "Send the new rate (e.g. <code>2</code> for ₹2 per star)."
+            f"⭐ <b>Set Star Tiers</b>\n\n"
+            f"Current tiers:\n{tiers_display}\n\n"
+            "Send the new tier prices as JSON, e.g.:\n"
+            "<code>{\"1\":3, \"5\":15, \"10\":25, \"25\":55, \"50\":120, \"100\":220}</code>"
         ),
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("❌ Cancel", callback_data="admin:star_config")]
@@ -353,7 +371,7 @@ def register_handlers(application) -> None:
 
     # Star config handlers
     application.add_handler(CallbackQueryHandler(admin_star_config_handler, pattern="^admin:star_config$"))
-    application.add_handler(CallbackQueryHandler(admin_sc_set_rate_start, pattern="^admin:sc_set_rate$"))
+    application.add_handler(CallbackQueryHandler(admin_sc_set_tiers_start, pattern="^admin:sc_set_tiers$"))
     application.add_handler(CallbackQueryHandler(admin_sc_set_min_stars_start, pattern="^admin:sc_set_min_stars$"))
     application.add_handler(CallbackQueryHandler(admin_sc_set_max_stars_start, pattern="^admin:sc_set_max_stars$"))
     application.add_handler(CallbackQueryHandler(admin_sc_toggle_enable_handler, pattern="^admin:sc_toggle_enable$"))
