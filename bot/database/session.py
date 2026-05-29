@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import AsyncGenerator, Optional
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator, AsyncIterator, Optional
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -200,7 +201,8 @@ async def _migrate_postgres_schema(engine) -> None:
         # (GameSessionTable, JackpotEventTable, RetentionEventTable are handled by create_all)
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+@asynccontextmanager
+async def get_session() -> AsyncIterator[AsyncSession]:
     """Get an async session. Initializes DB on first call."""
     if _session_factory is None:
         await init_db()
