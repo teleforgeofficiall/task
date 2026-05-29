@@ -67,10 +67,10 @@ async def init_db() -> None:
                 pool_pre_ping=True,
                 pool_recycle=3600,
                 echo=False,
+                prepared_statement_cache_size=0,
                 connect_args={
                     "command_timeout": 30,
                     "ssl": "require" if settings.is_production else "prefer",
-                    "statement_cache_size": 0,
                 },
             )
         else:
