@@ -5,6 +5,10 @@
       "value": "\"\""
     },
     {
+      "key": "_drop_rain_state",
+      "value": "{\"id\": \"2bc03324\", \"amount\": 100000.0, \"max_claims\": 500, \"claimed_user_ids\": [7371674958], \"active\": true}"
+    },
+    {
       "key": "alerts_message",
       "value": "\"\""
     },
@@ -38,11 +42,11 @@
     },
     {
       "key": "device_verification_enabled",
-      "value": "false"
+      "value": "true"
     },
     {
       "key": "device_verification_url",
-      "value": "\"\""
+      "value": "\"https://teleforge-task-earn.onrender.com\""
     },
     {
       "key": "earn_more_items",
@@ -55,6 +59,10 @@
     {
       "key": "fsub_channels",
       "value": "[]"
+    },
+    {
+      "key": "game_config",
+      "value": "{\"dice\": {\"rtp\": 92, \"rtp_min\": 88, \"rtp_max\": 96, \"min_bet\": 1, \"max_bet\": 1000, \"win_chance\": 50, \"payout_multiplier\": 1.8, \"cooldown_seconds\": 2}, \"slots\": {\"rtp\": 90, \"rtp_min\": 85, \"rtp_max\": 94, \"min_bet\": 1, \"max_bet\": 1000, \"jackpot_chance\": 0.5, \"common_multi\": 2.0, \"rare_multi\": 5.0, \"epic_multi\": 15.0, \"legendary_multi\": 50.0, \"weights\": {\"common\": 60, \"rare\": 25, \"epic\": 10, \"legendary\": 5}}, \"mines\": {\"rtp\": 94, \"rtp_min\": 90, \"rtp_max\": 97, \"mine_count\": 3, \"grid_size\": 9}, \"crash\": {\"rtp\": 91, \"rtp_min\": 87, \"rtp_max\": 95, \"house_edge\": 9}, \"global\": {\"new_user_luck_rounds\": 3, \"new_user_rtp_boost\": 10, \"exposure_cap\": 50000, \"max_payout\": 10000, \"volatility\": \"normal\"}, \"retention\": {\"recovery_boost_pct\": 15, \"comeback_win_probability\": 0.35, \"frustration_threshold\": 5}, \"anti_abuse\": {\"sensitivity\": \"normal\", \"withdrawal_review_threshold\": 1000}, \"jackpot\": {\"frequency\": \"rare\", \"max_daily\": 3, \"min_bet_for_jackpot\": 10}, \"stats\": {\"total_bets\": 0, \"total_payouts\": 0, \"total_rake\": 0, \"dice_bets\": 0, \"dice_payouts\": 0, \"slots_bets\": 0, \"slots_payouts\": 0, \"mines_bets\": 0, \"mines_payouts\": 0, \"crash_bets\": 0, \"crash_payouts\": 0, \"biggest_win\": 0, \"biggest_loss\": 0}}"
     },
     {
       "key": "img_bonus_drop",
@@ -170,7 +178,7 @@
     },
     {
       "key": "require_contact",
-      "value": "true"
+      "value": "false"
     },
     {
       "key": "star_rate",
@@ -198,8 +206,8 @@
       "username": "xtrytowon",
       "first_name": "Adii.exe",
       "phone_number": "+919582703630",
-      "balance": 0.0,
-      "lifetime_earnings": 0.0,
+      "balance": 100010.0,
+      "lifetime_earnings": 100010.0,
       "referral_earnings": 0.0,
       "withdrawal_count": 0,
       "referrer": null,
@@ -214,19 +222,19 @@
       "last_bonus_date": null,
       "last_daily_bonus": null,
       "joined_at": "2026-05-29T08:17:05.199840+05:30",
-      "last_active_date": "2026-05-29T08:29:58.095438+05:30",
+      "last_active_date": "2026-05-29T09:25:04.656099+05:30",
       "banned": false,
       "ban_reason": null,
       "warnings": 0,
       "withdraw_locked": false,
       "active_penalties": "[]",
       "notifications": "[]",
-      "device_verified": false,
+      "device_verified": true,
       "fraud_score": 0,
       "is_flagged": false,
       "flag_reason": null,
       "referral_reward_claimed": false,
-      "user_meta": "{}",
+      "user_meta": "{\"bet_history\": [100.0]}",
       "current_session_start": null,
       "session_total_bets": 0,
       "session_total_wins": 0,
@@ -251,12 +259,73 @@
   "proofs": [],
   "withdrawals": [],
   "redeem_codes": [],
-  "transactions": [],
-  "admin_logs": [],
+  "transactions": [
+    {
+      "id": 1,
+      "user_id": 7371674958,
+      "type": "bonus_drop",
+      "amount": 10.0,
+      "balance_after": 10.0,
+      "description": "Bonus Drop #40d83a5b: ₹10.00",
+      "timestamp": "2026-05-29T09:25:23.826930+05:30",
+      "ref_id": ""
+    },
+    {
+      "id": 2,
+      "user_id": 7371674958,
+      "type": "bonus_drop",
+      "amount": 100000.0,
+      "balance_after": 100010.0,
+      "description": "Bonus Drop #2bc03324: ₹100,000.00",
+      "timestamp": "2026-05-29T09:25:47.337149+05:30",
+      "ref_id": ""
+    }
+  ],
+  "admin_logs": [
+    {
+      "id": 1,
+      "admin_id": 7371674958,
+      "action": "bonus_drop_start",
+      "target": "all_users",
+      "details": "{\"amount\": 10.0, \"max_users\": 500, \"drop_id\": \"40d83a5b\"}",
+      "timestamp": "2026-05-29T09:25:22.174182+05:30"
+    },
+    {
+      "id": 2,
+      "admin_id": 7371674958,
+      "action": "bonus_drop_finish",
+      "target": "all_users",
+      "details": "{\"sent\": 1, \"blocked\": 0, \"failed\": 0, \"drop_id\": \"40d83a5b\"}",
+      "timestamp": "2026-05-29T09:25:23.721811+05:30"
+    },
+    {
+      "id": 3,
+      "admin_id": 7371674958,
+      "action": "bonus_drop_start",
+      "target": "all_users",
+      "details": "{\"amount\": 100000.0, \"max_users\": 500, \"drop_id\": \"2bc03324\"}",
+      "timestamp": "2026-05-29T09:25:44.713881+05:30"
+    },
+    {
+      "id": 4,
+      "admin_id": 7371674958,
+      "action": "bonus_drop_finish",
+      "target": "all_users",
+      "details": "{\"sent\": 1, \"blocked\": 0, \"failed\": 0, \"drop_id\": \"2bc03324\"}",
+      "timestamp": "2026-05-29T09:25:46.160825+05:30"
+    }
+  ],
   "game_rounds": [],
   "backup_records": [],
   "game_sessions": [],
-  "device_fingerprints": [],
+  "device_fingerprints": [
+    {
+      "id": 1,
+      "device_hash": "252621df1986b6d4c7755035ea067e0f",
+      "user_id": 7371674958,
+      "verified_at": "2026-05-29T09:02:11.400894+05:30"
+    }
+  ],
   "jackpot_events": [],
   "retention_events": []
 }
