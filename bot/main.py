@@ -174,6 +174,8 @@ async def api_user_info(user_id: int):
 async def api_verify_device(request: Request):
     """Store device fingerprint and verify device uniqueness."""
     from bot.database import get_db, Repository
+    from bot.database.models_sql import UserTable
+    from sqlalchemy import select
     from fastapi import HTTPException
     try:
         data = await request.json()
@@ -185,13 +187,21 @@ async def api_verify_device(request: Request):
         raise HTTPException(status_code=400, detail="Missing device_hash or user_id")
     db = await get_db()
     repo = Repository(db)
-    # Check if device_hash already used
+
+    # Gate 1: User already verified?
+    result = await db.execute(select(UserTable).where(UserTable.user_id == user_id))
+    user = result.scalar_one_or_none()
+    if user and user.device_verified:
+        return {"ok": False, "error": "already_verified"}
+
+    # Gate 2: Device hash already linked to a different user?
     existing_user = await repo.get_device_fingerprint_user(device_hash)
     if existing_user is not None:
-        return {"ok": False, "error": "Device already registered", "existing_user": existing_user}
+        return {"ok": False, "error": "device_linked", "existing_user": existing_user}
+
     success = await repo.store_device_fingerprint(device_hash, user_id)
     if not success:
-        return {"ok": False, "error": "Failed to store fingerprint"}
+        return {"ok": False, "error": "storage_failed"}
     return {"ok": True, "message": "Device verified"}
 
 

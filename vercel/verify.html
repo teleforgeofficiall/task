@@ -416,12 +416,12 @@ function showSuccess() {
   });
 }
 
-function showFail() {
+function showFail(message) {
   completeProgress(() => {
     const t = document.getElementById('stateTitle');
     t.textContent = 'Verification Failed';
     t.classList.add('red');
-    document.getElementById('stateSubtitle').textContent = 'This device is already linked to another account.';
+    document.getElementById('stateSubtitle').textContent = message || 'Verification could not be completed. Please try again.';
     document.getElementById('ringIcon').textContent = '✕';
     document.getElementById('ringIcon').style.color = '#ff4f5e';
     document.getElementById('ringSvg').classList.add('fail-ring');
@@ -433,37 +433,70 @@ function showFail() {
   });
 }
 
+async function waitForFingerprintJS(timeout) {
+  timeout = timeout || 6000;
+  var start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (typeof FingerprintJS !== 'undefined' && typeof FingerprintJS.load === 'function') {
+      return true;
+    }
+    await new Promise(function(r) { setTimeout(r, 200); });
+  }
+  return false;
+}
+
 async function startVerification() {
   startProgress();
 
-  let fingerprint;
+  // Wait for FingerprintJS library to load
+  var loaded = await waitForFingerprintJS();
+  if (!loaded) {
+    showFail('Security module failed to load. Please refresh and try again.');
+    return;
+  }
+
+  var fingerprint;
   try {
-    const fp = await FingerprintJS.load();
-    const result = await fp.get();
+    var fp = await FingerprintJS.load();
+    var result = await fp.get();
     fingerprint = result.visitorId;
   } catch(e) {
-    fingerprint = 'fp_' + Date.now() + '_' + Math.random().toString(36).substr(2,9);
+    showFail('Unable to generate device ID. Please refresh and try again.');
+    return;
   }
 
   try {
-    const res = await fetch(`${API_BASE}/api/verify-device`, {
+    var res = await fetch(API_BASE + '/api/verify-device', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ device_hash: fingerprint, user_id: parseInt(userId) }),
     });
-    const data = await res.json();
-    data.ok ? showSuccess() : showFail();
+    var data = await res.json();
+
+    if (data.ok) {
+      showSuccess();
+    } else {
+      var errorMsg = '';
+      if (data.error === 'already_verified') {
+        errorMsg = 'Your device is already verified. Use /start to continue.';
+      } else if (data.error === 'device_linked') {
+        errorMsg = 'This device is already linked to another account.';
+      } else {
+        errorMsg = data.error || 'Device verification failed.';
+      }
+      showFail(errorMsg);
+    }
   } catch(_) {
-    showSuccess();
+    showFail('Network error. Please check your connection and try again.');
   }
 }
 
 function continueToBot() {
-  const bot = BOT_USERNAME || '__BOT_USERNAME__';
-  window.location.href = `https://t.me/${bot}?start=verified`;
+  var bot = BOT_USERNAME || '__BOT_USERNAME__';
+  window.location.href = 'https://t.me/' + bot + '?start=verified';
 }
 
-(async () => {
+(async function() {
   await fetchUser();
   startVerification();
 })();

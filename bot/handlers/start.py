@@ -130,15 +130,20 @@ async def verified_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     repository = Repository(await get_db())
     db_user = await repository.get_user(user.id)
     if not db_user:
+        # User doesn't exist yet, redirect to /start flow
+        await start_command(update, context)
         return
     if not db_user.device_verified:
-        await update.message.reply_text(
-            "❌ <b>Device not verified.</b>\n\n"
-            "Please complete device verification first.\n"
-            "Use /start to try again.",
-            parse_mode="HTML"
-        )
-        return
+        # Re-check: maybe verification was completed but DB not refreshed
+        db_user = await repository.get_user(user.id)
+        if not db_user or not db_user.device_verified:
+            await update.message.reply_text(
+                "❌ <b>Device not verified yet.</b>\n\n"
+                "Please complete device verification first.\n"
+                "Use /start to try again.",
+                parse_mode="HTML"
+            )
+            return
     # Delete the old verify message
     verify_msg_id = context.user_data.pop("verify_msg_id", None)
     if verify_msg_id:
