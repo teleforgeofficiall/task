@@ -37,7 +37,6 @@ def admin_main_menu() -> InlineKeyboardMarkup:
             InlineKeyboardButton("🔒 Security", callback_data="admin:security_menu"),
         ],
         [
-            InlineKeyboardButton("📂 Export Data", callback_data="admin:export_menu"),
             InlineKeyboardButton("🚪 Close", callback_data="admin:close"),
         ]
     ]

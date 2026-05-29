@@ -4,6 +4,7 @@ Adds backup UI to the admin inline keyboard panel.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime, timezone, timedelta
@@ -14,6 +15,8 @@ from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, fil
 
 from bot.admin.panel import is_admin
 from bot.backup.manager import BackupManager, BackupError
+from bot.backup.data_exporter import export_all_tables, export_images_settings, import_all_tables, import_images_settings
+from bot.backup.github_manager import GitHubManager, GitHubBackupError
 from bot.database import get_db, Repository
 from bot.utils import escape_html
 from config.settings import settings
@@ -56,7 +59,9 @@ async def backup_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
     keyboard = [
-        [InlineKeyboardButton("➕ Create Backup Now", callback_data="admin:backup_create")],
+        [InlineKeyboardButton("📤 Push to GitHub", callback_data="admin:backup_github_push")],
+        [InlineKeyboardButton("📥 Restore from GitHub", callback_data="admin:backup_github_pull")],
+        [InlineKeyboardButton("➕ Create Local Backup", callback_data="admin:backup_create")],
         [InlineKeyboardButton("📋 View Backup History", callback_data="admin:backup_list:0")],
         [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")],
     ]
@@ -318,6 +323,192 @@ async def backup_restore_confirm_handler(update: Update, context: ContextTypes.D
         )
 
 
+async def backup_github_push_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Export all data and push to GitHub."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    if not settings.GIT_BACKUP_REPO or not settings.GIT_BACKUP_TOKEN:
+        await query.edit_message_text(
+            "❌ <b>GitHub not configured</b>\n\nSet <code>GIT_BACKUP_REPO</code> and "
+            "<code>GIT_BACKUP_TOKEN</code> in environment variables.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back", callback_data="admin:backup_menu")]
+            ]),
+            parse_mode="HTML",
+        )
+        await query.answer()
+        return
+
+    await query.edit_message_text(
+        "⏳ <b>Exporting data and pushing to GitHub...</b>\n\nPlease wait...",
+        parse_mode="HTML",
+    )
+    await query.answer()
+
+    try:
+        db = await get_db()
+
+        # Export images + database
+        images = await export_images_settings(db)
+        all_tables = await export_all_tables(db)
+
+        images_json = json.dumps(images, indent=2, ensure_ascii=False).encode("utf-8")
+        # Remove images from db backup (they are in images.json separately)
+        all_tables.pop("settings", None)
+        db_json = json.dumps(all_tables, indent=2, ensure_ascii=False, default=str).encode("utf-8")
+
+        # Push to GitHub
+        gh = GitHubManager()
+        result = await gh.push_backup(images_json, db_json)
+
+        text = (
+            "✅ <b>Backup pushed to GitHub!</b>\n\n"
+            f"🕐 Time: <code>{escape_html(result['timestamp'])}</code>\n"
+            f"🖼️ Images: <code>backups/images.json</code>\n"
+            f"🗄️ Database: <code>backups/database.json</code>\n\n"
+            f"<a href='{escape_html(result['images_url'])}'>View images.json</a> | "
+            f"<a href='{escape_html(result['database_url'])}'>View database.json</a>"
+        )
+        keyboard = [[InlineKeyboardButton("🔙 Back to Backup Menu", callback_data="admin:backup_menu")]]
+        await context.bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+        )
+    except GitHubBackupError as exc:
+        await context.bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=f"❌ <b>GitHub backup failed</b>\n\n<code>{escape_html(str(exc))}</code>",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Try Again", callback_data="admin:backup_menu")]
+            ]),
+            parse_mode="HTML",
+        )
+    except Exception as exc:
+        logger.exception("GitHub push failed: %s", exc)
+        await context.bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=f"❌ <b>Backup failed</b>\n\n<code>{escape_html(str(exc))}</code>",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Try Again", callback_data="admin:backup_menu")]
+            ]),
+            parse_mode="HTML",
+        )
+
+
+async def backup_github_pull_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show restore warning before pulling from GitHub."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    if not settings.GIT_BACKUP_REPO or not settings.GIT_BACKUP_TOKEN:
+        await query.edit_message_text(
+            "❌ <b>GitHub not configured</b>\n\nSet <code>GIT_BACKUP_REPO</code> and "
+            "<code>GIT_BACKUP_TOKEN</code> in environment variables.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back", callback_data="admin:backup_menu")]
+            ]),
+            parse_mode="HTML",
+        )
+        await query.answer()
+        return
+
+    await query.edit_message_text(
+        "⚠️ <b>Restore from GitHub</b>\n\n"
+        "This will <b>PERMANENTLY DELETE ALL CURRENT DATA</b> and replace it "
+        "with the backup from GitHub.\n\n"
+        "Are you sure you want to proceed?",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Yes, Restore", callback_data="admin:backup_github_pull_confirm")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="admin:backup_menu")],
+        ]),
+        parse_mode="HTML",
+    )
+    await query.answer()
+
+
+async def backup_github_pull_confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Execute restore from GitHub."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    await query.edit_message_text(
+        "⏳ <b>Downloading and restoring from GitHub...</b>\n\nPlease wait...",
+        parse_mode="HTML",
+    )
+    await query.answer()
+
+    try:
+        gh = GitHubManager()
+        images_bytes, db_bytes = await gh.pull_backup()
+
+        if images_bytes is None and db_bytes is None:
+            raise GitHubBackupError(
+                "No backup files found in repository. Push a backup first."
+            )
+
+        import json as _json
+
+        db = await get_db()
+
+        # Restore database tables first
+        if db_bytes:
+            all_tables = _json.loads(db_bytes.decode("utf-8"))
+            await import_all_tables(db, all_tables)
+            logger.info("Database tables restored from GitHub backup")
+
+        # Restore images
+        if images_bytes:
+            images = _json.loads(images_bytes.decode("utf-8"))
+            await import_images_settings(db, images)
+            logger.info("Image settings restored from GitHub backup")
+
+        text = (
+            "✅ <b>Restore from GitHub complete!</b>\n\n"
+            "All data has been replaced with the backup.\n\n"
+            "⚠️ <b>Reboot recommended:</b> Deploy a new version or restart the bot "
+            "to ensure clean connection state."
+        )
+        keyboard = [[InlineKeyboardButton("🔙 Backup Menu", callback_data="admin:backup_menu")]]
+        await context.bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML",
+        )
+    except GitHubBackupError as exc:
+        await context.bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=f"❌ <b>Restore failed</b>\n\n<code>{escape_html(str(exc))}</code>",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Try Again", callback_data="admin:backup_menu")]
+            ]),
+            parse_mode="HTML",
+        )
+    except Exception as exc:
+        logger.exception("GitHub restore failed: %s", exc)
+        await context.bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=f"❌ <b>Restore failed</b>\n\n<code>{escape_html(str(exc))}</code>",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Try Again", callback_data="admin:backup_menu")]
+            ]),
+            parse_mode="HTML",
+        )
+
+
 def register_handlers(application) -> None:
     """Register backup admin handlers."""
     application.add_handler(CallbackQueryHandler(backup_menu_handler, pattern="^admin:backup_menu$"))
@@ -326,6 +517,9 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(backup_download_handler, pattern=r"^admin:backup_download:"))
     application.add_handler(CallbackQueryHandler(backup_delete_handler, pattern=r"^admin:backup_delete:"))
     application.add_handler(CallbackQueryHandler(backup_restore_confirm_handler, pattern=r"^admin:backup_restore_confirm:"))
+    application.add_handler(CallbackQueryHandler(backup_github_push_handler, pattern="^admin:backup_github_push$"))
+    application.add_handler(CallbackQueryHandler(backup_github_pull_handler, pattern="^admin:backup_github_pull$"))
+    application.add_handler(CallbackQueryHandler(backup_github_pull_confirm_handler, pattern="^admin:backup_github_pull_confirm$"))
     # File upload handler for restore
     application.add_handler(
         MessageHandler(filters.Document.FileExtension("gz"), backup_create_file_handler),

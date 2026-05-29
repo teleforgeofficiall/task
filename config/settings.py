@@ -114,6 +114,10 @@ class Settings(BaseSettings):
         default=30, description="Number of days to keep old backups",
     )
 
+    # ─── GitHub Backup ────────────────────────────────────────────────────────
+    GIT_BACKUP_REPO: str = Field(default="", description="GitHub repo for backups (owner/repo)")
+    GIT_BACKUP_TOKEN: str = Field(default="", description="GitHub PAT with contents:write")
+
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() == "production"
