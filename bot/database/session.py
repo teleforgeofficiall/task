@@ -14,6 +14,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, AsyncIterator, Optional
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     AsyncEngine,
@@ -209,6 +210,10 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
     async with _session_factory() as session:  # type: ignore[union-attr]
         try:
+            await session.execute(text("DEALLOCATE ALL"))
+        except Exception:
+            pass
+        try:
             yield session
             await session.commit()
         except Exception:
@@ -220,7 +225,12 @@ async def get_db() -> AsyncSession:
     """Return a standalone session (for backward compatibility with get_db() calls)."""
     if _session_factory is None:
         await init_db()
-    return _session_factory()  # type: ignore[union-attr]
+    session = _session_factory()  # type: ignore[union-attr]
+    try:
+        await session.execute(text("DEALLOCATE ALL"))
+    except Exception:
+        pass
+    return session
 
 
 async def close_db() -> None:
