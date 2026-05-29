@@ -68,10 +68,11 @@ async def init_db() -> None:
                 database_url,
                 pool_size=5,
                 max_overflow=3,
-                pool_pre_ping=True,
+                pool_pre_ping=False,
                 pool_recycle=3600,
                 echo=False,
                 connect_args={
+                    "prepared_statement_cache_size": 0,
                     "command_timeout": 30,
                     "ssl": "require" if settings.is_production else "prefer",
                 },
@@ -268,14 +269,12 @@ async def reset_all_data() -> None:
             await conn.execute(text(f"DELETE FROM {table_name}"))
             logger.info("Cleared %s", table_name)
 
-    async with _engine.begin() as conn:
         for table_name in seq_tables:
             try:
                 await conn.execute(text(f"ALTER SEQUENCE {table_name}_id_seq RESTART WITH 1"))
             except Exception:
                 pass
 
-    async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     from bot.database.repository import Repository
