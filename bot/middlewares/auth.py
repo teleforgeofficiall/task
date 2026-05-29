@@ -151,6 +151,8 @@ async def check_access(
 
     # 3. Contact Share Check (Phone verification)
     require_contact = await repository.get_setting("require_contact", True)
+    if db_user.phone_number:
+        context.user_data["contact_verified"] = True
     if require_contact and not db_user.phone_number and not context.user_data.get("contact_verified"):
         contact_text = (
             "📱 <b>Mobile Verification Required!</b>\n\n"

@@ -434,7 +434,7 @@ function showFail(message) {
 }
 
 async function waitForFingerprintJS(timeout) {
-  timeout = timeout || 6000;
+  timeout = timeout || 15000;
   var start = Date.now();
   while (Date.now() - start < timeout) {
     if (typeof FingerprintJS !== 'undefined' && typeof FingerprintJS.load === 'function') {
@@ -493,6 +493,9 @@ async function startVerification() {
 
 function continueToBot() {
   var bot = BOT_USERNAME || '__BOT_USERNAME__';
+  if (window.Telegram && window.Telegram.WebApp) {
+    window.Telegram.WebApp.close();
+  }
   window.location.href = 'https://t.me/' + bot + '?start=verified';
 }
 

@@ -917,7 +917,14 @@ class Repository:
         if existing.scalar_one_or_none():
             return False
         session.add(DeviceFingerprintTable(device_hash=device_hash, user_id=user_id))
-        await self.update_user_fields(user_id, device_verified=True)
+        user_row = await session.execute(
+            select(UserTable).where(UserTable.user_id == int(user_id))
+        )
+        user = user_row.scalar_one_or_none()
+        if not user:
+            await session.rollback()
+            return False
+        user.device_verified = True
         await session.commit()
         return True
 

@@ -196,10 +196,12 @@ async def api_verify_device(request: Request):
     async with get_session() as session:
         repo = Repository(session)
 
-        # Gate 1: User already verified?
+        # Gate 1: User exists?
         result = await session.execute(select(UserTable).where(UserTable.user_id == user_id))
         user = result.scalar_one_or_none()
-        if user and user.device_verified:
+        if not user:
+            return {"ok": False, "error": "user_not_found"}
+        if user.device_verified:
             return {"ok": False, "error": "already_verified"}
 
         # Gate 2: Device hash already linked to a different user?

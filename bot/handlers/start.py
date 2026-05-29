@@ -67,6 +67,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     repository = Repository(await get_db())
     user_id = user.id
 
+    # Route /start verified to verified_start handler
+    if context.args and context.args[0] == "verified":
+        await verified_start(update, context)
+        return
+
     db_user = await repository.get_user(user_id)
     if db_user:
         await repository.touch_user(user_id)
