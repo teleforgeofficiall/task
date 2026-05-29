@@ -76,6 +76,7 @@ async def init_db() -> None:
                 echo=False,
                 connect_args={
                     "sslmode": "require" if settings.is_production else "prefer",
+                    "prepare_threshold": None,
                 },
             )
         else:
