@@ -356,8 +356,6 @@ async def backup_github_push_handler(update: Update, context: ContextTypes.DEFAU
         all_tables = await export_all_tables(db)
 
         images_json = json.dumps(images, indent=2, ensure_ascii=False).encode("utf-8")
-        # Remove images from db backup (they are in images.json separately)
-        all_tables.pop("settings", None)
         db_json = json.dumps(all_tables, indent=2, ensure_ascii=False, default=str).encode("utf-8")
 
         # Push to GitHub
