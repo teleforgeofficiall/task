@@ -61,6 +61,7 @@ async def backup_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     keyboard = [
         [InlineKeyboardButton("📤 Push to GitHub", callback_data="admin:backup_github_push")],
         [InlineKeyboardButton("📥 Restore from GitHub", callback_data="admin:backup_github_pull")],
+        [InlineKeyboardButton("🔌 Test GitHub Connection", callback_data="admin:backup_github_test")],
         [InlineKeyboardButton("➕ Create Local Backup", callback_data="admin:backup_create")],
         [InlineKeyboardButton("📋 View Backup History", callback_data="admin:backup_list:0")],
         [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")],
@@ -509,6 +510,83 @@ async def backup_github_pull_confirm_handler(update: Update, context: ContextTyp
         )
 
 
+async def backup_github_test_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Test GitHub connection and report detailed status."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    if not settings.GIT_BACKUP_REPO or not settings.GIT_BACKUP_TOKEN:
+        await query.edit_message_text(
+            "❌ <b>GitHub not configured</b>\n\nSet <code>GIT_BACKUP_REPO</code> and "
+            "<code>GIT_BACKUP_TOKEN</code> in environment variables.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back", callback_data="admin:backup_menu")]
+            ]),
+            parse_mode="HTML",
+        )
+        await query.answer()
+        return
+
+    await query.edit_message_text(
+        "⏳ <b>Testing GitHub connection...</b>\n\n"
+        f"Repo: <code>{escape_html(settings.GIT_BACKUP_REPO)}</code>",
+        parse_mode="HTML",
+    )
+    await query.answer()
+
+    try:
+        gh = GitHubManager()
+        repo_info = await gh.validate_connection()
+
+        private = repo_info.get("private", False)
+        visibility = "🔒 Private" if private else "🌍 Public"
+        default_branch = repo_info.get("default_branch", "unknown")
+        description = repo_info.get("description") or "No description"
+        html_url = repo_info.get("html_url", "")
+
+        text = (
+            "✅ <b>GitHub Connection OK!</b>\n\n"
+            f"📦 Repo: <code>{escape_html(settings.GIT_BACKUP_REPO)}</code>\n"
+            f"{visibility} | Branch: <code>{default_branch}</code>\n"
+            f"📝 {escape_html(description)}\n"
+        )
+        if html_url:
+            text += f"🔗 <a href='{html_url}'>Open on GitHub</a>\n"
+
+        await context.bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back to Backup Menu", callback_data="admin:backup_menu")]
+            ]),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
+        )
+    except GitHubBackupError as exc:
+        await context.bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=f"❌ <b>GitHub Connection Failed</b>\n\n<code>{escape_html(str(exc))}</code>",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Try Again", callback_data="admin:backup_menu")]
+            ]),
+            parse_mode="HTML",
+        )
+    except Exception as exc:
+        logger.exception("GitHub test failed: %s", exc)
+        await context.bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            text=f"❌ <b>Connection test error</b>\n\n<code>{escape_html(str(exc))}</code>",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back", callback_data="admin:backup_menu")]
+            ]),
+            parse_mode="HTML",
+        )
+
+
 def register_handlers(application) -> None:
     """Register backup admin handlers."""
     application.add_handler(CallbackQueryHandler(backup_menu_handler, pattern="^admin:backup_menu$"))
@@ -518,6 +596,7 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(backup_delete_handler, pattern=r"^admin:backup_delete:"))
     application.add_handler(CallbackQueryHandler(backup_restore_confirm_handler, pattern=r"^admin:backup_restore_confirm:"))
     application.add_handler(CallbackQueryHandler(backup_github_push_handler, pattern="^admin:backup_github_push$"))
+    application.add_handler(CallbackQueryHandler(backup_github_test_handler, pattern="^admin:backup_github_test$"))
     application.add_handler(CallbackQueryHandler(backup_github_pull_handler, pattern="^admin:backup_github_pull$"))
     application.add_handler(CallbackQueryHandler(backup_github_pull_confirm_handler, pattern="^admin:backup_github_pull_confirm$"))
     # File upload handler for restore

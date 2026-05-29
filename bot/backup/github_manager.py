@@ -33,8 +33,58 @@ class GitHubManager:
         self.token = settings.GIT_BACKUP_TOKEN.strip()
         if not self.repo or not self.token:
             raise GitHubBackupError("GIT_BACKUP_REPO and GIT_BACKUP_TOKEN must be set")
+        if "/" not in self.repo or self.repo.count("/") != 1:
+            raise GitHubBackupError(
+                "GIT_BACKUP_REPO must be in 'owner/repo' format (e.g. 'username/my-repo')"
+            )
         self.owner, self.repo_name = self.repo.split("/", 1)
-        self.api_url = f"https://api.github.com/repos/{self.owner}/{self.repo_name}/contents"
+        self.repo_api_url = f"https://api.github.com/repos/{self.owner}/{self.repo_name}"
+        self.api_url = f"{self.repo_api_url}/contents"
+
+    async def validate_connection(self) -> dict:
+        """Check that the repo exists and the token has access.
+
+        Returns repo info on success. Raises GitHubBackupError with a
+        specific message for each failure mode.
+        """
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                self.repo_api_url,
+                headers={"Authorization": f"Bearer {self.token}", "Accept": "application/vnd.github.v3+json"},
+            )
+
+        if resp.status_code == 200:
+            return resp.json()
+
+        if resp.status_code == 401:
+            raise GitHubBackupError(
+                "GitHub token is invalid or expired. "
+                "Generate a new Personal Access Token with 'repo' scope and update GIT_BACKUP_TOKEN."
+            )
+
+        if resp.status_code == 403:
+            body = resp.text.lower()
+            if "rate limit" in body or "rate_limit" in body:
+                raise GitHubBackupError(
+                    "GitHub API rate limit exceeded. Try again in a few minutes."
+                )
+            raise GitHubBackupError(
+                "GitHub token does not have access to this repository. "
+                "Make sure the token has 'repo' scope (private repos) or 'public_repo' scope (public repos)."
+            )
+
+        if resp.status_code == 404:
+            raise GitHubBackupError(
+                f"Repository '{self.owner}/{self.repo_name}' not found "
+                f"(404). Check:\n"
+                f"1. GIT_BACKUP_REPO is set to the correct 'owner/repo' name\n"
+                f"2. The GitHub token has access to this repository\n"
+                f"3. The repository exists and is not deleted"
+            )
+
+        raise GitHubBackupError(
+            f"GitHub API error (GET repo): {resp.status_code} - {resp.text}"
+        )
 
     async def _put_file(self, path: str, content_bytes: bytes, message: str) -> dict:
         """Create or update a file in the repo."""
@@ -82,6 +132,7 @@ class GitHubManager:
 
     async def push_backup(self, images_json_bytes: bytes, db_json_bytes: bytes) -> dict:
         """Push both backup files to GitHub. Returns commit info."""
+        await self.validate_connection()
         timestamp = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S IST")
         msg = f"backup: auto backup {timestamp}"
 
@@ -103,6 +154,7 @@ class GitHubManager:
 
     async def pull_backup(self) -> Tuple[Optional[bytes], Optional[bytes]]:
         """Download both backup files from GitHub."""
+        await self.validate_connection()
         images_bytes = await self._get_file(self.BACKUP_PATH_IMAGES)
         db_bytes = await self._get_file(self.BACKUP_PATH_DATABASE)
         return images_bytes, db_bytes
