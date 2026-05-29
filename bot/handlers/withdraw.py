@@ -56,7 +56,6 @@ async def withdraw_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
         f"📌 <b>Select your withdrawal method:</b>"
     )
 
-    star_tiers = await repository.get_setting("star_withdraw_tiers", {"1": 3.0})
     star_enabled = await repository.get_setting("star_withdraw_enabled", True)
 
     keyboard = []
@@ -64,7 +63,7 @@ async def withdraw_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
         keyboard.append([InlineKeyboardButton("💳 UPI Transfer", callback_data="withdraw:request:upi")])
         keyboard.append([InlineKeyboardButton("🎫 Google Redeem Code", callback_data="withdraw:request:redeem")])
         if star_enabled:
-            keyboard.append([InlineKeyboardButton(f"⭐ Stars Withdraw ({len(star_tiers)} tiers)", callback_data="withdraw:request:stars")])
+            keyboard.append([InlineKeyboardButton("⭐ Stars Withdraw", callback_data="withdraw:request:stars")])
     
     keyboard.append([InlineKeyboardButton("📜 Withdrawal History", callback_data="withdraw:history")])
     keyboard.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="menu:main")])

@@ -412,8 +412,6 @@ async def game_mines_cashout_handler(update: Update, context: ContextTypes.DEFAU
 
     user_id = query.from_user.id
     payout = mines["amount"] * mines["multiplier"]
-    profit = payout - mines["amount"]
-    sign = "+" if profit >= 0 else ""
     repository = Repository(await get_db())
     engine = RiskEngine(repository)
     await repository.record_game_win_transaction(user_id, "mines", payout, mines["multiplier"])
@@ -431,8 +429,7 @@ async def game_mines_cashout_handler(update: Update, context: ContextTypes.DEFAU
         f"━━━━━━━━━━━━━━━━━━━━\n\n"
         f"> Cashed out at <b>{mines['multiplier']:.2f}x</b>\n\n"
         f"Bet: <code>₹{mines['amount']:.2f}</code>\n"
-        f"Payout: <code>₹{payout:.2f}</code>\n"
-        f"Profit: <code>{sign}₹{profit:.2f}</code>"
+        f"Payout: <code>₹{payout:.2f}</code>"
     )
 
     await edit_or_reply(update=update, context=context, text=text, reply_markup=mines_grid_keyboard(mines["revealed"], True))
@@ -604,7 +601,6 @@ async def game_crash_cashout_handler(update: Update, context: ContextTypes.DEFAU
     mult = crash_data["multiplier"]
     amount = crash_data["amount"]
     payout = amount * mult
-    profit = payout - amount
 
     await query.answer()
 
@@ -617,15 +613,13 @@ async def game_crash_cashout_handler(update: Update, context: ContextTypes.DEFAU
     is_rage = await engine.is_rage_betting(user_id, amount)
     await engine.update_session(user_id, "crash", amount, True, is_rage)
 
-    sign = "+" if profit >= 0 else ""
     result_text = (
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"📈 <b>Crash</b> — Cashed Out!\n"
         f"━━━━━━━━━━━━━━━━━━━━\n\n"
         f"> Cashed out at <b>{mult:.2f}x</b>\n\n"
         f"Bet: <code>₹{amount:.2f}</code>\n"
-        f"Payout: <code>₹{payout:.2f}</code>\n"
-        f"Profit: <code>{sign}₹{profit:.2f}</code>"
+        f"Payout: <code>₹{payout:.2f}</code>"
     )
     result_kb = crash_game_keyboard(crash_data["game_id"], True)
 

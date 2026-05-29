@@ -149,8 +149,8 @@ def proof_review_keyboard(proof_id: int, page: int) -> InlineKeyboardMarkup:
 
 def withdraws_menu(upi: int = 0, redeem: int = 0, stars: int = 0) -> InlineKeyboardMarkup:
     """Withdrawals management menu with live pending counts."""
-    upi_label = f"⏳ UPI Pending ({upi})" if upi else "⏳ UPI Pending"
-    stars_label = f"⭐ Stars Pending ({stars})" if stars else "⭐ Stars Pending"
+    upi_label = f"⏳ UPI Pending ({upi})"
+    stars_label = f"⭐ Stars Pending ({stars})"
     keyboard = [
         [InlineKeyboardButton(upi_label, callback_data="admin:withdraws_queue:0")],
         [InlineKeyboardButton(stars_label, callback_data="admin:stars_queue:0")],
