@@ -4,6 +4,7 @@ settings.py — Admin controls for general settings and message template customi
 from __future__ import annotations
 
 import logging
+import traceback
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
@@ -205,8 +206,12 @@ async def admin_reset_data_confirm(update: Update, context: ContextTypes.DEFAULT
         await query.answer("✅ Database reset complete!")
     except Exception as exc:
         logger.exception("Reset failed: %s", exc)
+        error_text = f"{type(exc).__name__}: {exc}" if str(exc) else traceback.format_exc()
         await query.edit_message_text(
-            f"❌ <b>Reset failed:</b> {escape_html(str(exc))}",
+            f"❌ <b>Reset failed:</b>\n<code>{escape_html(error_text[:500])}</code>",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")]
+            ]),
             parse_mode="HTML"
         )
         await query.answer("❌ Reset failed!")

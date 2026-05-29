@@ -242,7 +242,7 @@ async def check_db_health() -> bool:
 
 
 async def reset_all_data() -> None:
-    """Reset all data via TRUNCATE (works through pooler)."""
+    """Reset all data via DELETE (works through pooler)."""
     global _engine, _session_factory
     from bot.database.models_sql import Base
     from sqlalchemy import text
@@ -257,10 +257,23 @@ async def reset_all_data() -> None:
         "device_fingerprints", "jackpot_events", "retention_events",
     ]
 
+    seq_tables = [
+        "users", "tasks", "proofs", "withdrawals", "redeem_codes",
+        "transactions", "admin_logs", "game_rounds", "backup_records",
+        "game_sessions", "device_fingerprints", "jackpot_events", "retention_events",
+    ]
+
     async with _engine.begin() as conn:
         for table_name in table_names:
-            await conn.execute(text(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE"))
-            logger.info("Truncated %s", table_name)
+            await conn.execute(text(f"DELETE FROM {table_name}"))
+            logger.info("Cleared %s", table_name)
+
+    async with _engine.begin() as conn:
+        for table_name in seq_tables:
+            try:
+                await conn.execute(text(f"ALTER SEQUENCE {table_name}_id_seq RESTART WITH 1"))
+            except Exception:
+                pass
 
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -270,4 +283,4 @@ async def reset_all_data() -> None:
     repo = Repository(db)
     await repo.ensure_defaults()
 
-    logger.info("Database reset complete — all tables truncated and seeded.")
+    logger.info("Database reset complete — all tables cleared and seeded.")
