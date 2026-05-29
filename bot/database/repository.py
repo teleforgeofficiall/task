@@ -23,7 +23,7 @@ from bot.database.models_sql import (
     SettingTable, GameStateTable, BackupRecordTable, GameRoundTable,
     RedeemCodeTable, DeviceFingerprintTable,
 )
-from bot.database.session import get_db as get_db_session, get_database_url
+from bot.database.session import get_database_url
 from bot.models.transaction import (
     TX_ADMIN_CREDIT, TX_ADMIN_DEBIT, TransactionModel,
 )
@@ -168,7 +168,7 @@ class Repository:
     async def _session(self) -> AsyncSession:
         if self._db is not None:
             return self._db
-        return await get_db_session()
+        raise RuntimeError("Repository created without a session. Use Repository(session).")
 
     # =========================================================================
     # INITIALISATION

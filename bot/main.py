@@ -17,7 +17,7 @@ from telegram.ext import ApplicationBuilder
 
 from telegram.error import TelegramError
 
-from bot.database import get_db, close_db, check_db_health, Repository, init_db
+from bot.database import close_db, check_db_health, Repository, init_db, get_session
 from bot.middlewares.rate_limiter import setup_rate_limiter
 from bot.handlers import register_user_handlers
 from bot.admin import register_admin_handlers
@@ -66,9 +66,9 @@ async def lifespan(app: FastAPI):
 
         # Initialize database tables and defaults
         await init_db()
-        db = await get_db()
-        repository = Repository(db)
-        await repository.ensure_defaults()
+        async with get_session() as session:
+            repository = Repository(session)
+            await repository.ensure_defaults()
 
         # Setup PTB Handlers and Middlewares
         setup_rate_limiter(ptb_app)
@@ -156,10 +156,10 @@ async def db_health_detail():
 @app.get("/api/user/{user_id}")
 async def api_user_info(user_id: int):
     """Return user profile info for device verification page."""
-    from bot.database import get_db, Repository
-    db = await get_db()
-    repo = Repository(db)
-    user = await repo.get_user(user_id)
+    from bot.database import get_session, Repository
+    async with get_session() as session:
+        repo = Repository(session)
+        user = await repo.get_user(user_id)
     if not user:
         return {"ok": False, "error": "User not found"}
     try:
@@ -181,7 +181,7 @@ async def api_user_info(user_id: int):
 @app.post("/api/verify-device")
 async def api_verify_device(request: Request):
     """Store device fingerprint and verify device uniqueness."""
-    from bot.database import get_db, Repository
+    from bot.database import get_session, Repository
     from bot.database.models_sql import UserTable
     from sqlalchemy import select
     from fastapi import HTTPException
@@ -193,24 +193,24 @@ async def api_verify_device(request: Request):
     user_id = data.get("user_id")
     if not device_hash or not user_id:
         raise HTTPException(status_code=400, detail="Missing device_hash or user_id")
-    db = await get_db()
-    repo = Repository(db)
+    async with get_session() as session:
+        repo = Repository(session)
 
-    # Gate 1: User already verified?
-    result = await db.execute(select(UserTable).where(UserTable.user_id == user_id))
-    user = result.scalar_one_or_none()
-    if user and user.device_verified:
-        return {"ok": False, "error": "already_verified"}
+        # Gate 1: User already verified?
+        result = await session.execute(select(UserTable).where(UserTable.user_id == user_id))
+        user = result.scalar_one_or_none()
+        if user and user.device_verified:
+            return {"ok": False, "error": "already_verified"}
 
-    # Gate 2: Device hash already linked to a different user?
-    existing_user = await repo.get_device_fingerprint_user(device_hash)
-    if existing_user is not None:
-        return {"ok": False, "error": "device_linked", "existing_user": existing_user}
+        # Gate 2: Device hash already linked to a different user?
+        existing_user = await repo.get_device_fingerprint_user(device_hash)
+        if existing_user is not None:
+            return {"ok": False, "error": "device_linked", "existing_user": existing_user}
 
-    success = await repo.store_device_fingerprint(device_hash, user_id)
-    if not success:
-        return {"ok": False, "error": "storage_failed"}
-    return {"ok": True, "message": "Device verified"}
+        success = await repo.store_device_fingerprint(device_hash, user_id)
+        if not success:
+            return {"ok": False, "error": "storage_failed"}
+        return {"ok": True, "message": "Device verified"}
 
 
 @app.get("/api/user/{user_id}/photo")
