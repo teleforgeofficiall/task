@@ -142,14 +142,14 @@ async def admin_wc_text_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
         try:
             if admin_state == "wc_set_min":
-                value = round(float(text), 2)
+                value = round(float(text.replace(",", "")), 2)
                 if value <= 0:
                     raise ValueError
                 await repository.update_setting("min_withdraw", value)
                 await msg.reply_text(f"✅ Minimum withdrawal set to <code>{format_currency(value)}</code>.", parse_mode="HTML")
 
             elif admin_state == "wc_set_max":
-                value = round(float(text), 2)
+                value = round(float(text.replace(",", "")), 2)
                 if value <= 0:
                     raise ValueError
                 await repository.update_setting("max_withdraw", value)

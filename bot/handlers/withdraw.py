@@ -454,7 +454,7 @@ async def withdraw_text_input_handler(update: Update, context: ContextTypes.DEFA
     if state.startswith("withdraw_awaiting_amount_upi|"):
         upi_id = state.split("|", 1)[1]
         try:
-            amount = float(text)
+            amount = float(text.replace(",", ""))
         except ValueError:
             await msg.reply_text("❌ Invalid amount. Please enter a valid number.")
             return

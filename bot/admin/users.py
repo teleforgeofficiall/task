@@ -144,7 +144,7 @@ async def admin_users_text_handler(update: Update, context: ContextTypes.DEFAULT
         context.user_data.pop("admin_state", None)
 
         try:
-            amount = float(text)
+            amount = float(text.replace(",", ""))
         except ValueError:
             await msg.reply_text("❌ Invalid number. Adjustment aborted.")
             return

@@ -134,7 +134,7 @@ async def admin_tasks_text_input_handler(update: Update, context: ContextTypes.D
     # Step 3: Reward
     if admin_state == "awaiting_task_reward":
         try:
-            reward = float(text)
+            reward = float(text.replace(",", ""))
             if reward <= 0:
                 raise ValueError()
         except ValueError:

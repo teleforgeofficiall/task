@@ -165,7 +165,7 @@ async def admin_bonus_handle_text(update: Update, context: ContextTypes.DEFAULT_
 
     if state == "bonus_set_amount":
         try:
-            val = float(text)
+            val = float(text.replace(",", ""))
             if val <= 0:
                 raise ValueError
             await repo.update_setting("daily_bonus", val)

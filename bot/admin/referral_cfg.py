@@ -134,7 +134,7 @@ async def admin_ref_config_text_handler(update: Update, context: ContextTypes.DE
     # Case A: Fixed Payout
     if admin_state == "awaiting_ref_fixed_amt":
         try:
-            val = float(text)
+            val = float(text.replace(",", ""))
             if val < 0:
                 raise ValueError()
         except ValueError:
