@@ -58,9 +58,7 @@ async def export_all_tables(session: AsyncSession) -> Dict[str, List[Dict[str, A
         if table is not None:
             pk = next(iter(table.primary_key), None)
             if pk is not None:
-                first_pk_col = list(pk.columns)[0].name if pk.columns else None
-                if first_pk_col is not None:
-                    order_col = first_pk_col
+                order_col = pk.name
         rows = await session.execute(text(f"SELECT * FROM {table_name} ORDER BY {order_col}"))
         columns = list(rows.keys())
         table_data = []
