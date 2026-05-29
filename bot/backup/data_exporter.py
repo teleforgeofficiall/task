@@ -76,7 +76,7 @@ async def import_all_tables(session: AsyncSession, data: Dict[str, List[Dict[str
     for table_name in TABLE_NAMES:
         rows = data.get(table_name, [])
         if rows:
-            _deserialize_rows(rows)
+            _prepare_rows(table_name, rows)
 
     model_map = {}
     for sub in _all_subclasses(Base):
@@ -128,8 +128,14 @@ def _serialize_row(row: Dict[str, Any]) -> None:
             row[key] = str(value)
 
 
-def _deserialize_rows(rows: List[Dict[str, Any]]) -> None:
-    """Convert JSON strings back to Python objects in-place."""
+def _prepare_rows(table_name: str, rows: List[Dict[str, Any]]) -> None:
+    """Convert JSON strings back to Python objects in-place.
+
+    Skips settings table entirely — its value column is VARCHAR,
+    so dicts/lists must remain as JSON strings.
+    """
+    if table_name == "settings":
+        return
     for row in rows:
         for key, value in list(row.items()):
             if isinstance(value, str) and len(value) > 1:
