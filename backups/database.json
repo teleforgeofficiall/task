@@ -1,4 +1,190 @@
 {
+  "settings": [
+    {
+      "key": "_admin_pending_img",
+      "value": "\"\""
+    },
+    {
+      "key": "alerts_message",
+      "value": "\"\""
+    },
+    {
+      "key": "ban_message",
+      "value": "\"\\ud83d\\udeab <b>You have been permanently banned from using this bot.</b>\""
+    },
+    {
+      "key": "bonus_cooldown_hours",
+      "value": "24"
+    },
+    {
+      "key": "bonus_enabled",
+      "value": "true"
+    },
+    {
+      "key": "custom_commands",
+      "value": "{}"
+    },
+    {
+      "key": "daily_bonus",
+      "value": "5.0"
+    },
+    {
+      "key": "daily_bonus_task_limit",
+      "value": "1"
+    },
+    {
+      "key": "daily_withdraw_limit",
+      "value": "3"
+    },
+    {
+      "key": "device_verification_enabled",
+      "value": "false"
+    },
+    {
+      "key": "device_verification_url",
+      "value": "\"\""
+    },
+    {
+      "key": "earn_more_items",
+      "value": "[]"
+    },
+    {
+      "key": "fixed_referral_reward",
+      "value": "0.5"
+    },
+    {
+      "key": "fsub_channels",
+      "value": "[]"
+    },
+    {
+      "key": "img_bonus_drop",
+      "value": "\"https://telegra.ph/file/246af8dcd72ce749589fb-ddec441baa01f7ef5b.jpg\""
+    },
+    {
+      "key": "img_channel_task",
+      "value": "\"https://telegra.ph/file/8169af7a7a4a846c08aae-785a9c0e0843d922ea.jpg\""
+    },
+    {
+      "key": "img_drop_rain",
+      "value": "\"https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg\""
+    },
+    {
+      "key": "img_game",
+      "value": "\"https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg\""
+    },
+    {
+      "key": "img_game_crash",
+      "value": "\"https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg\""
+    },
+    {
+      "key": "img_game_dice",
+      "value": "\"https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg\""
+    },
+    {
+      "key": "img_game_mines",
+      "value": "\"https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg\""
+    },
+    {
+      "key": "img_game_slots",
+      "value": "\"https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg\""
+    },
+    {
+      "key": "img_leaderboard",
+      "value": "\"https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg\""
+    },
+    {
+      "key": "img_redeem_success",
+      "value": "\"https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg\""
+    },
+    {
+      "key": "img_refer_new",
+      "value": "\"https://telegra.ph/file/5e2fdf0e4e93fb7cc28fe-17e0302973422b849b.jpg\""
+    },
+    {
+      "key": "img_refer_paused",
+      "value": "\"https://telegra.ph/file/02790c2b0d88478d4b634-e974bcc86d6915320a.jpg\""
+    },
+    {
+      "key": "img_tasks_list",
+      "value": "\"https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg\""
+    },
+    {
+      "key": "img_treasure",
+      "value": "\"https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg\""
+    },
+    {
+      "key": "img_welcome",
+      "value": "\"AgACAgUAAxkBAAOfahj8BqMBxVGcsK72WwFX4p0m_90AAtcQaxtSC8lUtIXgv2dlRCYBAAMCAAN5AAM7BA\""
+    },
+    {
+      "key": "launch_message",
+      "value": "\"\\ud83d\\udca1 <b>Launch a Task</b>\\n\\n<blockquote>Contact admin to list your task here.</blockquote>\""
+    },
+    {
+      "key": "max_star_withdraw",
+      "value": "500"
+    },
+    {
+      "key": "max_withdraw",
+      "value": "10000.0"
+    },
+    {
+      "key": "min_star_withdraw",
+      "value": "1"
+    },
+    {
+      "key": "min_withdraw",
+      "value": "10.0"
+    },
+    {
+      "key": "random_reward_max",
+      "value": "5.0"
+    },
+    {
+      "key": "random_reward_min",
+      "value": "0.5"
+    },
+    {
+      "key": "redeem_low_stock_threshold",
+      "value": "5"
+    },
+    {
+      "key": "redeem_method_name",
+      "value": "\"Google Redeem Code\""
+    },
+    {
+      "key": "redeem_stock_enabled",
+      "value": "true"
+    },
+    {
+      "key": "refer_min_tasks",
+      "value": "1"
+    },
+    {
+      "key": "refer_paused",
+      "value": "false"
+    },
+    {
+      "key": "referral_mode",
+      "value": "\"random\""
+    },
+    {
+      "key": "require_contact",
+      "value": "true"
+    },
+    {
+      "key": "star_rate",
+      "value": "2.0"
+    },
+    {
+      "key": "star_withdraw_enabled",
+      "value": "true"
+    },
+    {
+      "key": "start_message",
+      "value": "\"\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\n\\ud83d\\ude80 <b>Welcome to TaskHub Rewards</b>\\n\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\n\\n> \\ud83d\\udcb8 <b>Earn Real Money</b> by completing simple tasks, playing games & inviting friends.\\n\\n> \\u2728 <i>Trusted by thousands of active users daily.</i>\\n> \\u26a1 <i>Fast withdrawals.</i>\\n> \\ud83d\\udd12 <i>Secure & automated payout system.</i>\\n> \\ud83c\\udf81 <i>Daily rewards, bonuses & referral income available.</i>\\n\\n\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\n\\n\\ud83d\\udccc <b>What You Can Do Here:</b>\\n\\u2022 \\u2705 Complete Tasks & Earn\\n\\u2022 \\ud83c\\udfae Play Games & Win Rewards\\n\\u2022 \\ud83d\\udc65 Invite Friends for Lifetime Commission\\n\\u2022 \\ud83d\\udcb0 Withdraw Directly to Your Wallet\\n\\n\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\n\\n<blockquote>\\ud83d\\udcac <i>\\\"Small earnings become big when consistency meets opportunity.\\\"</i></blockquote>\\n\\n\\ud83d\\udd25 <b>Start now</b> and turn your free time into real rewards.\\n\\n\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\n\\u26a0\\ufe0f <i>Please avoid spam/fake activity. Our security system monitors all actions automatically.</i>\\n\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\\u2501\""
+    }
+  ],
   "game_state": [
     {
       "id": "state",
@@ -12,8 +198,8 @@
       "username": "xtrytowon",
       "first_name": "Adii.exe",
       "phone_number": "+919582703630",
-      "balance": 100000000.0,
-      "lifetime_earnings": 100000000.0,
+      "balance": 0.0,
+      "lifetime_earnings": 0.0,
       "referral_earnings": 0.0,
       "withdrawal_count": 0,
       "referrer": null,
@@ -27,8 +213,8 @@
       "last_task_completion_time": "1970-01-01T00:00:00+00:00",
       "last_bonus_date": null,
       "last_daily_bonus": null,
-      "joined_at": "2026-05-29T07:37:56.417892+05:30",
-      "last_active_date": "2026-05-29T08:16:12.508074+05:30",
+      "joined_at": "2026-05-29T08:17:05.199840+05:30",
+      "last_active_date": "2026-05-29T08:29:58.095438+05:30",
       "banned": false,
       "ban_reason": null,
       "warnings": 0,
@@ -65,36 +251,8 @@
   "proofs": [],
   "withdrawals": [],
   "redeem_codes": [],
-  "transactions": [
-    {
-      "id": 1,
-      "user_id": 7371674958,
-      "type": "bonus_drop",
-      "amount": 100000000.0,
-      "balance_after": 100000000.0,
-      "description": "Bonus Drop #e86aacb0: ₹100,000,000.00",
-      "timestamp": "2026-05-29T08:15:51.171818+05:30",
-      "ref_id": ""
-    }
-  ],
-  "admin_logs": [
-    {
-      "id": 1,
-      "admin_id": 7371674958,
-      "action": "bonus_drop_start",
-      "target": "all_users",
-      "details": "{\"amount\": 100000000.0, \"max_users\": 500, \"drop_id\": \"e86aacb0\"}",
-      "timestamp": "2026-05-29T08:15:47.974443+05:30"
-    },
-    {
-      "id": 2,
-      "admin_id": 7371674958,
-      "action": "bonus_drop_finish",
-      "target": "all_users",
-      "details": "{\"sent\": 1, \"blocked\": 0, \"failed\": 0, \"drop_id\": \"e86aacb0\"}",
-      "timestamp": "2026-05-29T08:15:49.795541+05:30"
-    }
-  ],
+  "transactions": [],
+  "admin_logs": [],
   "game_rounds": [],
   "backup_records": [],
   "game_sessions": [],
