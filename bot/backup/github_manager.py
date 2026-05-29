@@ -33,9 +33,18 @@ class GitHubManager:
         self.token = settings.GIT_BACKUP_TOKEN.strip()
         if not self.repo or not self.token:
             raise GitHubBackupError("GIT_BACKUP_REPO and GIT_BACKUP_TOKEN must be set")
+
+        # Normalise various URL formats to owner/repo
+        repo = self.repo
+        repo = repo.replace("https://github.com/", "").replace("http://github.com/", "")
+        repo = repo.replace("git@github.com:", "")
+        repo = repo.removesuffix(".git").removesuffix("/")
+        self.repo = repo
+
         if "/" not in self.repo or self.repo.count("/") != 1:
             raise GitHubBackupError(
-                "GIT_BACKUP_REPO must be in 'owner/repo' format (e.g. 'username/my-repo')"
+                "GIT_BACKUP_REPO must be in 'owner/repo' format (e.g. 'username/my-repo'). "
+                f"Got: '{settings.GIT_BACKUP_REPO}' → '{self.repo}'"
             )
         self.owner, self.repo_name = self.repo.split("/", 1)
         self.repo_api_url = f"https://api.github.com/repos/{self.owner}/{self.repo_name}"
