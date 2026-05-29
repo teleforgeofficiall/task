@@ -36,12 +36,16 @@ def get_database_url() -> str:
         if not url.startswith("postgresql+asyncpg://") and "postgres" in url:
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        if "postgres" in url and "prepared_statement_cache_size" not in url:
+            sep = "&" if "?" in url else "?"
+            url = f"{url}{sep}prepared_statement_cache_size=0"
         return url
     # Fallback to SQLite for local development
     if not settings.is_production:
         return "sqlite+aiosqlite:///./taskhub.db"
     # Production: build from components
-    return f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+    url = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}?prepared_statement_cache_size=0"
+    return url
 
 
 async def init_db() -> None:
@@ -67,7 +71,6 @@ async def init_db() -> None:
                 pool_pre_ping=True,
                 pool_recycle=3600,
                 echo=False,
-                prepared_statement_cache_size=0,
                 connect_args={
                     "command_timeout": 30,
                     "ssl": "require" if settings.is_production else "prefer",
