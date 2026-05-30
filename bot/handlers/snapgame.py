@@ -235,48 +235,52 @@ async def game_slots_play_handler(update: Update, context: ContextTypes.DEFAULT_
 
     await edit_or_reply(update=update, context=context, text="🎰 Spinning...")
 
-    cfg = await engine.get_game_config("slots")
-    gc = _get_game_count(context)
-    spin = await engine.spin_slots(cfg, gc, user_id=user_id)
-    _increment_game_count(context)
+    try:
+        cfg = await engine.get_game_config("slots")
+        gc = _get_game_count(context)
+        spin = await engine.spin_slots(cfg, gc, user_id=user_id)
+        _increment_game_count(context)
 
-    reels = spin["reels"]
-    emoji_map = {"common": "🍒", "rare": "🔔", "epic": "⭐", "legendary": "👑"}
-    display = " | ".join(emoji_map.get(s, "❓") for s in reels)
-    won = spin["win"]
+        reels = spin["reels"]
+        emoji_map = {"common": "🍒", "rare": "🔔", "epic": "⭐", "legendary": "👑"}
+        display = " | ".join(emoji_map.get(s, "❓") for s in reels)
+        won = spin["win"]
 
-    if won:
-        mult = spin["multiplier"]
-        payout = amount * mult
-        await repository.record_game_win_transaction(user_id, "slots", payout, mult)
-        await repository.record_game_round(user_id, "slots", amount, payout, mult, won=True, details={"reels": reels, "jackpot": spin.get("jackpot", False)})
-        await engine.record_bet("slots", amount, payout)
-        if spin.get("jackpot"):
-            status = "JACKPOT! 🎉👑"
-        elif len(set(reels)) == 1:
-            status = "JACKPOT! 🎉"
+        if won:
+            mult = spin["multiplier"]
+            payout = amount * mult
+            await repository.record_game_win_transaction(user_id, "slots", payout, mult)
+            await repository.record_game_round(user_id, "slots", amount, payout, mult, won=True, details={"reels": reels, "jackpot": spin.get("jackpot", False)})
+            await engine.record_bet("slots", amount, payout)
+            if spin.get("jackpot"):
+                status = "JACKPOT! 🎉👑"
+            elif len(set(reels)) == 1:
+                status = "JACKPOT! 🎉"
+            else:
+                status = "Nice! ✅"
         else:
-            status = "Nice! ✅"
-    else:
-        mult = 0
-        payout = 0
-        await repository.record_game_round(user_id, "slots", amount, 0, 0, won=False, details={"reels": reels})
-        await engine.record_bet("slots", amount, 0)
-        status = "Lost ❌"
+            mult = 0
+            payout = 0
+            await repository.record_game_round(user_id, "slots", amount, 0, 0, won=False, details={"reels": reels})
+            await engine.record_bet("slots", amount, 0)
+            status = "Lost ❌"
 
-    text = (
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🎰 <b>Slots</b> — Result\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"<code>  {display}  </code>\n\n"
-        f"<b>{status}</b>\n\n"
-        f"Bet: <code>₹{amount:.2f}</code>\n"
-        f"{f'Payout: <code>₹{payout:.2f} ({mult}x)</code>' if mult > 0 else ''}"
-    )
+        text = (
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"🎰 <b>Slots</b> — Result\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"<code>  {display}  </code>\n\n"
+            f"<b>{status}</b>\n\n"
+            f"Bet: <code>₹{amount:.2f}</code>\n"
+            f"{f'Payout: <code>₹{payout:.2f} ({mult}x)</code>' if mult > 0 else ''}"
+        )
 
-    is_rage = await engine.is_rage_betting(user_id, amount)
-    await engine.update_session(user_id, "slots", amount, won, is_rage)
-    await context.bot.send_message(chat_id=user_id, text=text, parse_mode="HTML", reply_markup=game_result_keyboard("slots"))
+        is_rage = await engine.is_rage_betting(user_id, amount)
+        await engine.update_session(user_id, "slots", amount, won, is_rage)
+        await context.bot.send_message(chat_id=user_id, text=text, parse_mode="HTML", reply_markup=game_result_keyboard("slots"))
+    except Exception as e:
+        logger.exception("Slots game error for user %s: %s", user_id, e)
+        await context.bot.send_message(chat_id=user_id, text="❌ Game error. Please try again.")
 
 
 # ─── Mines Game ──────────────────────────────────────────────────────────

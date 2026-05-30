@@ -255,6 +255,11 @@ class Repository:
             if existing is None:
                 session.add(SettingTable(key=nk, value=treasure_val))
 
+        # Reset game_config to new defaults (old stored values may conflict with updated _DEFAULT_CONFIG)
+        gc_row = await session.get(SettingTable, "game_config")
+        if gc_row is not None:
+            await session.delete(gc_row)
+
         gs = await session.get(GameStateTable, "state")
         if gs is None:
             session.add(GameStateTable(id="state", data=dict(_DEFAULT_GAME_STATE)))
