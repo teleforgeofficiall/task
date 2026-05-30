@@ -246,7 +246,7 @@ async def game_slots_play_handler(update: Update, context: ContextTypes.DEFAULT_
         if force_loss:
             context.user_data["slots_loss_streak"] = streak - 1
         elif spin["win"]:
-            context.user_data["slots_loss_streak"] = 2
+            context.user_data["slots_loss_streak"] = random.randint(1, 10)
 
         _increment_game_count(context)
 
