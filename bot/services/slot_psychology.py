@@ -26,7 +26,8 @@ class SlotPsychologyEngine:
         self._momentum: Dict[str, float] = {}  # user_id -> momentum factor
 
     def spin(self, config: Dict, effective_rtp: float, exposure_mod: float = 1.0,
-             user_id: Optional[int] = None, jackpot_mod: float = 1.0) -> Dict[str, Any]:
+             user_id: Optional[int] = None, jackpot_mod: float = 1.0,
+             force_loss: bool = False) -> Dict[str, Any]:
         """Spin the slot with full psychology system."""
         weights = config.get("weights", VOLATILITY_WEIGHTS["normal"])
         w = [weights.get(s, 10) for s in SYMBOLS]
@@ -47,10 +48,9 @@ class SlotPsychologyEngine:
 
         # Generate 3 reels
         reels = []
-        forced_win = random.random() < (effective_rtp / 100.0)
-
-        if forced_win:
-            # Guarantee at least a partial win based on RTP
+        if force_loss:
+            reels = self._generate_all_loss(norm_w)
+        elif random.random() < (effective_rtp / 100.0):
             reels = self._generate_winning_reels(norm_w, effective_rtp)
         else:
             reels = self._generate_losing_reels(norm_w, effective_rtp)
@@ -122,6 +122,13 @@ class SlotPsychologyEngine:
         else:
             # Full loss: all different
             return random.choices(SYMBOLS, weights=weights, k=3)
+
+    def _generate_all_loss(self, weights: List[float]) -> List[str]:
+        """Generate 3 different symbols — guaranteed loss (no 2-match)."""
+        syms = random.choices(SYMBOLS, weights=weights, k=3)
+        while len(set(syms)) < 3:
+            syms = random.choices(SYMBOLS, weights=weights, k=3)
+        return syms
 
     def _is_near_miss(self, reels: List[str]) -> bool:
         """Detect near-miss patterns (two high-value symbols)."""

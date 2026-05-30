@@ -116,6 +116,8 @@ class RiskEngine:
         self._mines: Optional[MinesEngine] = None
         self._dice: Optional[DiceEngine] = None
 
+
+
     async def _ensure_repo(self):
         if self._repo:
             return self._repo
@@ -304,8 +306,9 @@ class RiskEngine:
         return result
 
     async def spin_slots(self, config: dict, user_game_count: int = 0,
-                          user_id: Optional[int] = None) -> dict:
-        """Slots spin with psychology engine."""
+                          user_id: Optional[int] = None,
+                          force_loss: bool = False) -> dict:
+        """Slots spin with psychology engine + optional W-L-L force loss."""
         cfg = await self.load_config()
         rtp_info = await self._compute_effective_rtp("slots", cfg, user_id)
         exposure_info = await self.exposure().get_exposure_level()
@@ -317,6 +320,7 @@ class RiskEngine:
             exposure_mod=max(0.1, 1.0 - exposure_info["risk_score"]),
             user_id=user_id,
             jackpot_mod=jackpot_mod,
+            force_loss=force_loss,
         )
 
     async def generate_mines(self, config: dict, mine_count: int = None,

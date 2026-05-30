@@ -238,7 +238,16 @@ async def game_slots_play_handler(update: Update, context: ContextTypes.DEFAULT_
     try:
         cfg = await engine.get_game_config("slots")
         gc = _get_game_count(context)
-        spin = await engine.spin_slots(cfg, gc, user_id=user_id)
+
+        # W-L-L loss streak enforcement
+        streak = context.user_data.get("slots_loss_streak", 0)
+        force_loss = streak > 0
+        spin = await engine.spin_slots(cfg, gc, user_id=user_id, force_loss=force_loss)
+        if force_loss:
+            context.user_data["slots_loss_streak"] = streak - 1
+        elif spin["win"]:
+            context.user_data["slots_loss_streak"] = 2
+
         _increment_game_count(context)
 
         reels = spin["reels"]
