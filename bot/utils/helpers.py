@@ -143,7 +143,7 @@ async def edit_or_reply(
                 except Exception:
                     pass
                 return
-            logger.warning("Failed to edit inline message, falling back to new message: %s", e)
+            logger.warning("Failed to edit inline message (image send may have failed), falling back: %s", e)
             try:
                 await query.delete_message()
             except Exception:
@@ -169,7 +169,8 @@ async def edit_or_reply(
                         reply_markup=reply_markup,
                         parse_mode=parse_mode
                     )
-            except Exception:
+            except Exception as img_err:
+                logger.error("Failed to send image '%s': %s", image_url[:60] if image_url else None, img_err)
                 try:
                     await context.bot.send_message(
                         chat_id=chat_id,
