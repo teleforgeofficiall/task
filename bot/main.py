@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Request, Response, status
-from telegram import Update
+from telegram import Update, BotCommand
 from telegram.ext import ApplicationBuilder
 
 from telegram.error import TelegramError
@@ -84,6 +84,10 @@ async def lifespan(app: FastAPI):
         else:
             # Start bot application (valid BOT_TOKEN required)
             await ptb_app.initialize()
+            await ptb_app.bot.set_my_commands([
+                BotCommand("start", "🚀 Let's start your earning journey"),
+                BotCommand("admin", "🛠️ Go to the admin panel"),
+            ])
             await ptb_app.start()
 
             # Start listening for updates
