@@ -123,6 +123,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                     parse_mode="HTML"
                 )
                 context.user_data["verify_msg_id"] = msg.message_id
+                await repository.update_setting(f"verify_msg:{user_id}", msg.message_id)
                 return
 
     await send_main_menu(update, context, repository)

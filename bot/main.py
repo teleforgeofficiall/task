@@ -275,6 +275,14 @@ async def api_verification_done(request: Request):
                 chat_id=user_id, text=start_text,
                 reply_markup=kb, parse_mode="HTML"
             )
+        # Delete the stored verify message from DB
+        verify_msg_id = await repo.get_setting(f"verify_msg:{user_id}")
+        if verify_msg_id:
+            try:
+                await ptb_app.bot.delete_message(chat_id=user_id, message_id=int(verify_msg_id))
+            except Exception:
+                pass
+            await repo.update_setting(f"verify_msg:{user_id}", None)
     return {"ok": True}
 
 
