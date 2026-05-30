@@ -215,6 +215,65 @@ async def api_verify_device(request: Request):
         return {"ok": True, "message": "Device verified"}
 
 
+@app.post("/api/verification-done")
+async def api_verification_done(request: Request):
+    """Called by mini app after successful verification, just before closing."""
+    from bot.database import get_session, Repository
+    from bot.keyboards.user_kb import main_menu_keyboard
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False}
+    user_id = data.get("user_id")
+    if not user_id:
+        return {"ok": False}
+    async with get_session() as session:
+        repo = Repository(session)
+        banner_url = await repo.get_image("img_welcome")
+        start_text = await repo.get_setting(
+            "start_message",
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "🚀 <b>Welcome to TaskHub Rewards</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "> 💸 <b>Earn Real Money</b> by completing simple tasks, playing games & inviting friends.\n\n"
+            "> ✨ <i>Trusted by thousands of active users daily.</i>\n"
+            "> ⚡ <i>Fast withdrawals.</i>\n"
+            "> 🔒 <i>Secure & automated payout system.</i>\n"
+            "> 🎁 <i>Daily rewards, bonuses & referral income available.</i>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "📌 <b>What You Can Do Here:</b>\n"
+            "• ✅ Complete Tasks & Earn\n"
+            "• 🎮 Play Games & Win Rewards\n"
+            "• 👥 Invite Friends for Lifetime Commission\n"
+            "• 💰 Withdraw Directly to Your Wallet\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "<blockquote>💬 <i>\"Small earnings become big when consistency meets opportunity.\"</i></blockquote>\n\n"
+            "🔥 <b>Start now</b> and turn your free time into real rewards.\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "⚠️ <i>Please avoid spam/fake activity. Our security system monitors all actions automatically.</i>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
+        )
+        kb = main_menu_keyboard()
+        if banner_url:
+            try:
+                await ptb_app.bot.send_photo(
+                    chat_id=user_id, photo=banner_url,
+                    caption=start_text, reply_markup=kb,
+                    parse_mode="HTML"
+                )
+            except Exception:
+                await ptb_app.bot.send_message(
+                    chat_id=user_id, text=start_text,
+                    reply_markup=kb, parse_mode="HTML"
+                )
+        else:
+            await ptb_app.bot.send_message(
+                chat_id=user_id, text=start_text,
+                reply_markup=kb, parse_mode="HTML"
+            )
+    return {"ok": True}
+
+
 @app.get("/api/user/{user_id}/photo")
 async def api_user_photo(user_id: int):
     """Return downloadable URL for user's profile photo."""

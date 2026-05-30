@@ -495,8 +495,12 @@ async function startVerification() {
 function continueToBot() {
   var tg = window.Telegram && window.Telegram.WebApp;
   if (tg) {
-    tg.sendData(JSON.stringify({ action: 'verified' }));
-    setTimeout(function() { tg.close(); }, 200);
+    fetch(API_BASE + '/api/verification-done', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: parseInt(userId) })
+    }).catch(function() {});
+    tg.close();
   } else {
     var bot = BOT_USERNAME || '__BOT_USERNAME__';
     window.location.href = 'https://t.me/' + bot + '?start=verified';
