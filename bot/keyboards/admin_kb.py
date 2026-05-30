@@ -366,6 +366,13 @@ def images_manager_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton("📸 Leaderboard", callback_data="admin:img_replace:img_leaderboard"),
             InlineKeyboardButton("📸 Google Redeem", callback_data="admin:img_replace:img_redeem_success"),
         ],
+        [
+            InlineKeyboardButton("📸 Withdraw Redeem", callback_data="admin:img_replace:img_withdraw_redeem"),
+            InlineKeyboardButton("📸 Withdraw Stars", callback_data="admin:img_replace:img_withdraw_stars"),
+        ],
+        [
+            InlineKeyboardButton("📸 Withdraw UPI", callback_data="admin:img_replace:img_withdraw_upi"),
+        ],
         [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)

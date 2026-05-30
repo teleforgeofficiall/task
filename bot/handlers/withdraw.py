@@ -130,8 +130,10 @@ async def withdraw_request_handler(update: Update, context: ContextTypes.DEFAULT
             "Select the amount you would like to withdraw as a redeem code:"
         )
 
+        redeem_img = await repository.get_image("img_withdraw_redeem")
         await edit_or_reply(
             update=update, context=context, text=text,
+            image_url=redeem_img,
             reply_markup=withdraw_amount_keyboard("redeem")
         )
         return
@@ -150,8 +152,10 @@ async def withdraw_request_handler(update: Update, context: ContextTypes.DEFAULT
             "<i>Send the link in this chat, or tap Cancel to go back.</i>"
         )
 
+        stars_img = await repository.get_image("img_withdraw_stars")
         await edit_or_reply(
             update=update, context=context, text=text,
+            image_url=stars_img,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("❌ Cancel", callback_data="menu:withdraw")]
             ])
@@ -170,6 +174,7 @@ async def withdraw_request_handler(update: Update, context: ContextTypes.DEFAULT
         "<i>Type your UPI ID in this chat, or tap Cancel to go back.</i>"
     )
 
+    upi_img = await repository.get_image("img_withdraw_upi")
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("❌ Cancel", callback_data="menu:withdraw")]
     ])
@@ -178,6 +183,7 @@ async def withdraw_request_handler(update: Update, context: ContextTypes.DEFAULT
         update=update,
         context=context,
         text=text,
+        image_url=upi_img,
         reply_markup=kb
     )
 
@@ -249,6 +255,7 @@ async def withdraw_star_amount_handler(update: Update, context: ContextTypes.DEF
         stars=stars, channel_link=channel_link
     )
 
+    stars_img = await repository.get_image("img_withdraw_stars")
     await edit_or_reply(
         update=update,
         context=context,
@@ -262,6 +269,7 @@ async def withdraw_star_amount_handler(update: Update, context: ContextTypes.DEF
             f"<blockquote>⏰ Admin will verify your post and add ⭐ reactions.\n"
             f"⚠️ Any suspicious activity may result in account suspension.</blockquote>"
         ),
+        image_url=stars_img,
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("📋 Back to Wallet", callback_data="menu:wallet")]
         ])
@@ -345,7 +353,7 @@ async def withdraw_amount_sel_handler(update: Update, context: ContextTypes.DEFA
         await repository.update_withdrawal_status(w_req.id, "paid")
 
         await query.answer()
-        redeem_img = await repository.get_image("img_redeem_success")
+        redeem_img = await repository.get_image("img_withdraw_redeem")
         success_text = (
             f"✅ <b>Google Redeem Code — Instant!</b>\n\n"
             f"━━━━━━━━━━━━━━━━━━\n"
@@ -509,6 +517,12 @@ async def withdraw_text_input_handler(update: Update, context: ContextTypes.DEFA
             f"⚠️ Any suspicious activity may result in account suspension.</blockquote>"
         )
 
+        upi_img = await repository.get_image("img_withdraw_upi")
+        if upi_img:
+            try:
+                await msg.reply_photo(photo=upi_img)
+            except Exception:
+                pass
         await msg.reply_text(
             success_text,
             parse_mode="HTML",
