@@ -4,8 +4,9 @@ start.py — Start command handler, force-subscribe verification, and main menu 
 from __future__ import annotations
 
 import logging
+import json
 from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
+from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 
 from bot.database import get_db, Repository
 from bot.keyboards.user_kb import main_menu_keyboard
@@ -179,8 +180,24 @@ async def fsub_verify_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.answer("❌ You still haven't joined all channels!", show_alert=True)
 
 
+async def web_app_verified_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle web_app_data from device verification mini app (sendData + close)."""
+    if not update.message or not update.message.web_app_data:
+        return
+    data = update.message.web_app_data
+    try:
+        payload = json.loads(data.data)
+    except (json.JSONDecodeError, TypeError):
+        return
+    if payload.get("action") != "verified":
+        return
+    repository = Repository(await get_db())
+    await send_main_menu(update, context, repository)
+
+
 def register_handlers(application) -> None:
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("verified", verified_start))
+    application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_verified_handler))
     application.add_handler(CallbackQueryHandler(menu_main_callback, pattern="^menu:main$"))
     application.add_handler(CallbackQueryHandler(fsub_verify_callback, pattern="^fsub:verify$"))
