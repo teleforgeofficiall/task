@@ -164,18 +164,20 @@ async def check_access(
             await update.callback_query.answer("📱 Phone verification required!")
             # Send message with reply keyboard (requires deleting the inline message first)
             await update.callback_query.delete_message()
-            await bot.send_message(
+            sent = await bot.send_message(
                 chat_id=user_id,
                 text=contact_text,
                 reply_markup=kb,
                 parse_mode="HTML"
             )
+            context.user_data["contact_prompt_msg_id"] = sent.message_id
         elif update.message:
-            await update.message.reply_text(
+            sent = await update.message.reply_text(
                 text=contact_text,
                 reply_markup=kb,
                 parse_mode="HTML"
             )
+            context.user_data["contact_prompt_msg_id"] = sent.message_id
         return False
 
     return True

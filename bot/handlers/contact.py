@@ -50,6 +50,14 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     # Flag in user_data so middleware doesn't re-prompt (DB backup in case of reload)
     context.user_data["contact_verified"] = True
 
+    # Delete the earlier contact-prompt message if we stored its message_id
+    prompt_msg_id = context.user_data.pop("contact_prompt_msg_id", None)
+    if prompt_msg_id:
+        try:
+            await context.bot.delete_message(chat_id=user_id, message_id=prompt_msg_id)
+        except Exception:
+            pass
+
     # Delete user's contact message
     try:
         await msg.delete()

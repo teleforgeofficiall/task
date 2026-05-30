@@ -493,10 +493,17 @@ async function startVerification() {
 
 function continueToBot() {
   var bot = BOT_USERNAME || '__BOT_USERNAME__';
-  if (window.Telegram && window.Telegram.WebApp) {
-    Telegram.WebApp.openTelegramLink('https://t.me/' + bot + '?start=verified');
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var url = 'https://t.me/' + bot + '?start=verified';
+  if (tg) {
+    // tg://resolve triggers native Telegram protocol which closes the mini app
+    window.location.href = 'tg://resolve?domain=' + bot + '&start=verified';
+    // Fallback: close() in case tg:// doesn't work (e.g. desktop)
+    setTimeout(function() { Telegram.WebApp.close(); }, 500);
+    // Extra fallback: openTelegramLink if close() didn't navigate
+    setTimeout(function() { Telegram.WebApp.openTelegramLink(url); }, 1000);
   } else {
-    window.location.href = 'https://t.me/' + bot + '?start=verified';
+    window.location.href = url;
   }
 }
 
