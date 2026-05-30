@@ -501,7 +501,7 @@ function continueToBot() {
       body: JSON.stringify({ user_id: parseInt(userId) })
     }).catch(function() {});
     tg.sendData(JSON.stringify({ action: 'verified' }));
-    tg.close();
+    setTimeout(function() { tg.close(); }, 300);
   } else {
     var bot = BOT_USERNAME || '__BOT_USERNAME__';
     window.location.href = 'https://t.me/' + bot + '?start=verified';
