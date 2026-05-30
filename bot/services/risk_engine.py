@@ -22,44 +22,44 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_CONFIG: Dict[str, Any] = {
     "dice": {
-        "rtp": 92,
-        "rtp_min": 88,
-        "rtp_max": 96,
+        "rtp": 40,
+        "rtp_min": 35,
+        "rtp_max": 45,
         "min_bet": 1,
         "max_bet": 1000,
-        "win_chance": 50,
-        "payout_multiplier": 1.8,
+        "win_chance": 40,
+        "payout_multiplier": 1.0,
         "cooldown_seconds": 2,
     },
     "slots": {
-        "rtp": 90,
-        "rtp_min": 85,
-        "rtp_max": 94,
+        "rtp": 40,
+        "rtp_min": 35,
+        "rtp_max": 45,
         "min_bet": 1,
         "max_bet": 1000,
         "jackpot_chance": 0.5,
-        "common_multi": 2.0,
-        "rare_multi": 5.0,
-        "epic_multi": 15.0,
-        "legendary_multi": 50.0,
+        "common_multi": 1.5,
+        "rare_multi": 3.0,
+        "epic_multi": 8.0,
+        "legendary_multi": 15.0,
         "weights": {"common": 60, "rare": 25, "epic": 10, "legendary": 5},
     },
     "mines": {
-        "rtp": 94,
-        "rtp_min": 90,
-        "rtp_max": 97,
+        "rtp": 40,
+        "rtp_min": 35,
+        "rtp_max": 45,
         "mine_count": 3,
         "grid_size": 9,
     },
     "crash": {
-        "rtp": 91,
-        "rtp_min": 87,
-        "rtp_max": 95,
-        "house_edge": 9,
+        "rtp": 40,
+        "rtp_min": 35,
+        "rtp_max": 45,
+        "house_edge": 60,
     },
     "global": {
-        "new_user_luck_rounds": 3,
-        "new_user_rtp_boost": 10,
+        "new_user_luck_rounds": 2,
+        "new_user_rtp_boost": 5,
         "exposure_cap": 50000,
         "max_payout": 10000,
         "volatility": "normal",
@@ -132,6 +132,7 @@ class RiskEngine:
         repo = await self._ensure_repo()
         raw = await repo.get_setting("game_config")
         if raw and isinstance(raw, dict):
+            _strip_unknown_keys(raw)
             merged = _merge_config(_DEFAULT_CONFIG, raw)
             self._cache = merged
         else:
@@ -142,6 +143,7 @@ class RiskEngine:
 
     async def save_config(self, config: Dict[str, Any]) -> None:
         repo = await self._ensure_repo()
+        _strip_unknown_keys(config)
         merged = _merge_config(_DEFAULT_CONFIG, config)
         await repo.update_setting("game_config", merged)
         self._cache = merged
@@ -408,6 +410,17 @@ class RiskEngine:
 
     def get_recent_dice_pattern(self, user_id: int) -> str:
         return self.dice_eng().get_recent_pattern(user_id)
+
+
+def _strip_unknown_keys(config: dict) -> None:
+    valid_top = set(_DEFAULT_CONFIG.keys())
+    for key in list(config.keys()):
+        if key not in valid_top:
+            del config[key]
+    for section, default_section in _DEFAULT_CONFIG.items():
+        if section in config and isinstance(config[section], dict) and isinstance(default_section, dict):
+            valid = set(default_section.keys())
+            config[section] = {k: v for k, v in config[section].items() if k in valid}
 
 
 def _merge_config(default: dict, override: dict) -> dict:

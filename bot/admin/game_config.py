@@ -197,10 +197,10 @@ async def admin_game_config_edit_start(update: Update, context: ContextTypes.DEF
 
     hint_map = {
         "global": "Keys: new_user_luck_rounds, new_user_rtp_boost, exposure_cap, max_payout, volatility",
-        "dice": "Keys: min_rtp, max_rtp, min_bet, max_bet",
-        "slots": "Keys: min_rtp, max_rtp, min_bet, max_bet",
-        "mines": "Keys: min_rtp, max_rtp, min_bet, max_bet",
-        "crash": "Keys: min_rtp, max_rtp, min_bet, max_bet",
+        "dice": "Keys: rtp, rtp_min, rtp_max, min_bet, max_bet, win_chance, payout_multiplier, cooldown_seconds",
+        "slots": "Keys: rtp, rtp_min, rtp_max, min_bet, max_bet, jackpot_chance, common_multi, rare_multi, epic_multi, legendary_multi",
+        "mines": "Keys: rtp, rtp_min, rtp_max, mine_count, grid_size",
+        "crash": "Keys: rtp, rtp_min, rtp_max, min_bet, max_bet, house_edge",
     }
     hint = hint_map.get(game, "Keys depend on configuration")
 
