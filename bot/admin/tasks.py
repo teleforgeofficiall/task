@@ -265,6 +265,46 @@ async def admin_tasks_text_input_handler(update: Update, context: ContextTypes.D
 
         # Save and create task
         await save_channel_task(update, context, repository, chan_id, chan_url, chan_title)
+        return
+
+    # ─── Edit Task States ───────────────────────────────────────────────────────
+    # admin_state format: awaiting_task_edit_{field}:{task_id}:{page}
+    if admin_state.startswith("awaiting_task_edit_"):
+        parts = admin_state.split(":")
+        if len(parts) < 3:
+            return
+        field = parts[0].replace("awaiting_task_edit_", "")
+        task_id = int(parts[1])
+        page = int(parts[2])
+
+        if field == "reward":
+            try:
+                value = float(text.replace(",", ""))
+                if value <= 0:
+                    raise ValueError()
+            except ValueError:
+                await msg.reply_text("❌ Invalid reward amount. Please send a positive number.")
+                return
+        else:
+            if not text:
+                await msg.reply_text("❌ Value cannot be empty.")
+                return
+            value = text
+
+        field_map = {"desc": "description", "guide": "guide", "reward": "reward"}
+        db_field = field_map.get(field)
+        if not db_field:
+            return
+
+        await repository.update_task_fields(task_id, **{db_field: value})
+        context.user_data.pop("admin_state", None)
+
+        await msg.reply_text(
+            f"✅ <b>Task #{task_id} updated!</b>",
+            parse_mode="HTML",
+            reply_markup=back_to_admin()
+        )
+        return
 
 
 async def admin_task_channel_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -456,6 +496,75 @@ async def admin_task_delete_handler(update: Update, context: ContextTypes.DEFAUL
     await admin_tasks_list_handler(update, context)
 
 
+async def admin_task_edit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show edit options for a specific task field."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    parts = query.data.split(":")
+    task_id = int(parts[2])
+    page = int(parts[3])
+
+    repository = Repository(await get_db())
+    task = await repository.get_task(task_id)
+    if not task:
+        await query.answer("Task not found.", show_alert=True)
+        return
+
+    text = (
+        f"✏️ <b>Edit Task #{task.id}</b>\n"
+        f"─────────────────────\n"
+        f"• <b>Title:</b> {escape_html(task.description)}\n"
+        f"• <b>Guide:</b> {escape_html(task.guide[:50])}{'...' if len(task.guide) > 50 else ''}\n"
+        f"• <b>Reward:</b> <code>{format_currency(task.reward)}</code>\n"
+        f"─────────────────────\n\n"
+        f"Select a field to edit:"
+    )
+
+    keyboard = [
+        [InlineKeyboardButton("📝 Edit Title", callback_data=f"admin:task_edit_fld:desc:{task_id}:{page}")],
+        [InlineKeyboardButton("📖 Edit Guide", callback_data=f"admin:task_edit_fld:guide:{task_id}:{page}")],
+        [InlineKeyboardButton("💰 Edit Reward", callback_data=f"admin:task_edit_fld:reward:{task_id}:{page}")],
+        [InlineKeyboardButton("🔙 Back to Task", callback_data=f"admin:task_view:{task_id}:{page}")],
+    ]
+
+    await query.edit_message_text(text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    await query.answer()
+
+
+async def admin_task_edit_field_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Initiate editing a specific task field."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    parts = query.data.split(":")
+    field = parts[2]
+    task_id = int(parts[3])
+    page = int(parts[4])
+
+    context.user_data["admin_state"] = f"awaiting_task_edit_{field}:{task_id}:{page}"
+
+    field_labels = {"desc": "Title", "guide": "Guide", "reward": "Reward"}
+    label = field_labels.get(field, field)
+    prompts = {
+        "desc": "Send the <b>new title</b> for this task:",
+        "guide": "Send the <b>new guide instructions</b> for this task:",
+        "reward": "Send the <b>new reward amount</b> in Rupees (e.g. <code>2.50</code>):",
+    }
+    prompt = prompts.get(field, f"Send the new {label}:")
+
+    await query.edit_message_text(
+        text=f"✏️ <b>Edit Task #{task_id} — {label}</b>\n\n{prompt}",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ Cancel", callback_data=f"admin:task_edit:{task_id}:{page}")]
+        ]),
+        parse_mode="HTML"
+    )
+    await query.answer()
+
+
 def register_handlers(application) -> None:
     """Register tasks admin handlers."""
     application.add_handler(CallbackQueryHandler(admin_tasks_menu_handler, pattern="^admin:tasks_menu$"))
@@ -465,6 +574,8 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(admin_task_view_handler, pattern="^admin:task_view:\d+:\d+$"))
     application.add_handler(CallbackQueryHandler(admin_task_toggle_handler, pattern="^admin:task_toggle:\d+:\d+$"))
     application.add_handler(CallbackQueryHandler(admin_task_delete_handler, pattern="^admin:task_del:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_task_edit_handler, pattern="^admin:task_edit:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_task_edit_field_handler, pattern="^admin:task_edit_fld:\w+:\d+:\d+$"))
     
     # Text and media input handlers for creating task details
     application.add_handler(MessageHandler(

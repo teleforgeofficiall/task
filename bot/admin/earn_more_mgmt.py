@@ -30,13 +30,15 @@ async def earn_more_manager_handler(update: Update, context: ContextTypes.DEFAUL
     else:
         text += f"Total items: {len(items)}\n\n"
         for i, item in enumerate(items, 1):
-            text += f"{i}. {escape_html(item['button_name'])}\n"
+            price = item.get("price", 0.0)
+            text += f"{i}. {escape_html(item['button_name'])} — ₹{price:.2f}\n"
 
     keyboard = []
     if items:
         for item in items:
+            price = item.get("price", 0.0)
             keyboard.append([
-                InlineKeyboardButton(f"✏️ {escape_html(item['button_name'])}", callback_data=f"admin:earn_more_edit:{item['id']}"),
+                InlineKeyboardButton(f"✏️ {escape_html(item['button_name'])} — ₹{price:.2f}", callback_data=f"admin:earn_more_edit:{item['id']}"),
                 InlineKeyboardButton(f"🗑️", callback_data=f"admin:earn_more_del:{item['id']}"),
             ])
     keyboard.append([InlineKeyboardButton("➕ Add Earn", callback_data="admin:earn_more_add")])
@@ -56,7 +58,7 @@ async def earn_more_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     context.user_data.pop("admin_temp_name", None)
 
     await query.edit_message_text(
-        text="💰 <b>Add Earn — Step 1/2</b>\n\nSend the <b>button name</b> jo users ko dikhega (e.g., Telegram Channel, Website, etc.):",
+        text="💰 <b>Add Earn — Step 1/3</b>\n\nSend the <b>button name</b> jo users ko dikhega (e.g., Telegram Channel, Website, etc.):",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("❌ Cancel", callback_data="admin:earn_more_mgmt")]
         ]),
@@ -86,8 +88,9 @@ async def earn_more_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     await query.edit_message_text(
         text=(
-            f"💰 <b>Edit Earn — Step 1/2</b>\n\n"
+            f"💰 <b>Edit Earn — Step 1/3</b>\n\n"
             f"Current button name: {escape_html(item['button_name'])}\n"
+            f"Current price: ₹{item.get('price', 0):.2f}\n\n"
             f"Send the <b>new button name</b> (or same to keep):"
         ),
         reply_markup=InlineKeyboardMarkup([
@@ -138,12 +141,41 @@ async def earn_more_message_handler(update: Update, context: ContextTypes.DEFAUL
                 return
             text = msg.text.strip()
             context.user_data["admin_temp_name"] = text
-            context.user_data["admin_state"] = "awaiting_earn_more_content"
+            context.user_data["admin_state"] = "awaiting_earn_more_price"
 
             step_label = "Edit" if is_edit else "Add"
             await msg.reply_text(
-                f"💰 <b>{step_label} Earn — Step 2/2</b>\n\n"
+                f"💰 <b>{step_label} Earn — Step 2/3</b>\n\n"
                 f"Button name: {escape_html(text)}\n\n"
+                f"Send the <b>price/reward amount</b> for this item (e.g. <code>5.00</code>).\n"
+                f"Send <code>0</code> if it's free.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("❌ Cancel", callback_data="admin:earn_more_mgmt")]
+                ]),
+                parse_mode="HTML",
+            )
+            return
+
+        if admin_state == "awaiting_earn_more_price":
+            if not msg.text:
+                await msg.reply_text("❌ Please send a numeric price (e.g. <code>5.00</code>).")
+                return
+            try:
+                price = float(msg.text.strip().replace(",", ""))
+                if price < 0:
+                    raise ValueError()
+            except ValueError:
+                await msg.reply_text("❌ Invalid price. Please send a positive number (e.g. <code>2.50</code>).")
+                return
+            context.user_data["admin_temp_price"] = price
+            context.user_data["admin_state"] = "awaiting_earn_more_content"
+
+            step_label = "Edit" if is_edit else "Add"
+            button_name = context.user_data.get("admin_temp_name", "")
+            await msg.reply_text(
+                f"💰 <b>{step_label} Earn — Step 3/3</b>\n\n"
+                f"Button name: {escape_html(button_name)}\n"
+                f"Price: ₹{price:.2f}\n\n"
                 f"Now send your full message description / image / video (ya koi bhi message forward karein):",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("❌ Cancel", callback_data="admin:earn_more_mgmt")]
@@ -154,6 +186,7 @@ async def earn_more_message_handler(update: Update, context: ContextTypes.DEFAUL
 
         if admin_state == "awaiting_earn_more_content":
             button_name = context.user_data.get("admin_temp_name", "")
+            price = context.user_data.get("admin_temp_price", 0.0)
             if not button_name:
                 await msg.reply_text("❌ Session expired. Please start again.")
                 context.user_data.pop("admin_state", None)
@@ -179,18 +212,20 @@ async def earn_more_message_handler(update: Update, context: ContextTypes.DEFAUL
                 return
 
             if is_edit:
-                await repository.update_earn_more_item(edit_id, button_name=button_name, msg_type=msg_type, msg_content=msg_content)
+                await repository.update_earn_more_item(edit_id, button_name=button_name, price=price, msg_type=msg_type, msg_content=msg_content)
             else:
-                await repository.add_earn_more_item(button_name, msg_type, msg_content)
+                await repository.add_earn_more_item(button_name, msg_type, msg_content, price=price)
 
             context.user_data.pop("admin_state", None)
             context.user_data.pop("admin_edit_id", None)
             context.user_data.pop("admin_temp_name", None)
+            context.user_data.pop("admin_temp_price", None)
 
             action = "updated" if is_edit else "added"
             await msg.reply_text(
                 f"✅ <b>Earn More item {action}!</b>\n\n"
-                f"• Button Name: {escape_html(button_name)}",
+                f"• Button Name: {escape_html(button_name)}\n"
+                f"• Price: ₹{price:.2f}",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🔙 Back to Manager", callback_data="admin:earn_more_mgmt")]
                 ]),

@@ -117,6 +117,7 @@ def task_action_keyboard(task_id: int, is_active: bool, page: int) -> InlineKeyb
             InlineKeyboardButton("🗑️ Delete Task", callback_data=f"admin:task_del:{task_id}:{page}"),
         ],
         [
+            InlineKeyboardButton("✏️ Edit Task", callback_data=f"admin:task_edit:{task_id}:{page}"),
             InlineKeyboardButton("🔙 Back to List", callback_data=f"admin:tasks_list:{page}"),
         ]
     ]

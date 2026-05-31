@@ -29,7 +29,9 @@ async def earn_more_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     keyboard = []
     for item in items:
-        keyboard.append([InlineKeyboardButton(item["button_name"], callback_data=f"earn_more:show:{item['id']}")])
+        price = item.get("price", 0.0)
+        label = f"{item['button_name']} — Only ₹{price:.2f}" if price else item['button_name']
+        keyboard.append([InlineKeyboardButton(label, callback_data=f"earn_more:show:{item['id']}")])
     keyboard.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="menu:main")])
 
     await edit_or_reply(update=update, context=context, text=text, reply_markup=InlineKeyboardMarkup(keyboard))

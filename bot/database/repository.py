@@ -992,10 +992,10 @@ class Repository:
     async def get_earn_more_items(self) -> list:
         return await self.get_setting("earn_more_items", [])
 
-    async def add_earn_more_item(self, button_name: str, msg_type: str, msg_content: str) -> dict:
+    async def add_earn_more_item(self, button_name: str, msg_type: str, msg_content: str, price: float = 0.0) -> dict:
         items = await self.get_earn_more_items()
         item_id = max([i.get("id", 0) for i in items], default=0) + 1
-        item = {"id": item_id, "button_name": button_name, "msg_type": msg_type, "msg_content": msg_content}
+        item = {"id": item_id, "button_name": button_name, "msg_type": msg_type, "msg_content": msg_content, "price": price}
         items.append(item)
         await self.update_setting("earn_more_items", items)
         return item
