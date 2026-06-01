@@ -70,7 +70,7 @@ def tasks_list_keyboard(tasks: List[dict], page: int, total: int) -> InlineKeybo
     for t in tasks:
         desc = t["description"][:40] + ("..." if len(t["description"]) > 40 else "")
         keyboard.append([
-            InlineKeyboardButton(f"📌 {desc} — Only ₹{t['reward']:.2f}", callback_data=f"task:view:{t['id']}:{page}")
+            InlineKeyboardButton(f"📌 {desc} — ₹{t['reward']:.2f}", callback_data=f"task:view:{t['id']}:{page}")
         ])
     nav = []
     if page > 0:
