@@ -128,6 +128,7 @@ class TaskTable(Base):
     media_type: Mapped[str] = mapped_column(String(10), default="photo")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     created_at: Mapped[str] = mapped_column(String(50), default=lambda: datetime.now(IST).isoformat())
+    completion_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Channel task specific
     channel_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

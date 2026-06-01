@@ -107,7 +107,8 @@ async def task_view_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         f"📋 <b>Task Details</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"<blockquote><b>Description:</b> {escape_html(task.description)}</blockquote>\n\n"
-        f"💰 <b>Reward:</b> <code>{format_currency(task.reward)}</code>{pending_badge}\n\n"
+        f"💰 <b>Reward:</b> <code>{format_currency(task.reward)}</code>{pending_badge}\n"
+        f"👥 <b>Completed by:</b> <code>{task.completion_count} users</code>\n\n"
         f"📝 <b>Guide / Instructions</b>\n"
         f"<blockquote>{escape_html(task.guide)}</blockquote>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━"
@@ -223,6 +224,11 @@ async def task_verify_channel_handler(update: Update, context: ContextTypes.DEFA
                 await s.commit()
         except Exception as e:
             logger.error(f"SQLAlchemy update failed for task #{task_id}: {e}")
+
+        try:
+            await repository.increment_task_completion(task.id)
+        except Exception as e:
+            logger.error(f"Failed to increment task completion count: {e}")
 
         try:
             await query.answer("Reward Credited!", show_alert=True)

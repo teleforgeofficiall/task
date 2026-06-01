@@ -4,7 +4,7 @@ referral.py — Referral dashboard, link generation, lucky reward claims, and in
 from __future__ import annotations
 
 import logging
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
 from bot.database import get_db, Repository
@@ -65,7 +65,7 @@ async def referral_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
         f"{reward_desc}\n\n"
         f"📊 <b>Your Statistics</b>\n"
         f"• 👥 <b>Total Invites:</b> <code>{len(user.referrals)}</code>\n"
-        f"• ✅ <b>Rewarded:</b> <code>{len(user.referrals) - unclaimed_count}</code>\n"
+        f"• ✅ <b>Rewarded:</b> <code>{len(user.rewarded_referrals) - unclaimed_count}</code>\n"
         f"• ⏳ <b>Pending:</b> <code>{unclaimed_count}</code>\n"
         f"• 💰 <b>Total Earned:</b> <code>{format_currency(user.referral_earnings)}</code>\n\n"
         f"━━━━━━━━━━━━━━━━━━\n"
@@ -95,8 +95,9 @@ async def referral_claim_handler(update: Update, context: ContextTypes.DEFAULT_T
         await query.answer("❌ User profile not found.")
         return
 
-    # Check inviter device verification
-    if not user.device_verified:
+    # Check inviter device verification (only if enabled)
+    dev_verif_enabled = await repository.get_setting("device_verification_enabled", False)
+    if dev_verif_enabled and not user.device_verified:
         await query.answer(
             "⚠️ Device verification required! Please verify your device in the Wallet section first.",
             show_alert=True

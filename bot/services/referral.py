@@ -25,7 +25,7 @@ async def check_referral_success(
     3. User must not have already triggered their referral reward (referral_reward_claimed == False)
     4. Referrer must not be banned
     5. User must have completed >= refer_min_tasks
-    6. User must be device_verified
+    6. Device verification (only if device_verification_enabled is True)
     
     If all gates pass:
     - Add user_id to referrer's unclaimed_referrals list
@@ -59,8 +59,9 @@ async def check_referral_success(
             logger.info("Invitee %d has only completed %d/%d tasks. Referral pending.", user_id, tasks_completed, min_tasks)
             return False
 
-        # Gate 6: Device Verification check
-        if not user.device_verified:
+        # Gate 6: Device Verification check (only if enabled)
+        dev_verif_enabled = await repository.get_setting("device_verification_enabled", False)
+        if dev_verif_enabled and not user.device_verified:
             # Notify invitee to verify to help their referrer
             logger.info("Invitee %d has completed tasks but is not device verified. Referral pending.", user_id)
             await notify_user(

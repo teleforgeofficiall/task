@@ -183,7 +183,6 @@ class Repository:
 
         # Migration: update old defaults to new values
         _UPGRADE_MAP: dict[str, Any] = {
-            "daily_bonus": 5.0,
             "bonus_enabled": True,
             "bonus_cooldown_hours": 24,
             "daily_bonus_task_limit": 1,
@@ -298,7 +297,9 @@ class Repository:
 
         if referrer:
             ref_row = await session.execute(
-                select(UserTable).where(UserTable.user_id == referrer).with_for_update()
+                select(UserTable).where(UserTable.user_id == referrer)
+                .with_for_update()
+                .execution_options(populate_existing=True)
             )
             ref_row = ref_row.scalar_one_or_none()
             if ref_row:
@@ -559,6 +560,18 @@ class Repository:
             .values(**kwargs)
         )
         await session.commit()
+
+    async def increment_task_completion(self, task_id: int) -> None:
+        session = await self._session()
+        row = await session.execute(
+            select(TaskTable).where(TaskTable.id == int(task_id))
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        row = row.scalar_one_or_none()
+        if row:
+            row.completion_count = (row.completion_count or 0) + 1
+            await session.commit()
 
     async def toggle_task(self, task_id: int) -> bool:
         task = await self.get_task(task_id)
@@ -1264,6 +1277,7 @@ class Repository:
         row = await session.execute(
             select(UserTable).where(UserTable.user_id == int(inviter_id))
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         row = row.scalar_one_or_none()
         if not row:
@@ -1308,6 +1322,7 @@ class Repository:
         row = await session.execute(
             select(UserTable).where(UserTable.user_id == int(user_id))
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         row = row.scalar_one_or_none()
         if not row:

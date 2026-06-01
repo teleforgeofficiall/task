@@ -23,6 +23,7 @@ class TaskModel(BaseModel):
     media_type: str = "photo"       # "photo" | "video"
     is_active: bool = True
     created_at: str = Field(default_factory=_now_ist)
+    completion_count: int = 0
 
     # Channel task specific
     channel_id: Optional[str] = None

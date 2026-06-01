@@ -204,7 +204,13 @@ async def admin_proof_decision_handler(update: Update, context: ContextTypes.DEF
             description=f"Completed Task #{task_id}: {task.description if task else ''}",
             ref_id=str(task_id)
         )
-        # 4. Notify user
+        # 4. Increment task completion count
+        try:
+            await repository.increment_task_completion(task_id)
+        except Exception as e:
+            logger.error(f"Failed to increment task completion count: {e}")
+
+        # 5. Notify user
         await notify_user(
             bot=context.bot,
             user_id=user_id,
