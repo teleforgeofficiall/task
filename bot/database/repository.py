@@ -297,11 +297,14 @@ class Repository:
         await session.flush()
 
         if referrer:
-            await session.execute(
-                UserTable.__table__.update()
-                .where(UserTable.user_id == referrer)
-                .values(referrals=func.array_append(UserTable.referrals, user_id))
+            ref_row = await session.execute(
+                select(UserTable).where(UserTable.user_id == referrer).with_for_update()
             )
+            ref_row = ref_row.scalar_one_or_none()
+            if ref_row:
+                refs = list(ref_row.referrals or [])
+                refs.append(user_id)
+                ref_row.referrals = refs
         await session.commit()
         logger.info("Created user %d (referrer=%s)", user_id, referrer)
         return _user_to_model(row)

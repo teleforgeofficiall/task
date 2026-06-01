@@ -86,6 +86,8 @@ async def lifespan(app: FastAPI):
             await ptb_app.initialize()
             await ptb_app.bot.set_my_commands([
                 BotCommand("start", "🚀 Let's start your earning journey"),
+                BotCommand("help", "🆘 Get help & support"),
+                BotCommand("promote", "📢 Promote your app/website/bot"),
                 BotCommand("admin", "🛠️ Go to the admin panel"),
             ])
             await ptb_app.start()

@@ -3,11 +3,13 @@ from __future__ import annotations
 import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler
+from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
+from telegram.constants import ParseMode
 
 from bot.database import get_db, Repository
-from bot.keyboards.user_kb import back_to_menu_keyboard
+from bot.keyboards.user_kb import back_to_menu_keyboard, main_menu_keyboard
 from bot.utils import edit_or_reply
+from bot.middlewares.auth import check_access
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +84,40 @@ async def earn_more_show_content(update: Update, context: ContextTypes.DEFAULT_T
         await query.message.reply_video(video=content, caption=caption or None, parse_mode="HTML", reply_markup=back_kb)
 
 
+async def promote_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    if not user:
+        return
+
+    repository = Repository(await get_db())
+
+    passed = await check_access(update, context, repository)
+    if not passed:
+        return
+
+    text = (
+        "📢 <b>Promote Your Business</b>\n\n"
+        "Want to promote your app, website, bot, or channel?\n\n"
+        "Get your promotion listed here and reach thousands of active users daily!\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📌 <b>Benefits:</b>\n"
+        "• Targeted audience of task earners\n"
+        "• High engagement & click-through rates\n"
+        "• Affordable promotion packages\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📞 <b>Contact the admin</b> to get started!\n"
+        "Message <code>/admin</code> or reach out to the bot administrator."
+    )
+
+    await update.message.reply_text(
+        text=text,
+        reply_markup=main_menu_keyboard(),
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+    )
+
+
 def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(earn_more_handler, pattern="^menu:earn_more$"))
     application.add_handler(CallbackQueryHandler(earn_more_show_content, pattern=r"^earn_more:show:\d+$"))
+    application.add_handler(CommandHandler("promote", promote_command))

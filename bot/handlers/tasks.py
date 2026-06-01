@@ -70,9 +70,7 @@ async def tasks_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     tasks_text = (
         f"📋 <b>Active Tasks</b> — Page {page+1}/{total_pages}\n\n"
-        f"<blockquote>Select a task below to view instructions and submit verification.\n"
-        f"✅ Channel joins — instant credit\n"
-        f"🔄 Manual tasks — credited after admin review</blockquote>"
+        f"<blockquote>Tap a task below to view instructions and submit verification.</blockquote>"
     )
 
     banner_url = await repository.get_image("img_tasks_list")

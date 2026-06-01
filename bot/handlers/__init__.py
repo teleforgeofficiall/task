@@ -1,5 +1,5 @@
 """bot/handlers package"""
-from bot.handlers import start, wallet, tasks, referral, withdraw, snapgame, daily_bonus, leaderboard, contact, alerts, inline_share, earn_more
+from bot.handlers import start, wallet, tasks, referral, withdraw, snapgame, daily_bonus, leaderboard, contact, alerts, inline_share, earn_more, help_cmd
 
 def register_user_handlers(application) -> None:
     """Register all user-facing command/callback/message handlers."""
@@ -15,3 +15,4 @@ def register_user_handlers(application) -> None:
     contact.register_handlers(application)
     alerts.register_handlers(application)
     inline_share.register_handlers(application)
+    help_cmd.register_handlers(application)
