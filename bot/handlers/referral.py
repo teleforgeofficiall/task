@@ -69,6 +69,7 @@ async def referral_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
         f"• ⏳ <b>Pending:</b> <code>{unclaimed_count}</code>\n"
         f"• 💰 <b>Total Earned:</b> <code>{format_currency(user.referral_earnings)}</code>\n\n"
         f"━━━━━━━━━━━━━━━━━━\n"
+        f"<i>💡 Referral reward is credited after your invitee completes their first task.</i>\n\n"
         f"👇 Tap <b>Share Referral Link</b> to send this to your friends."
     )
 
