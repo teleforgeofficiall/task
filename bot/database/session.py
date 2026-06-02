@@ -197,6 +197,20 @@ async def _migrate_postgres_schema(engine) -> None:
                 except Exception as exc:
                     logger.warning("Could not add column withdrawals.%s: %s", col_name, exc)
 
+        # ── Tasks table: add completion_count column ──
+        def _get_task_cols(sync_conn):
+            return {c["name"] for c in inspect(sync_conn).get_columns("tasks")}
+        task_existing = await conn.run_sync(_get_task_cols)
+
+        if "completion_count" not in task_existing:
+            try:
+                await conn.execute(sa_text(
+                    'ALTER TABLE tasks ADD COLUMN "completion_count" INTEGER DEFAULT 0'
+                ))
+                logger.info("Added column tasks.completion_count")
+            except Exception as exc:
+                logger.warning("Could not add column tasks.completion_count: %s", exc)
+
         # ── New tables that might not have been created ──
         # (GameSessionTable, JackpotEventTable, RetentionEventTable are handled by create_all)
 
