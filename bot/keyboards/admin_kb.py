@@ -341,7 +341,7 @@ def images_manager_keyboard() -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton("📸 Welcome / Start Image", callback_data="admin:img_replace:img_welcome"),
-            InlineKeyboardButton("📸 Bonus Drop Banner", callback_data="admin:img_replace:img_drop_rain"),
+            InlineKeyboardButton("📸 Promote Banner", callback_data="admin:img_replace:img_promote"),
         ],
         [
             InlineKeyboardButton("📸 Games Hub Banner", callback_data="admin:img_replace:img_game"),

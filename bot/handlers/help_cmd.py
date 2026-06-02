@@ -45,7 +45,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "• <b>Earn More</b> — Browse additional earning opportunities\n"
         "• <b>Withdraw</b> — Withdraw your earnings directly to your wallet\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "💬 <i>Need help? Contact the admin for support.</i>"
+        "❓ <b>Any bot query</b>\n"
+        "<blockquote>✈️ <b>Telegram:</b> <code>@x_kanha_007</code></blockquote>"
     )
 
     await update.message.reply_text(

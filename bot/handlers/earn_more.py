@@ -96,18 +96,36 @@ async def promote_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     text = (
-        "📢 <b>Promote Your Business</b>\n\n"
-        "Want to promote your app, website, bot, or channel?\n\n"
-        "Get your promotion listed here and reach thousands of active users daily!\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "📌 <b>Benefits:</b>\n"
-        "• Targeted audience of task earners\n"
-        "• High engagement & click-through rates\n"
-        "• Affordable promotion packages\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "📞 <b>Contact the admin</b> to get started!\n"
-        "Message <code>/admin</code> or reach out to the bot administrator."
+        "📢 <b>ADVERTISE WITH TASKHUB</b>\n\n"
+        "<blockquote>Promote Your Channel, App, Website or Business</blockquote>\n\n"
+        "✨ <b>Features</b>\n"
+        "<blockquote>"
+        "👥 Get More Members & Visitors\n"
+        "📱 Promote Telegram Channels & Apps\n"
+        "🌐 Website Promotion Available\n"
+        "⚡ Fast Approval & Delivery\n"
+        "💎 Trusted Promotion Platform"
+        "</blockquote>\n\n"
+        "<blockquote>🚀 <b>Grow Your Audience With Taskhub Promotion Services</b></blockquote>\n\n"
+        "📩 <b>Contact Admin For Promotion</b>\n"
+        "<blockquote>"
+        "📧 <b>Email:</b> <code>kanhaojha726@gmail.com</code>\n"
+        "✈️ <b>Telegram:</b> <code>@x_kanha_007</code>"
+        "</blockquote>"
     )
+
+    banner_url = await repository.get_image("img_promote")
+    if banner_url:
+        try:
+            await update.message.reply_photo(
+                photo=banner_url,
+                caption=text,
+                reply_markup=main_menu_keyboard(),
+                parse_mode=ParseMode.HTML,
+            )
+            return
+        except Exception as exc:
+            logger.warning("Failed to send promote banner photo (%s); falling back to text.", exc)
 
     await update.message.reply_text(
         text=text,
