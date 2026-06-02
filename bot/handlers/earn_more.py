@@ -110,7 +110,7 @@ async def promote_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         "📩 <b>Contact Admin For Promotion</b>\n"
         "<blockquote>"
         "📧 <b>Email:</b> <code>kanhaojha726@gmail.com</code>\n"
-        "✈️ <b>Telegram:</b> <code>@x_kanha_007</code>"
+        "✈️ <b>Telegram:</b> <a href=\"https://t.me/x_kanha_007\">@x_kanha_007</a>"
         "</blockquote>"
     )
 
