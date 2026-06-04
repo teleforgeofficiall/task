@@ -7,7 +7,7 @@ from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
 from telegram.constants import ParseMode
 
 from bot.database import get_db, Repository
-from bot.keyboards.user_kb import back_to_menu_keyboard, main_menu_keyboard
+from bot.keyboards.user_kb import back_to_menu_keyboard
 from bot.utils import edit_or_reply
 from bot.middlewares.auth import check_access
 
@@ -120,7 +120,7 @@ async def promote_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await update.message.reply_photo(
                 photo=banner_url,
                 caption=text,
-                reply_markup=main_menu_keyboard(),
+                reply_markup=None,
                 parse_mode=ParseMode.HTML,
             )
             return
@@ -129,7 +129,7 @@ async def promote_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await update.message.reply_text(
         text=text,
-        reply_markup=main_menu_keyboard(),
+        reply_markup=None,
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
     )
