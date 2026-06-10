@@ -287,6 +287,8 @@ async def task_submit_proof_handler(update: Update, context: ContextTypes.DEFAUL
 
 
 async def proof_receiver_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if context.user_data is None:
+        return
     state = context.user_data.get("state", "")
     if not state.startswith("awaiting_proof_"):
         return
