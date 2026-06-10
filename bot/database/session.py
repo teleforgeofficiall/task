@@ -61,13 +61,31 @@ async def ensure_database_exists() -> None:
         logger.info("MYSQL_ROOT_PASSWORD not set — skipping auto DB creation")
         return
 
+    # Parse actual credentials from DATABASE_URL
     db_name = settings.DB_NAME
     db_user = settings.DB_USER
     db_pass = settings.DB_PASSWORD
     host = settings.DB_HOST
 
+    url = settings.DATABASE_URL
+    if url and "mysql" in url:
+        clean = url.replace("mysql+aiomysql://", "").replace("mysql://", "")
+        if "@" in clean:
+            user_pass, rest = clean.split("@", 1)
+            if ":" in user_pass:
+                db_user = user_pass.split(":")[0]
+                db_pass = ":".join(user_pass.split(":")[1:])
+            host_part = rest.split("/")[0]
+            if ":" in host_part:
+                host = host_part.split(":")[0]
+            else:
+                host = host_part
+            name_part = rest.split("/")[1] if "/" in rest else db_name
+            if name_part:
+                db_name = name_part.split("?")[0]
+
     root_url = f"mysql+aiomysql://root:{root_pass}@{host}:{settings.DB_PORT}"
-    engine = create_async_engine(root_url, echo=False, pool_pre_ping=True)
+    engine = create_async_engine(root_url, echo=False, pool_pre_ping=False)
 
     try:
         async with engine.begin() as conn:
@@ -110,7 +128,6 @@ async def init_db() -> None:
                 database_url,
                 pool_size=10,
                 max_overflow=5,
-                pool_pre_ping=True,
                 pool_recycle=3600,
                 echo=False,
             )
