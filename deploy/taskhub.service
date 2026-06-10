@@ -1,0 +1,17 @@
+[Unit]
+Description=TASKHUB Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/taskhub
+ExecStart=/opt/taskhub/venv/bin/python -m bot.main
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+EnvironmentFile=/opt/taskhub/.env
+
+[Install]
+WantedBy=multi-user.target

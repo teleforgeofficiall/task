@@ -58,11 +58,6 @@ async def lifespan(app: FastAPI):
     """Handles async startup and shutdown hooks cleanly."""
     try:
         _webhook_url = settings.WEBHOOK_URL
-        if not _webhook_url:
-            render_url = os.environ.get("RENDER_EXTERNAL_URL", "")
-            if render_url:
-                _webhook_url = render_url
-                logger.info("Auto-detected Render URL: %s", _webhook_url)
 
         # Initialize database tables and defaults
         await init_db()
