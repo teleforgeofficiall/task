@@ -1,6 +1,6 @@
 """
-data_exporter.py — SQLAlchemy-based table export/import (no pg_dump needed).
-Works through any connection including Supabase pooler.
+data_exporter.py — SQLAlchemy-based table export/import.
+Works through any MySQL connection.
 Uses ORM for import so JSON columns are handled automatically.
 """
 from __future__ import annotations
@@ -94,7 +94,7 @@ async def import_all_tables(session: AsyncSession, data: Dict[str, List[Dict[str
             await session.execute(text(f"DELETE FROM {table_name}"))
         for table_name in seq_tables:
             try:
-                await session.execute(text(f"ALTER SEQUENCE {table_name}_id_seq RESTART WITH 1"))
+                await session.execute(text(f"ALTER TABLE {table_name} AUTO_INCREMENT = 1"))
             except Exception:
                 pass
 

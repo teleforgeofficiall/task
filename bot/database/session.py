@@ -1,5 +1,5 @@
 """
-session.py — SQLAlchemy async engine & session factory for PostgreSQL.
+session.py — SQLAlchemy async engine & session factory for MySQL.
 
 Usage:
     from bot.database.session import get_session, init_db, close_db
@@ -35,19 +35,22 @@ def get_database_url() -> str:
     """Return the async database connection string."""
     url = settings.DATABASE_URL
     if url:
-        if "postgresql+asyncpg://" in url:
-            url = url.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
-            url = url.replace("?prepared_statement_cache_size=0", "")
-        elif "postgresql+psycopg://" not in url and "postgres" in url:
-            url = url.replace("postgresql://", "postgresql+psycopg://", 1)
-            url = url.replace("postgres://", "postgresql+psycopg://", 1)
+        if url.startswith("mysql://"):
+            url = url.replace("mysql://", "mysql+aiomysql://", 1)
+        elif url.startswith("mysql+aiomysql://"):
+            pass
+        elif url.startswith("postgresql"):
+            url = url.replace("postgresql+asyncpg://", "mysql+aiomysql://", 1)
+            url = url.replace("postgresql+psycopg://", "mysql+aiomysql://", 1)
+            url = url.replace("postgresql://", "mysql+aiomysql://", 1)
+            url = url.replace("postgres://", "mysql+aiomysql://", 1)
             url = url.split("?")[0]
         return url
     # Fallback to SQLite for local development
     if not settings.is_production:
         return "sqlite+aiosqlite:///./taskhub.db"
     # Production: build from components
-    url = f"postgresql+psycopg://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+    url = f"mysql+aiomysql://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
     return url
 
 
@@ -63,21 +66,17 @@ async def init_db() -> None:
             return
 
         database_url = get_database_url()
-        is_postgres = "postgres" in database_url
+        is_mysql = "mysql" in database_url
         logger.info("Initializing database connection: %s", database_url)
 
-        if is_postgres:
+        if is_mysql:
             _engine = create_async_engine(
                 database_url,
                 pool_size=10,
                 max_overflow=5,
                 pool_pre_ping=True,
-                pool_recycle=1800,
+                pool_recycle=3600,
                 echo=False,
-                connect_args={
-                    "sslmode": "require" if settings.is_production else "prefer",
-                    "prepare_threshold": None,
-                },
             )
         else:
             _engine = create_async_engine(
@@ -98,8 +97,8 @@ async def init_db() -> None:
             await conn.run_sync(Base.metadata.create_all)
 
         # Run schema migrations for existing tables
-        if is_postgres:
-            await _migrate_postgres_schema(_engine)
+        if is_mysql:
+            await _migrate_mysql_schema(_engine)
         else:
             await _migrate_sqlite_schema(_engine)
 
@@ -133,14 +132,14 @@ async def _migrate_sqlite_schema(engine) -> None:
                     logger.warning("Could not add column withdrawals.%s: %s", col_name, exc)
 
 
-async def _migrate_postgres_schema(engine) -> None:
-    """Add missing columns to existing PostgreSQL tables."""
+async def _migrate_mysql_schema(engine) -> None:
+    """Add missing columns to existing MySQL tables."""
     import sqlalchemy as sa
     from sqlalchemy import inspect, text as sa_text
 
     # ── Users table: new casino profiling columns ──
     user_columns: dict[str, str] = {
-        "user_meta": "JSONB DEFAULT '{}'::jsonb",
+        "user_meta": "JSON DEFAULT (JSON_OBJECT())",
         "current_session_start": "VARCHAR(50)",
         "session_total_bets": "INTEGER DEFAULT 0",
         "session_total_wins": "INTEGER DEFAULT 0",
@@ -171,7 +170,7 @@ async def _migrate_postgres_schema(engine) -> None:
             if col_name not in existing:
                 try:
                     await conn.execute(sa_text(
-                        f'ALTER TABLE users ADD COLUMN "{col_name}" {col_type}'
+                        f'ALTER TABLE users ADD COLUMN `{col_name}` {col_type}'
                     ))
                     logger.info("Added column users.%s", col_name)
                 except Exception as exc:
@@ -191,7 +190,7 @@ async def _migrate_postgres_schema(engine) -> None:
             if col_name not in wd_existing:
                 try:
                     await conn.execute(sa_text(
-                        f'ALTER TABLE withdrawals ADD COLUMN "{col_name}" {col_type}'
+                        f'ALTER TABLE withdrawals ADD COLUMN `{col_name}` {col_type}'
                     ))
                     logger.info("Added column withdrawals.%s", col_name)
                 except Exception as exc:
@@ -205,14 +204,11 @@ async def _migrate_postgres_schema(engine) -> None:
         if "completion_count" not in task_existing:
             try:
                 await conn.execute(sa_text(
-                    'ALTER TABLE tasks ADD COLUMN "completion_count" INTEGER DEFAULT 0'
+                    'ALTER TABLE tasks ADD COLUMN `completion_count` INTEGER DEFAULT 0'
                 ))
                 logger.info("Added column tasks.completion_count")
             except Exception as exc:
                 logger.warning("Could not add column tasks.completion_count: %s", exc)
-
-        # ── New tables that might not have been created ──
-        # (GameSessionTable, JackpotEventTable, RetentionEventTable are handled by create_all)
 
 
 @asynccontextmanager
@@ -244,7 +240,7 @@ async def close_db() -> None:
         await _engine.dispose()
         _engine = None
         _session_factory = None
-        logger.info("PostgreSQL connection closed.")
+        logger.info("MySQL connection closed.")
 
 
 async def check_db_health() -> bool:
@@ -275,20 +271,14 @@ async def reset_all_data() -> None:
         "device_fingerprints", "jackpot_events", "retention_events",
     ]
 
-    seq_tables = [
-        "users", "tasks", "proofs", "withdrawals", "redeem_codes",
-        "transactions", "admin_logs", "game_rounds", "backup_records",
-        "game_sessions", "device_fingerprints", "jackpot_events", "retention_events",
-    ]
-
     async with _engine.begin() as conn:
         for table_name in table_names:
             await conn.execute(text(f"DELETE FROM {table_name}"))
             logger.info("Cleared %s", table_name)
 
-        for table_name in seq_tables:
+        for table_name in table_names:
             try:
-                await conn.execute(text(f"ALTER SEQUENCE {table_name}_id_seq RESTART WITH 1"))
+                await conn.execute(text(f"ALTER TABLE {table_name} AUTO_INCREMENT = 1"))
             except Exception:
                 pass
 

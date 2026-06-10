@@ -64,9 +64,14 @@ def do_run_migrations(connection):
 async def run_async_migrations() -> None:
     """Run migrations in 'online' async mode."""
     url = get_url()
-    if url and not url.startswith("postgresql+asyncpg://"):
-        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+    if url:
+        if url.startswith("mysql://"):
+            url = url.replace("mysql://", "mysql+aiomysql://", 1)
+        elif not url.startswith("mysql+aiomysql://"):
+            url = url.replace("postgresql+asyncpg://", "mysql+aiomysql://", 1)
+            url = url.replace("postgresql+psycopg://", "mysql+aiomysql://", 1)
+            url = url.replace("postgresql://", "mysql+aiomysql://", 1)
+            url = url.replace("postgres://", "mysql+aiomysql://", 1)
 
     connectable = create_async_engine(url, poolclass=pool.NullPool)
 

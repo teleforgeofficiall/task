@@ -48,16 +48,16 @@ class Settings(BaseSettings):
             if x.strip().isdigit()
         ]
 
-    # ─── Database (PostgreSQL) ──────────────────────────────────────────────
+    # ─── Database (MySQL) ───────────────────────────────────────────────────
     DATABASE_URL: str = Field(
         default="",
-        description="PostgreSQL connection string (e.g. postgresql://user:pass@host:5432/db)",
+        description="MySQL connection string (e.g. mysql+aiomysql://user:pass@localhost:3306/db)",
     )
-    DB_HOST: str = Field(default="localhost", description="PostgreSQL host")
-    DB_PORT: int = Field(default=5432, description="PostgreSQL port")
-    DB_USER: str = Field(default="taskhub", description="PostgreSQL user")
-    DB_PASSWORD: str = Field(default="", description="PostgreSQL password")
-    DB_NAME: str = Field(default="taskhub_db", description="PostgreSQL database name")
+    DB_HOST: str = Field(default="localhost", description="MySQL host")
+    DB_PORT: int = Field(default=3306, description="MySQL port")
+    DB_USER: str = Field(default="taskhub_user", description="MySQL user")
+    DB_PASSWORD: str = Field(default="", description="MySQL password")
+    DB_NAME: str = Field(default="taskhub_db", description="MySQL database name")
 
     # Legacy MongoDB settings (kept for backward compatibility during migration)
     MONGO_URL: str = Field(default="", description="MongoDB Atlas connection string (legacy)")
