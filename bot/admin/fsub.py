@@ -74,6 +74,8 @@ async def admin_fsub_add_start(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def admin_fsub_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Process forwarded channels or text/URL input for fsub."""
+    if update.effective_user is None:
+        return
     user_id = update.effective_user.id
     if not is_admin(user_id):
         return
