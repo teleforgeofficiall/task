@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI, Request, Response, status
 from telegram import Update, BotCommand
-from telegram.ext import ApplicationBuilder, ContextTypes
+from telegram.ext import ApplicationBuilder
 
 from telegram.error import TelegramError
 
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Initialize PTB Application
-ptb_app = ApplicationBuilder().token(settings.BOT_TOKEN).context_types(ContextTypes.DEFAULT_TYPE).build()
+ptb_app = ApplicationBuilder().token(settings.BOT_TOKEN).build()
 
 
 async def global_error_handler(update: object, context: object) -> None:
