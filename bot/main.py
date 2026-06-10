@@ -59,6 +59,10 @@ async def lifespan(app: FastAPI):
     try:
         _webhook_url = settings.WEBHOOK_URL
 
+        # Ensure database and user exist (MySQL only)
+        from bot.database.session import ensure_database_exists
+        await ensure_database_exists()
+
         # Initialize database tables and defaults
         await init_db()
         async with get_session() as session:

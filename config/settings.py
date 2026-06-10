@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     DB_USER: str = Field(default="taskhub_user", description="MySQL user")
     DB_PASSWORD: str = Field(default="", description="MySQL password")
     DB_NAME: str = Field(default="taskhub_db", description="MySQL database name")
+    MYSQL_ROOT_PASSWORD: str = Field(default="", description="MySQL root password for auto-creating database/user on startup")
 
     # Legacy MongoDB settings (kept for backward compatibility during migration)
     MONGO_URL: str = Field(default="", description="MongoDB Atlas connection string (legacy)")

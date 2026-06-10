@@ -54,6 +54,42 @@ def get_database_url() -> str:
     return url
 
 
+async def ensure_database_exists() -> None:
+    """Auto-create database, user, and grant privileges using MySQL root."""
+    root_pass = settings.MYSQL_ROOT_PASSWORD
+    if not root_pass:
+        logger.info("MYSQL_ROOT_PASSWORD not set — skipping auto DB creation")
+        return
+
+    db_name = settings.DB_NAME
+    db_user = settings.DB_USER
+    db_pass = settings.DB_PASSWORD
+    host = settings.DB_HOST
+
+    root_url = f"mysql+aiomysql://root:{root_pass}@{host}:{settings.DB_PORT}"
+    engine = create_async_engine(root_url, echo=False, pool_pre_ping=True)
+
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                f"CREATE DATABASE IF NOT EXISTS `{db_name}` "
+                "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            ))
+            await conn.execute(text(
+                f"CREATE USER IF NOT EXISTS '{db_user}'@'{host}' "
+                f"IDENTIFIED BY '{db_pass}'"
+            ))
+            await conn.execute(text(
+                f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'{host}'"
+            ))
+            await conn.execute(text("FLUSH PRIVILEGES"))
+        logger.info("Ensured database '%s' and user '%s' exist", db_name, db_user)
+    except Exception as exc:
+        logger.warning("Could not auto-create database/user (may already exist): %s", exc)
+    finally:
+        await engine.dispose()
+
+
 async def init_db() -> None:
     """Initialize the engine and session factory. Creates tables if they don't exist."""
     global _engine, _session_factory
