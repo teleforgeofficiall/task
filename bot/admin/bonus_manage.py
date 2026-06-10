@@ -156,6 +156,8 @@ async def admin_bonus_set_tasks_prompt(update: Update, context: ContextTypes.DEF
 async def admin_bonus_handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user is None or not is_admin(update.effective_user.id):
         return
+    if context.user_data is None:
+        return
     state = context.user_data.get("admin_state")
     if state not in ("bonus_set_amount", "bonus_set_tasks"):
         return

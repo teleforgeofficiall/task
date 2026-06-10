@@ -127,6 +127,8 @@ async def admin_msg_edit_start(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def admin_settings_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Process incoming text template updates."""
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if not admin_state.startswith("edit_msg_"):
         return

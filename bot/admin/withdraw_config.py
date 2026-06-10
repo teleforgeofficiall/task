@@ -121,6 +121,8 @@ async def admin_wc_set_daily_start(update: Update, context: ContextTypes.DEFAULT
 
 
 async def admin_wc_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if context.user_data is None:
+        return
     try:
         admin_state = context.user_data.get("admin_state", "")
         if not admin_state.startswith("wc_set_"):

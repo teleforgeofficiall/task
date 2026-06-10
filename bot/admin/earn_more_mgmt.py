@@ -118,6 +118,8 @@ async def earn_more_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def earn_more_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if context.user_data is None:
+        return
     try:
         admin_state = context.user_data.get("admin_state", "")
         if not admin_state.startswith("awaiting_earn_more_"):

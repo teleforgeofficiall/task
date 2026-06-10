@@ -70,6 +70,8 @@ async def alerts_clear(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def alerts_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if admin_state != "awaiting_alerts_msg":
         return

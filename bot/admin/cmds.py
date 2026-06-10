@@ -67,6 +67,8 @@ async def admin_cmd_add_start(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def admin_cmds_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Process incoming command names and contents."""
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if not admin_state.startswith("awaiting_cmd_"):
         return

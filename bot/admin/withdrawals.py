@@ -226,6 +226,8 @@ async def admin_wd_custom_reason_start(update: Update, context: ContextTypes.DEF
 
 async def admin_withdrawals_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Process incoming text for custom withdrawal rejection reason (UPI + Stars)."""
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if not admin_state.startswith("reject_wd_") and not admin_state.startswith("reject_star_"):
         return

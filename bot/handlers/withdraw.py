@@ -389,6 +389,8 @@ async def withdraw_amount_sel_handler(update: Update, context: ContextTypes.DEFA
 
 async def withdraw_text_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Processes UPI ID, redeem amount, and withdrawal amount text inputs."""
+    if context.user_data is None:
+        return
     state = context.user_data.get("state", "")
     if not state.startswith("withdraw_"):
         return

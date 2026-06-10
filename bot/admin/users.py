@@ -112,6 +112,8 @@ async def render_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def admin_users_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle text inputs in admin search and balance adjustments."""
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if not admin_state:
         return

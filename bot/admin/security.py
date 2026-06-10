@@ -102,6 +102,8 @@ async def admin_sec_set_url_start(update: Update, context: ContextTypes.DEFAULT_
 
 async def admin_sec_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Process text input for security settings."""
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if not admin_state.startswith("sec_"):
         return

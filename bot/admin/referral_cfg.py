@@ -119,6 +119,8 @@ async def admin_ref_set_range_start(update: Update, context: ContextTypes.DEFAUL
 
 async def admin_ref_config_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Process incoming config numeric inputs."""
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if not admin_state.startswith("awaiting_ref_"):
         return

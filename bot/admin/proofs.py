@@ -277,6 +277,8 @@ async def admin_proof_custom_reason_start(update: Update, context: ContextTypes.
 
 async def admin_proofs_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Process incoming text for custom rejection reason."""
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if not admin_state.startswith("reject_proof_"):
         return

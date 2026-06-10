@@ -117,6 +117,8 @@ async def admin_redeem_add_amt_handler(update: Update, context: ContextTypes.DEF
 
 async def admin_redeem_add_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Process bulk redeem code text input."""
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if not admin_state.startswith("rc_add_"):
         return
@@ -271,6 +273,8 @@ async def admin_redeem_toggle_enabled(update: Update, context: ContextTypes.DEFA
 
 async def admin_redeem_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle text input for redeem code settings."""
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if not admin_state.startswith("rc_"):
         return

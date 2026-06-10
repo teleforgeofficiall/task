@@ -78,6 +78,8 @@ async def admin_task_create_start(update: Update, context: ContextTypes.DEFAULT_
 
 async def admin_tasks_text_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Manage conversational steps for adding a new task."""
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if not admin_state.startswith("awaiting_task_"):
         return
@@ -309,6 +311,8 @@ async def admin_tasks_text_input_handler(update: Update, context: ContextTypes.D
 
 async def admin_task_channel_url_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Extra step to receive channel URL for private/username-less forwarded channels."""
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if admin_state != "awaiting_task_channel_url":
         return

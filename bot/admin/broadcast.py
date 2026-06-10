@@ -87,6 +87,8 @@ async def admin_broadcast_start_handler(update: Update, context: ContextTypes.DE
 # ─── Drop Rain Config Handler ──────────────────────────────────────────────────
 
 async def admin_drop_rain_config_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if admin_state != "awaiting_drop_rain_config":
         return
@@ -374,6 +376,8 @@ async def drop_rain_claim_handler(update: Update, context: ContextTypes.DEFAULT_
 # ─── Regular Broadcast Handlers ────────────────────────────────────────────────
 
 async def admin_broadcast_message_receiver(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if context.user_data is None:
+        return
     admin_state = context.user_data.get("admin_state", "")
     if admin_state != "awaiting_bc_message":
         return
