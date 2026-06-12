@@ -123,8 +123,8 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "redeem_low_stock_threshold": 5,
     "redeem_stock_enabled": True,
     "redeem_method_name": "Google Redeem Code",
-    "device_verification_enabled": False,
-    "device_verification_url": "",
+    "device_verification_enabled": True,
+    "device_verification_url": "http://153.75.246.79:8001",
 }
 
 _DEFAULT_GAME_STATE: Dict[str, Any] = {
