@@ -110,7 +110,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             if verif_url:
                 bot_username = (await context.bot.get_me()).username or ""
                 verify_url = f"{verif_url}/verify/{user_id}#bot={bot_username}"
-                btn = InlineKeyboardButton("🌐 Verify Device", web_app=WebAppInfo(url=verify_url))
+                if verify_url.startswith("https://"):
+                    btn = InlineKeyboardButton("🌐 Verify Device", web_app=WebAppInfo(url=verify_url))
+                else:
+                    btn = InlineKeyboardButton("🌐 Verify Device", url=verify_url)
                 msg = await update.message.reply_text(
                     "<b>🔐 Device Verification Required</b>\n\n"
                     "<blockquote>To continue using this bot, you need to verify your device first. "
