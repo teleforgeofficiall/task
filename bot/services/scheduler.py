@@ -34,9 +34,6 @@ async def game_scheduler(bot, repository: Repository) -> None:
         "open": ""
     }
 
-    # Ensure defaults in database are seeded first
-    await repository.ensure_defaults()
-
     while True:
         try:
             # 1. Get current time in IST

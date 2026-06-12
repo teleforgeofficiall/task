@@ -126,8 +126,8 @@ async def init_db() -> None:
         if is_mysql:
             _engine = create_async_engine(
                 database_url,
-                pool_size=10,
-                max_overflow=5,
+                pool_size=25,
+                max_overflow=10,
                 pool_recycle=3600,
                 echo=False,
             )

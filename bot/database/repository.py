@@ -48,6 +48,10 @@ def _now_date_str() -> str:
 
 # ─── Default settings (used for seeding) ──────────────────────────────────────
 
+# In-memory settings cache: {key: (value, timestamp)}
+_settings_cache: dict[str, tuple[Any, float]] = {}
+_SETTINGS_CACHE_TTL = 60.0  # seconds
+
 _DEFAULT_SETTINGS: Dict[str, Any] = {
     "start_message": (
         "━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -163,10 +167,11 @@ def _withdrawal_to_model(row) -> WithdrawalModel:
 
 
 class Repository:
-    """Async Repository — PostgreSQL via SQLAlchemy 2.0."""
+    """Async Repository — MySQL via SQLAlchemy 2.0."""
 
     def __init__(self, db: Optional[AsyncSession] = None):
         self._db = db
+        self._user_cache: dict[int, UserModel] = {}
 
     async def _session(self) -> AsyncSession:
         if self._db is not None:
@@ -272,13 +277,17 @@ class Repository:
     # =========================================================================
 
     async def get_user(self, user_id: int) -> Optional[UserModel]:
+        if user_id in self._user_cache:
+            return self._user_cache[user_id]
         session = await self._session()
         row = await session.execute(
             select(UserTable).where(UserTable.user_id == int(user_id))
         )
         row = row.scalar_one_or_none()
         if row:
-            return _user_to_model(row)
+            model = _user_to_model(row)
+            self._user_cache[user_id] = model
+            return model
         return None
 
     async def create_user(
@@ -311,6 +320,7 @@ class Repository:
         return _user_to_model(row)
 
     async def update_user_fields(self, user_id: int, **kwargs: Any) -> None:
+        self._user_cache.pop(user_id, None)
         session = await self._session()
         await session.execute(
             UserTable.__table__.update()
@@ -386,6 +396,7 @@ class Repository:
         self, user_id: int, amount: float, tx_type: str,
         description: str = "", ref_id: str = "",
     ) -> float:
+        self._user_cache.pop(user_id, None)
         session = await self._session()
         row = await session.execute(
             select(UserTable).where(UserTable.user_id == int(user_id))
@@ -411,6 +422,7 @@ class Repository:
         self, user_id: int, amount: float, tx_type: str,
         description: str = "", ref_id: str = "",
     ) -> float:
+        self._user_cache.pop(user_id, None)
         session = await self._session()
         row = await session.execute(
             select(UserTable).where(UserTable.user_id == int(user_id))
@@ -967,16 +979,25 @@ class Repository:
     # =========================================================================
 
     async def get_setting(self, key: str, default: Any = None) -> Any:
+        import time
+        now = time.time()
+        cached = _settings_cache.get(key)
+        if cached is not None and (now - cached[1]) < _SETTINGS_CACHE_TTL:
+            return cached[0]
         session = await self._session()
         row = await session.get(SettingTable, key)
         if row and row.value is not None:
             try:
-                return json.loads(row.value)
+                val = json.loads(row.value)
             except (json.JSONDecodeError, TypeError):
-                return row.value
+                val = row.value
+            _settings_cache[key] = (val, now)
+            return val
+        _settings_cache[key] = (default, now)
         return default
 
     async def update_setting(self, key: str, value: Any) -> None:
+        _settings_cache.pop(key, None)
         session = await self._session()
         row = await session.get(SettingTable, key)
         serialized = json.dumps(value)
