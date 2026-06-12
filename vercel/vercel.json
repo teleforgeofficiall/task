@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "http://153.75.246.79:8001/api/:path*"
+    },
+    {
       "source": "/verify/:user_id",
       "destination": "/verify.html"
     }
