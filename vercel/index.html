@@ -384,12 +384,21 @@ function switchScreen(id) {
 
 let _initDone = false;
 
+const params = new URLSearchParams(window.location.search);
+const VERIFY_MODE = params.has('user_id') && params.has('bot');
+
 async function init() {
   if (_initDone) return;
   _initDone = true;
   try {
     const initData = TG?.initData || '';
     const user = TG?.initDataUnsafe?.user;
+
+    if (VERIFY_MODE) {
+      showVerifyScreen(params.get('user_id'), params.get('bot'));
+      return;
+    }
+
     if (!user) {
       if (!TG) {
         showError('Please open this app from Telegram bot.');
@@ -416,6 +425,37 @@ async function init() {
   } catch(e) {
     console.error('Init error:', e);
     showError('Something went wrong. Please try again.');
+  }
+}
+
+function showVerifyScreen(userId, botName) {
+  switchScreen('loadingScreen');
+  document.getElementById('loadingScreen').innerHTML = `
+    <div style="text-align:center;padding:40px">
+      <div style="font-size:64px;margin-bottom:16px">🔐</div>
+      <h2 style="margin-bottom:8px">Device Verification</h2>
+      <p style="color:var(--text-secondary);margin-bottom:24px;font-size:14px">
+        Tap below to verify your device. This is a one-time check.
+      </p>
+      <button class="btn btn-primary" style="font-size:18px;padding:14px 32px" onclick="doVerify('${userId}')">
+        ✅ Verify Now
+      </button>
+    </div>
+  `;
+}
+
+function doVerify(userId) {
+  if (TG && TG.sendData) {
+    TG.sendData(JSON.stringify({ action: 'verified', user_id: parseInt(userId) }));
+    TG.close();
+  } else {
+    document.getElementById('loadingScreen').innerHTML = `
+      <div style="text-align:center;padding:40px">
+        <div style="font-size:64px;margin-bottom:16px">✅</div>
+        <h2 style="margin-bottom:8px;color:var(--success)">Verified!</h2>
+        <p style="color:var(--text-secondary);font-size:14px">You can close this window and go back to the bot.</p>
+      </div>
+    `;
   }
 }
 

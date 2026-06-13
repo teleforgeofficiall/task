@@ -261,6 +261,10 @@ async def web_app_verified_handler(update: Update, context: ContextTypes.DEFAULT
         return
     if payload.get("action") != "verified":
         return
+
+    repository = Repository(await get_db())
+    await repository.update_user_fields(update.effective_user.id, device_verified=True)
+
     verify_msg_id = context.user_data.pop("verify_msg_id", None)
     if verify_msg_id:
         try:
@@ -270,7 +274,7 @@ async def web_app_verified_handler(update: Update, context: ContextTypes.DEFAULT
             )
         except Exception:
             pass
-    repository = Repository(await get_db())
+
     await send_congrats(update, context, repository)
 
 
