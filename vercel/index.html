@@ -3,522 +3,929 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Device Verification</title>
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>TaskHub</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-  :root {
-    --bg-deep: #0d0d1a;
-    --bg-mid: #12122a;
-    --surface: #16163a;
-    --surface2: #1c1c40;
-    --border: rgba(100,100,200,0.15);
-    --accent-purple: #7b5ef8;
-    --accent-blue: #4da6ff;
-    --accent-green: #00e5a0;
-    --text-primary: #e8e8ff;
-    --text-secondary: rgba(200,200,255,0.55);
-    --text-muted: rgba(160,160,220,0.4);
-    --dot-color: rgba(100,100,200,0.18);
-    --scanning-pill: rgba(120,100,255,0.18);
-    --verified-pill: rgba(0,229,160,0.15);
-    --font-display: 'Rajdhani', sans-serif;
-    --font-body: 'Nunito', sans-serif;
-  }
-
-  body {
-    font-family: var(--font-body);
-    background: var(--bg-deep);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    overflow-x: hidden;
-    position: relative;
-  }
-
-  .particles {
-    position: fixed; inset: 0;
-    pointer-events: none; z-index: 0;
-    overflow: hidden;
-  }
-  .dot {
-    position: absolute; border-radius: 50%;
-    background: var(--dot-color);
-    animation: floatDot linear infinite;
-  }
-
-  @keyframes floatDot {
-    0%   { transform: translateY(0)   scale(1);   opacity: 0.6; }
-    50%  { transform: translateY(-30px) scale(1.1); opacity: 0.9; }
-    100% { transform: translateY(0)   scale(1);   opacity: 0.6; }
-  }
-
-  .user-row {
-    position: relative; z-index: 10;
-    width: 100%; max-width: 480px;
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 18px;
-    background: rgba(13,13,26,0.88);
-    border-bottom: 1px solid var(--border);
-    backdrop-filter: blur(10px);
-  }
-  .pfp {
-    width: 46px; height: 46px; border-radius: 50%;
-    object-fit: cover; flex-shrink: 0;
-    border: 2px solid var(--accent-purple);
-    background: var(--surface2);
-    box-shadow: 0 0 0 4px rgba(123,94,248,0.18);
-  }
-  .user-info { flex: 1; min-width: 0; }
-  .user-name {
-    font-family: var(--font-display);
-    font-size: 16px; font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: 0.5px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .user-id { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-
-  .status-pill {
-    display: flex; align-items: center; gap: 6px;
-    padding: 7px 14px;
-    border-radius: 999px;
-    border: 1px solid;
-    font-family: var(--font-display);
-    font-size: 13px; font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    white-space: nowrap;
-    transition: all 0.5s ease;
-  }
-  .pill-scanning {
-    background: var(--scanning-pill);
-    border-color: rgba(123,94,248,0.35);
-    color: var(--accent-purple);
-  }
-  .pill-verified {
-    background: var(--verified-pill);
-    border-color: rgba(0,229,160,0.35);
-    color: var(--accent-green);
-  }
-  .pill-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: currentColor;
-    animation: pulseDot 1.4s ease-in-out infinite;
-  }
-  .pill-verified .pill-dot { animation: none; }
-  @keyframes pulseDot {
-    0%,100% { opacity: 1; transform: scale(1); }
-    50%      { opacity: 0.4; transform: scale(0.7); }
-  }
-
-  .main {
-    position: relative; z-index: 5;
-    width: 100%; max-width: 480px;
-    flex: 1;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 28px 20px 20px;
-    min-height: calc(100vh - 120px);
-  }
-
-  .verify-card {
-    width: 100%;
-    background: rgba(22,22,58,0.72);
-    border: 1px solid var(--border);
-    border-radius: 28px;
-    padding: 40px 28px 36px;
-    display: flex; flex-direction: column; align-items: center;
-    backdrop-filter: blur(18px);
-    box-shadow: 0 20px 60px rgba(0,0,10,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
-  }
-
-  .ring-wrap {
-    position: relative; width: 150px; height: 150px;
-    margin-bottom: 28px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .ring-svg {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    animation: rotateSvg 2.4s linear infinite;
-  }
-  @keyframes rotateSvg { to { transform: rotate(360deg); } }
-
-  .ring-svg .track { fill: none; stroke: rgba(100,100,200,0.12); stroke-width: 4; }
-  .ring-svg .arc-purple {
-    fill: none; stroke: var(--accent-purple); stroke-width: 4;
-    stroke-linecap: round;
-    stroke-dasharray: 220; stroke-dashoffset: 60;
-  }
-  .ring-svg .arc-green {
-    fill: none; stroke: var(--accent-green); stroke-width: 4;
-    stroke-linecap: round;
-    stroke-dasharray: 220; stroke-dashoffset: 150;
-    animation: rotateSvg 2.4s linear infinite reverse;
-  }
-
-  .ring-inner {
-    position: relative; z-index: 2;
-    width: 90px; height: 90px; border-radius: 50%;
-    background: var(--surface2);
-    border: 2px solid rgba(100,100,200,0.2);
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 0 32px rgba(123,94,248,0.25), inset 0 0 20px rgba(0,0,0,0.3);
-  }
-  .ring-icon { font-size: 38px; line-height: 1; }
-
-  .ring-svg.success-ring .arc-purple,
-  .ring-svg.success-ring .arc-green { display: none; }
-  .ring-svg.success-ring .success-circle {
-    fill: none; stroke: var(--accent-green); stroke-width: 4;
-    stroke-dasharray: 440; stroke-dashoffset: 440;
-    animation: drawCircle 0.7s ease forwards;
-  }
-  @keyframes drawCircle { to { stroke-dashoffset: 0; } }
-
-  .verify-title {
-    font-family: var(--font-display);
-    font-size: 26px; font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: 1px; margin-bottom: 6px;
-    text-align: center;
-  }
-  .verify-title.green { color: var(--accent-green); }
-  .verify-subtitle {
-    font-size: 14px; color: var(--text-secondary);
-    text-align: center; line-height: 1.5;
-    margin-bottom: 24px;
-  }
-
-  .progress-wrap { width: 100%; margin-bottom: 10px; }
-  .progress-track {
-    width: 100%; height: 5px;
-    background: rgba(100,100,200,0.12);
-    border-radius: 3px; overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%; width: 0%;
-    background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue), var(--accent-green));
-    border-radius: 3px;
-    transition: width 0.35s ease;
-  }
-  .progress-label {
-    display: flex; justify-content: space-between;
-    margin-top: 8px;
-    font-size: 12px; color: var(--text-muted);
-  }
-  .progress-label .spin-row {
-    display: flex; align-items: center; gap: 6px; color: var(--text-secondary);
-  }
-  .mini-spinner {
-    width: 12px; height: 12px;
-    border: 2px solid rgba(123,94,248,0.2);
-    border-top-color: var(--accent-purple);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    flex-shrink: 0;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .btn-continue {
-    display: none;
-    width: 100%; padding: 18px;
-    background: var(--accent-green);
-    color: #071a11;
-    font-family: var(--font-display);
-    font-size: 18px; font-weight: 700;
-    letter-spacing: 2px; text-transform: uppercase;
-    border: none; border-radius: 16px; cursor: pointer;
-    margin-top: 8px;
-    box-shadow: 0 4px 24px rgba(0,229,160,0.3);
-    transition: transform 0.15s, box-shadow 0.15s;
-    animation: fadeSlideUp 0.5s ease forwards;
-  }
-  .btn-continue:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,229,160,0.45); }
-  .btn-continue:active { transform: scale(0.97); }
-  @keyframes fadeSlideUp {
-    from { opacity: 0; transform: translateY(14px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .footer {
-    position: relative; z-index: 5;
-    width: 100%; max-width: 480px;
-    text-align: center;
-    padding: 14px 20px 20px;
-    font-size: 12px;
-    color: var(--text-muted);
-    letter-spacing: 0.3px;
-  }
-
-  .fade-scale-in {
-    animation: fadeScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards;
-  }
-  @keyframes fadeScaleIn {
-    from { opacity: 0; transform: scale(0.8); }
-    to   { opacity: 1; transform: scale(1); }
-  }
-  .hidden { display: none !important; }
-
-  .ring-svg.fail-ring .arc-purple { stroke: #ff4f5e; }
-  .ring-svg.fail-ring .arc-green  { stroke: #ff8c42; }
-  .verify-title.red { color: #ff4f5e; }
-
+:root {
+  --primary: #7b5ef8;
+  --primary-light: #9b82ff;
+  --primary-dark: #5a3fd6;
+  --bg: #f5f5ff;
+  --card: #ffffff;
+  --text: #1a1a2e;
+  --text-secondary: #6b6b80;
+  --border: rgba(123,94,248,0.12);
+  --shadow: 0 2px 16px rgba(123,94,248,0.08);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --success: #00e5a0;
+  --warning: #ffab00;
+  --danger: #ff4f5e;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.hidden { display: none !important; }
+.screen { display: none; }
+.screen.active { display: flex; flex-direction: column; min-height: 100vh; }
+/* Loading */
+#loadingScreen { align-items: center; justify-content: center; gap: 20px; min-height: 100vh; }
+.loader { width: 48px; height: 48px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+/* Header */
+.app-header {
+  background: var(--card); padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50;
+}
+.app-header .pfp {
+  width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover;
+}
+.app-header .user-info { flex: 1; min-width: 0; }
+.app-header .user-name { font-weight: 700; font-size: 15px; }
+.app-header .user-id { font-size: 11px; color: var(--text-secondary); }
+.app-header .balance-card {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 14px;
+  cursor: pointer; white-space: nowrap;
+}
+/* Bottom Nav */
+.bottom-nav {
+  display: flex; background: var(--card); border-top: 1px solid var(--border);
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; padding: 6px 0 env(safe-area-inset-bottom, 6px) 0;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 0; cursor: pointer; color: var(--text-secondary); font-size: 10px; font-weight: 600;
+  transition: color 0.2s; border: none; background: none;
+}
+.nav-item.active { color: var(--primary); }
+.nav-item svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.nav-item.active svg { fill: currentColor; stroke: var(--primary); }
+/* Tab Content */
+.tab-content { flex: 1; padding: 12px 16px 80px 16px; overflow-y: auto; }
+/* Cards */
+.card {
+  background: var(--card); border-radius: var(--radius); padding: 16px;
+  box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 12px;
+}
+.task-card {
+  display: flex; gap: 12px; cursor: pointer; transition: transform 0.15s;
+}
+.task-card:active { transform: scale(0.98); }
+.task-img {
+  width: 80px; height: 80px; border-radius: var(--radius-sm); object-fit: cover; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--primary-light), var(--primary));
+}
+.task-info { flex: 1; min-width: 0; }
+.task-info h3 { font-size: 14px; margin-bottom: 4px; }
+.task-info .reward {
+  color: var(--primary); font-weight: 700; font-size: 16px; display: inline-block; margin-right: 8px;
+}
+.task-info .meta { font-size: 11px; color: var(--text-secondary); display: flex; gap: 12px; margin-top: 4px; }
+.task-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+}
+.badge-channel { background: #e8e5ff; color: var(--primary); }
+.badge-social { background: #e3f2fd; color: #1976d2; }
+.badge-app { background: #e8f5e9; color: #388e3c; }
+.badge-survey { background: #fff3e0; color: #f57c00; }
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 700; font-size: 14px;
+  border: none; cursor: pointer; transition: all 0.15s; text-decoration: none;
+}
+.btn:active { transform: scale(0.96); }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-success { background: var(--success); color: #071a11; }
+.btn-outline { background: none; border: 2px solid var(--primary); color: var(--primary); }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+.btn-block { width: 100%; }
+.btn-ghost { background: var(--bg); color: var(--text-secondary); }
+/* Channel Check */
+.channel-list { display: flex; flex-direction: column; gap: 10px; }
+.channel-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  background: var(--card); border-radius: var(--radius-sm); border: 1px solid var(--border);
+}
+.channel-item.verified { border-color: var(--success); }
+.channel-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--primary); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; }
+.channel-info { flex: 1; min-width: 0; }
+.channel-info h4 { font-size: 14px; }
+.channel-info p { font-size: 11px; color: var(--text-secondary); }
+.channel-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; }
+.channel-check.checked { background: var(--success); border-color: var(--success); color: #fff; font-size: 14px; }
+/* Bonus */
+.bonus-card {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff; border-radius: var(--radius); padding: 24px; text-align: center; margin-bottom: 12px;
+}
+.bonus-card h2 { font-size: 24px; margin-bottom: 8px; }
+.bonus-card .bonus-amount { font-size: 42px; font-weight: 800; }
+.bonus-card .sub { opacity: 0.8; font-size: 14px; margin-top: 4px; }
+/* Wallet */
+.wallet-header {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff; border-radius: var(--radius); padding: 24px; text-align: center; margin-bottom: 12px;
+}
+.wallet-header .balance { font-size: 36px; font-weight: 800; }
+.wallet-header .label { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+.withdraw-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.withdraw-opt {
+  background: var(--card); border-radius: var(--radius-sm); padding: 16px 12px; text-align: center;
+  border: 1px solid var(--border); cursor: pointer; transition: all 0.15s;
+}
+.withdraw-opt:active { transform: scale(0.96); }
+.withdraw-opt svg { width: 28px; height: 28px; stroke: var(--primary); margin-bottom: 6px; }
+.withdraw-opt h4 { font-size: 13px; }
+.withdraw-opt p { font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; justify-content: center;
+  z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+.modal-content {
+  background: var(--card); border-radius: var(--radius) var(--radius) 0 0; padding: 24px; width: 100%; max-width: 480px;
+  max-height: 80vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.modal-overlay.open .modal-content { transform: translateY(0); }
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; text-align: center; }
+.modal-close { position: absolute; top: 12px; right: 16px; font-size: 24px; cursor: pointer; color: var(--text-secondary); background: none; border: none; }
+/* Form */
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary); }
+.form-input {
+  width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  font-size: 15px; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.2s;
+}
+.form-input:focus { border-color: var(--primary); }
+/* Ads */
+.ad-card {
+  background: var(--card); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 12px;
+}
+.ad-icon { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #ff6b6b, #ee5a24); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; flex-shrink: 0; }
+.ad-info { flex: 1; }
+.ad-info h4 { font-size: 14px; }
+.ad-info p { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.ad-reward { color: var(--primary); font-weight: 700; font-size: 16px; }
+/* Spin */
+.spin-wheel {
+  width: 280px; height: 280px; margin: 20px auto; position: relative;
+  border-radius: 50%; overflow: hidden; border: 6px solid var(--primary);
+}
+.spin-segment { position: absolute; width: 100%; height: 100%; clip-path: polygon(50% 50%, 0 0, 100% 0); }
+.spin-pointer {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0; border-left: 16px solid transparent; border-right: 16px solid transparent;
+  border-top: 24px solid var(--danger); z-index: 10;
+}
+/* Referral */
+.ref-card {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff; border-radius: var(--radius); padding: 24px; text-align: center; margin-bottom: 12px;
+}
+.ref-code {
+  background: rgba(255,255,255,0.2); border-radius: 10px; padding: 12px; margin: 12px 0;
+  font-size: 22px; font-weight: 800; letter-spacing: 4px;
+}
+.ref-stats { display: flex; gap: 12px; justify-content: center; }
+.ref-stat { text-align: center; }
+.ref-stat .num { font-size: 24px; font-weight: 800; }
+.ref-stat .lbl { font-size: 11px; opacity: 0.7; }
+/* Games */
+.game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.game-card {
+  background: var(--card); border-radius: var(--radius); padding: 24px 16px; text-align: center;
+  border: 1px solid var(--border); cursor: pointer; transition: all 0.15s;
+}
+.game-card:active { transform: scale(0.96); }
+.game-card .icon { font-size: 36px; margin-bottom: 8px; }
+.game-card h4 { font-size: 14px; }
+.game-card p { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+/* Admin */
+.admin-menu { display: flex; flex-direction: column; gap: 8px; }
+.admin-item {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  background: var(--card); border-radius: var(--radius-sm); border: 1px solid var(--border);
+  cursor: pointer; transition: all 0.15s;
+}
+.admin-item:active { transform: scale(0.98); }
+.admin-item svg { width: 24px; height: 24px; stroke: var(--primary); flex-shrink: 0; }
+.admin-item .info { flex: 1; }
+.admin-item .info h4 { font-size: 14px; }
+.admin-item .info p { font-size: 11px; color: var(--text-secondary); }
+.admin-item .arrow { color: var(--text-secondary); font-size: 18px; }
+/* Promoted */
+.promoted-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0; scroll-snap-type: x mandatory; }
+.promoted-scroll::-webkit-scrollbar { display: none; }
+.promoted-card {
+  min-width: 200px; background: var(--card); border-radius: var(--radius); padding: 14px;
+  border: 1px solid var(--border); scroll-snap-align: start;
+}
+.promoted-card .badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: 700;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: #fff; margin-bottom: 6px;
+}
+.promoted-card h4 { font-size: 13px; margin-bottom: 4px; }
+.promoted-card p { font-size: 11px; color: var(--text-secondary); }
+/* Pulses */
+.pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } }
+/* Toast */
+.toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 300;
+  background: var(--text); color: #fff; padding: 12px 24px; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+/* Profile */
+.profile-header {
+  display: flex; flex-direction: column; align-items: center; padding: 24px 16px;
+}
+.profile-header .pfp-lg { width: 72px; height: 72px; border-radius: 50%; border: 3px solid var(--primary); object-fit: cover; margin-bottom: 12px; }
+.profile-header h2 { font-size: 20px; }
+.profile-header .joined { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 </style>
 </head>
 <body>
+<div id="loadingScreen" class="screen active">
+  <div class="loader"></div>
+  <div style="font-weight:700;color:var(--primary);font-size:18px">TaskHub</div>
+</div>
 
-<div class="particles" id="particles"></div>
-
-<div class="user-row">
-  <img class="pfp" id="pfpImg"
-    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23222'/%3E%3Ctext x='50' y='68' text-anchor='middle' fill='%23666' font-size='44'%3E?%3C/text%3E%3C/svg%3E" alt="">
-  <div class="user-info">
-    <div class="user-name" id="userName">Loading...</div>
-    <div class="user-id" id="userId">ID: —</div>
+<div id="channelScreen" class="screen">
+  <div style="padding:24px 16px;text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">📢</div>
+    <h2 style="margin-bottom:8px">Join Our Channels</h2>
+    <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px">You need to join all channels to use the app</p>
   </div>
-  <div class="status-pill pill-scanning" id="statusPill">
-    <span class="pill-dot"></span>
-    <span id="pillText">SCANNING</span>
+  <div style="flex:1;padding:0 16px">
+    <div id="channelList" class="channel-list"></div>
+  </div>
+  <div style="padding:16px">
+    <button class="btn btn-primary btn-block" id="verifyChannels" onclick="checkChannels()">
+      Verify & Continue
+    </button>
   </div>
 </div>
 
-<div class="main">
-  <div class="verify-card" id="verifyCard">
-
-    <div class="ring-wrap">
-      <svg class="ring-svg" id="ringSvg" viewBox="0 0 150 150">
-        <circle class="track" cx="75" cy="75" r="68"/>
-        <circle class="arc-purple" cx="75" cy="75" r="68"/>
-        <circle class="arc-green"  cx="75" cy="75" r="68"/>
-        <circle class="success-circle hidden" id="successCircle" cx="75" cy="75" r="68"/>
-      </svg>
-      <div class="ring-inner">
-        <span class="ring-icon" id="ringIcon">🔐</span>
-      </div>
+<div id="bonusScreen" class="screen">
+  <div style="padding:32px 16px;text-align:center;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <div style="font-size:64px;margin-bottom:16px">🎁</div>
+    <h2 style="margin-bottom:8px">Welcome Bonus!</h2>
+    <p style="color:var(--text-secondary);margin-bottom:24px">Claim your first reward to get started</p>
+    <div class="bonus-card" style="width:100%;max-width:280px">
+      <div class="bonus-amount" id="bonusAmount">₹0</div>
+      <div class="sub">Welcome Reward</div>
     </div>
-
-    <div id="scanState">
-      <div class="verify-title" id="stateTitle">Device Verification</div>
-      <div class="verify-subtitle" id="stateSubtitle">Completing authorization...</div>
-      <div class="progress-wrap">
-        <div class="progress-track">
-          <div class="progress-fill" id="progressFill"></div>
-        </div>
-        <div class="progress-label">
-          <span class="spin-row"><span class="mini-spinner"></span> Scanning device</span>
-          <span id="pctLabel">0%</span>
-        </div>
-      </div>
-    </div>
-
-    <button class="btn-continue" id="continueBtn" onclick="continueToBot()">Continue to Bot</button>
-
+    <button class="btn btn-success btn-block" id="claimBonus" onclick="claimWelcomeBonus()" style="max-width:280px">
+      🎁 Claim Bonus
+    </button>
   </div>
 </div>
 
-<div class="footer">Made by <a href="https://t.me/TeleforgeOfficial" target="_blank" style="color:var(--accent-purple);text-decoration:none;font-weight:700;">TELEFORGE</a></div>
+<div id="mainScreen" class="screen">
+  <div class="app-header">
+    <img class="pfp" id="headerPfp" src="" alt="">
+    <div class="user-info">
+      <div class="user-name" id="headerName">Loading...</div>
+      <div class="user-id" id="headerId">ID: —</div>
+    </div>
+    <div class="balance-card" id="headerBalance" onclick="navigateTab('wallet')">₹0</div>
+  </div>
+  <div class="tab-content" id="tabContent">
+    <div id="tabTasks" class="tab-page active">
+      <div id="promotedSection" style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3 style="font-size:15px">✨ Promoted</h3>
+          <button class="btn btn-sm btn-ghost" onclick="showPromoteModal()">PROMOTE HERE</button>
+        </div>
+        <div id="promotedList" class="promoted-scroll"></div>
+      </div>
+      <div id="taskList"></div>
+    </div>
+    <div id="tabBonus" class="tab-page">
+      <div id="dailyBonusSection"></div>
+      <div id="spinSection" style="text-align:center;margin-top:16px">
+        <h3 style="margin-bottom:4px">🎡 Spin & Win</h3>
+        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">Daily free spin</p>
+        <div id="spinWheel" class="spin-wheel hidden">
+          <div id="spinSegments"></div>
+          <div class="spin-pointer"></div>
+        </div>
+        <button class="btn btn-primary" id="spinBtn" onclick="startSpin()">🎡 Spin Now</button>
+      </div>
+    </div>
+    <div id="tabEarn" class="tab-page">
+      <div id="earnSection"></div>
+    </div>
+    <div id="tabWallet" class="tab-page">
+      <div id="walletSection"></div>
+    </div>
+    <div id="tabRefer" class="tab-page">
+      <div id="referSection"></div>
+    </div>
+    <div id="tabContact" class="tab-page">
+      <div id="contactSection"></div>
+    </div>
+    <div id="tabGames" class="tab-page">
+      <div id="gamesSection"></div>
+    </div>
+    <div id="tabAdmin" class="tab-page">
+      <div id="adminSection"></div>
+    </div>
+  </div>
+  <div class="bottom-nav" id="bottomNav"></div>
+</div>
 
-<script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-content" id="modalContent">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 class="modal-title" id="modalTitle" style="margin-bottom:0">Modal</h3>
+      <button class="modal-close" onclick="closeModal()" style="position:static;font-size:24px">×</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
-(function spawnDots() {
-  const wrap = document.getElementById('particles');
-  for (let i = 0; i < 22; i++) {
-    const d = document.createElement('div');
-    d.className = 'dot';
-    const size = 6 + Math.random() * 18;
-    d.style.cssText = `
-      width:${size}px; height:${size}px;
-      left:${Math.random()*100}%;
-      top:${Math.random()*100}%;
-      animation-duration:${4 + Math.random()*6}s;
-      animation-delay:-${Math.random()*6}s;
-      opacity:${0.3 + Math.random()*0.5};
-    `;
-    wrap.appendChild(d);
-  }
-})();
+let TG = window.Telegram?.WebApp;
+let USER = null;
+let API_BASE = window.location.origin;
+let CURRENT_USER = null;
+let NAV_ITEMS = [];
 
-const params = new URLSearchParams(window.location.search);
-const userId = params.get('user_id') || window.location.pathname.split('/').pop() || '7371674958';
-const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-const BOT_USERNAME = hashParams.get('bot') || params.get('bot') || '';
-const API_BASE = window.location.origin;
+TG?.ready();
+TG?.expand();
 
-async function fetchUser() {
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+
+async function api(path, opts = {}) {
   try {
-    const res = await fetch(`${API_BASE}/api/user/${userId}`);
-    const data = await res.json();
-    if (data.ok && data.user) {
-      document.getElementById('userName').textContent = data.user.first_name || 'User';
-      document.getElementById('userId').textContent = 'ID: ' + data.user.id;
-      if (data.user.pfp_url) {
-        const fr = await fetch(`${API_BASE}/api/user/${userId}/photo`);
-        if (fr.ok) { const fd = await fr.json(); if (fd.url) document.getElementById('pfpImg').src = fd.url; }
-      }
-    }
-  } catch(_) {
-    document.getElementById('userName').textContent = 'User';
-    document.getElementById('userId').textContent = 'ID: ' + userId;
-  }
+    const res = await fetch(API_BASE + path, { headers: { 'Content-Type': 'application/json', ...opts.headers }, ...opts });
+    return await res.json();
+  } catch(e) { return { ok: false, error: 'Network error' }; }
 }
 
-let pct = 0;
-let progInterval;
-
-function startProgress() {
-  progInterval = setInterval(() => {
-    pct += Math.random() * 14 + 3;
-    if (pct > 92) pct = 92;
-    document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('pctLabel').textContent = Math.floor(pct) + '%';
-  }, 380);
+function switchScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
 }
 
-function completeProgress(cb) {
-  clearInterval(progInterval);
-  pct = 100;
-  document.getElementById('progressFill').style.width = '100%';
-  document.getElementById('pctLabel').textContent = '100%';
-  setTimeout(cb, 500);
-}
-
-function showSuccess() {
-  completeProgress(() => {
-    const pill = document.getElementById('statusPill');
-    pill.classList.remove('pill-scanning'); pill.classList.add('pill-verified');
-    document.getElementById('pillText').textContent = 'VERIFIED';
-
-    const svg = document.getElementById('ringSvg');
-    svg.querySelectorAll('.arc-purple,.arc-green').forEach(e => e.classList.add('hidden'));
-    const sc = document.getElementById('successCircle');
-    sc.classList.remove('hidden');
-    svg.style.animation = 'none';
-
-    document.getElementById('ringIcon').textContent = '✔';
-    document.getElementById('ringIcon').style.color = 'var(--accent-green)';
-    document.getElementById('ringIcon').style.fontSize = '44px';
-
-    const t = document.getElementById('stateTitle');
-    t.textContent = 'Verification Complete';
-    t.classList.add('green');
-    document.getElementById('stateSubtitle').textContent = 'Your device has been verified.';
-
-    document.querySelector('.progress-wrap').style.display = 'none';
-    const btn = document.getElementById('continueBtn');
-    btn.style.display = 'block';
-
-    document.getElementById('verifyCard').classList.add('fade-scale-in');
-  });
-}
-
-function showFail(message) {
-  completeProgress(() => {
-    const t = document.getElementById('stateTitle');
-    t.textContent = 'Verification Failed';
-    t.classList.add('red');
-    document.getElementById('stateSubtitle').textContent = message || 'Verification could not be completed. Please try again.';
-    document.getElementById('ringIcon').textContent = '✕';
-    document.getElementById('ringIcon').style.color = '#ff4f5e';
-    document.getElementById('ringSvg').classList.add('fail-ring');
-    document.querySelector('.progress-wrap').style.display = 'none';
-    document.getElementById('statusPill').style.background = 'rgba(255,79,94,0.1)';
-    document.getElementById('statusPill').style.borderColor = 'rgba(255,79,94,0.3)';
-    document.getElementById('statusPill').style.color = '#ff4f5e';
-    document.getElementById('pillText').textContent = 'FAILED';
-  });
-}
-
-async function waitForFingerprintJS(timeout) {
-  timeout = timeout || 15000;
-  var start = Date.now();
-  while (Date.now() - start < timeout) {
-    if (typeof FingerprintJS !== 'undefined' && typeof FingerprintJS.load === 'function') {
-      return true;
-    }
-    await new Promise(function(r) { setTimeout(r, 200); });
-  }
-  return false;
-}
-
-async function startVerification() {
-  startProgress();
-
-  // Wait for FingerprintJS library to load
-  var loaded = await waitForFingerprintJS();
-  if (!loaded) {
-    showFail('Security module failed to load. Please refresh and try again.');
+async function init() {
+  const initData = TG?.initData || '';
+  const user = TG?.initDataUnsafe?.user;
+  if (!user) { showError('Please open from Telegram'); return; }
+  USER = user;
+  const data = await api('/api/app/init?' + new URLSearchParams({ user_id: user.id, init_data: initData, hash: '' }).toString());
+  if (!data.ok) { showError(data.error || 'Init failed'); return; }
+  CURRENT_USER = data.user;
+  if (data.channels_unjoined?.length > 0) {
+    switchScreen('channelScreen');
+    renderChannels(data.channels_unjoined);
     return;
   }
-
-  var fingerprint;
-  try {
-    var fp = await FingerprintJS.load();
-    var result = await fp.get();
-    fingerprint = result.visitorId;
-  } catch(e) {
-    showFail('Unable to generate device ID. Please refresh and try again.');
+  if (!data.welcome_bonus_claimed) {
+    switchScreen('bonusScreen');
+    document.getElementById('bonusAmount').textContent = '₹' + (data.welcome_bonus || 5);
     return;
   }
+  enterApp(data);
+}
 
-  try {
-    var res = await fetch(API_BASE + '/api/verify-device', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ device_hash: fingerprint, user_id: parseInt(userId) }),
+function showError(msg) {
+  switchScreen('loadingScreen');
+  document.getElementById('loadingScreen').innerHTML = `<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">❌</div><h3>${msg}</h3><button class="btn btn-primary" style="margin-top:16px" onclick="init()">Retry</button></div>`;
+}
+
+function renderChannels(channels) {
+  const el = document.getElementById('channelList');
+  el.innerHTML = channels.map(c => `
+    <div class="channel-item" data-id="${c.id}">
+      <div class="channel-icon">📢</div>
+      <div class="channel-info">
+        <h4>${c.title || 'Channel ' + c.id}</h4>
+        <p>Join and come back to verify</p>
+      </div>
+      <div class="channel-check" id="chk_${c.id}">✓</div>
+    </div>
+  `).join('');
+}
+
+async function checkChannels() {
+  const data = await api('/api/app/check-channels?' + new URLSearchParams({ user_id: USER.id }).toString());
+  if (data.ok && data.all_joined) {
+    init();
+  } else if (data.joined) {
+    data.joined.forEach(id => {
+      const chk = document.getElementById('chk_' + id);
+      if (chk) { chk.classList.add('checked'); document.querySelector(`.channel-item[data-id="${id}"]`).classList.add('verified'); }
     });
-    var data = await res.json();
-
-    if (data.ok) {
-      showSuccess();
-    } else {
-      var errorMsg = '';
-      if (data.error === 'already_verified') {
-        errorMsg = 'Your device is already verified. Use /start to continue.';
-      } else if (data.error === 'device_linked') {
-        errorMsg = 'This device is already linked to another account.';
-      } else {
-        errorMsg = data.error || 'Device verification failed.';
-      }
-      showFail(errorMsg);
-    }
-  } catch(_) {
-    showFail('Network error. Please check your connection and try again.');
-  }
-}
-
-function continueToBot() {
-  var tg = window.Telegram && window.Telegram.WebApp;
-  if (tg) {
-    var bot = BOT_USERNAME || '__BOT_USERNAME__';
-    var url = 'https://t.me/' + bot + '?start=verified';
-    fetch(API_BASE + '/api/verification-done', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: parseInt(userId) })
-    }).catch(function() {});
-    window.location.href = 'tg://resolve?domain=' + bot + '&start=verified';
-    setTimeout(function() { tg.close(); }, 500);
-    setTimeout(function() { tg.openTelegramLink(url); }, 1000);
+    toast('Join all channels to continue');
   } else {
-    var bot = BOT_USERNAME || '__BOT_USERNAME__';
-    window.location.href = 'https://t.me/' + bot + '?start=verified';
+    toast('Please join all channels first');
   }
 }
 
-(async function() {
-  if (window.Telegram && window.Telegram.WebApp) {
-    Telegram.WebApp.ready();
-    Telegram.WebApp.expand();
+async function claimWelcomeBonus() {
+  const data = await api('/api/app/claim-bonus', { method: 'POST', body: JSON.stringify({ user_id: USER.id, type: 'welcome' }) });
+  if (data.ok) {
+    toast('🎁 Welcome bonus claimed! ₹' + data.amount);
+    setTimeout(() => init(), 1000);
+  } else {
+    toast(data.error || 'Failed to claim');
   }
-  await fetchUser();
-  startVerification();
-})();
+}
+
+function enterApp(data) {
+  CURRENT_USER = data.user;
+  document.getElementById('headerPfp').src = data.user.pfp || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="%237b5ef8"/%3E%3Ctext x="50" y="68" text-anchor="middle" fill="%23fff" font-size="44"%3E${(data.user.first_name||'U')[0]}%3C/text%3E%3C/svg%3E';
+  document.getElementById('headerName').textContent = data.user.first_name || 'User';
+  document.getElementById('headerId').textContent = 'ID: ' + data.user.id;
+  updateBalance(data.user.balance || 0);
+  const isAdmin = data.is_admin || false;
+  NAV_ITEMS = [
+    { id: 'Tasks', icon: '<svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>' },
+    { id: 'Bonus', icon: '<svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="14" rx="2"/><path d="M12 2v6"/><path d="M8 2l4 6 4-6"/></svg>' },
+    { id: 'Earn', icon: '<svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' },
+    { id: 'Games', icon: '<svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4"/><path d="M8 10v4"/></svg>' },
+    { id: 'Wallet', icon: '<svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/><circle cx="18" cy="12" r="2"/></svg>' },
+    { id: 'Refer', icon: '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
+    { id: 'Contact', icon: '<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' },
+  ];
+  if (isAdmin) {
+    NAV_ITEMS.push({ id: 'Admin', icon: '<svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' });
+  }
+  renderNav();
+  switchScreen('mainScreen');
+  navigateTab('Tasks');
+}
+
+function updateBalance(bal) {
+  document.getElementById('headerBalance').textContent = '₹' + (bal || 0).toFixed(2);
+}
+
+function renderNav() {
+  const el = document.getElementById('bottomNav');
+  el.innerHTML = NAV_ITEMS.map(item => `
+    <button class="nav-item" data-tab="${item.id.toLowerCase()}" onclick="navigateTab('${item.id}')">
+      ${item.icon}
+      <span>${item.id}</span>
+    </button>
+  `).join('');
+}
+
+function navigateTab(name) {
+  const tabId = name.toLowerCase();
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector(`.nav-item[data-tab="${tabId}"]`)?.classList.add('active');
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  const tab = document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1));
+  if (tab) {
+    tab.classList.add('active');
+    loadTab(name);
+  }
+}
+
+async function loadTab(name) {
+  switch(name) {
+    case 'Tasks': loadTasks(); loadPromoted(); break;
+    case 'Bonus': loadBonus(); break;
+    case 'Earn': loadEarn(); break;
+    case 'Wallet': loadWallet(); break;
+    case 'Refer': loadRefer(); break;
+    case 'Contact': loadContact(); break;
+    case 'Games': loadGames(); break;
+    case 'Admin': loadAdmin(); break;
+  }
+}
+
+async function loadTasks() {
+  const el = document.getElementById('taskList');
+  const data = await api('/api/app/tasks?' + new URLSearchParams({ user_id: USER.id }).toString());
+  const tasks = data.tasks || [];
+  if (tasks.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:14px">No tasks available</div>';
+    return;
+  }
+  el.innerHTML = tasks.map(t => `
+    <div class="card task-card" onclick="showTaskDetail(${t.id})">
+      <div class="task-img" style="background:linear-gradient(135deg,${t.color||'#7b5ef8'},${t.color2||'#5a3fd6'});display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px">${t.icon||'📋'}</div>
+      <div class="task-info">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span class="task-badge badge-${t.type||'social'}">${t.type||'social'}</span>
+        </div>
+        <h3>${t.title}</h3>
+        <div>
+          <span class="reward">₹${t.reward}</span>
+        </div>
+        <div class="meta">
+          <span>⏱ ${t.duration||'15 min'}</span>
+          <span>👥 ${t.completions||0} users</span>
+          ${t.ref_link ? `<span>🔗 Referral available</span>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadPromoted() {
+  const el = document.getElementById('promotedList');
+  const data = await api('/api/app/promoted?' + new URLSearchParams({ user_id: USER.id }).toString());
+  const items = data.items || [];
+  if (items.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = items.map(p => `
+    <div class="promoted-card" onclick="openLink('${p.url||'#'}')">
+      <span class="badge">${p.badge||'⭐ Official Partner'}</span>
+      <h4>${p.title}</h4>
+      <p>${p.description||''}</p>
+    </div>
+  `).join('');
+}
+
+function showPromoteModal() {
+  showModal('Promote Here', '<div style="text-align:center;padding:16px"><p style="color:var(--text-secondary);margin-bottom:12px">Want to promote your brand or service? Contact our admin to get featured.</p><button class="btn btn-primary" onclick="closeModal()">Contact Admin</button></div>');
+}
+
+function showTaskDetail(taskId) {
+  showModal('Task Details', '<div id="taskDetailBody"><div style="text-align:center;padding:24px"><div class="loader"></div></div></div>');
+  loadTaskDetail(taskId);
+}
+
+async function loadTaskDetail(taskId) {
+  const data = await api('/api/app/task/' + taskId + '?' + new URLSearchParams({ user_id: USER.id }).toString());
+  if (!data.ok) { document.getElementById('taskDetailBody').innerHTML = '<p style="text-align:center;color:var(--danger)">Failed to load</p>'; return; }
+  const t = data.task;
+  let stepsHtml = '';
+  if (t.steps && t.steps.length > 0) {
+    stepsHtml = '<div style="margin:12px 0"><h4 style="margin-bottom:8px;font-size:14px">Steps:</h4><ol style="padding-left:20px;font-size:13px;color:var(--text-secondary);line-height:1.8">' + t.steps.map(s => '<li>' + s + '</li>').join('') + '</ol></div>';
+  }
+  document.getElementById('taskDetailBody').innerHTML = `
+    <div style="text-align:center;margin-bottom:12px">
+      <div class="task-img" style="width:120px;height:120px;border-radius:16px;background:linear-gradient(135deg,${t.color||'#7b5ef8'},${t.color2||'#5a3fd6'});display:flex;align-items:center;justify-content:center;color:#fff;font-size:48px;margin:0 auto 12px">${t.icon||'📋'}</div>
+      <h3 style="font-size:18px">${t.title}</h3>
+      <div style="color:var(--primary);font-weight:800;font-size:24px;margin:4px 0">₹${t.reward}</div>
+      <span class="task-badge badge-${t.type||'social'}">${t.type||'social'}</span>
+      <div style="margin:8px 0;font-size:12px;color:var(--text-secondary)">👥 ${t.completions||0} users completed • ⏱ ${t.duration||'15 min'}</div>
+    </div>
+    ${t.video_url ? `<button class="btn btn-outline btn-block" onclick="openLink('${t.video_url}')" style="margin-bottom:8px">▶ Watch Tutorial</button>` : ''}
+    ${stepsHtml}
+    <div style="margin-top:12px">
+      ${t.ref_enabled ? `<div style="display:flex;gap:8px;margin-bottom:8px"><input class="form-input" id="refLinkInput${taskId}" value="${t.ref_link||API_BASE+'/ref/'+USER.id+'/'+taskId}" readonly style="flex:1;font-size:12px"><button class="btn btn-sm btn-outline" onclick="copyRef(${taskId})">📋 Copy</button></div>` : ''}
+      <button class="btn btn-primary btn-block" onclick="startTask(${taskId})">🚀 Start Task</button>
+    </div>
+  `;
+}
+
+function copyRef(taskId) {
+  const el = document.getElementById('refLinkInput' + taskId);
+  if (el) { navigator.clipboard.writeText(el.value); toast('✅ Link copied!'); }
+}
+
+function startTask(taskId) {
+  closeModal();
+  showModal('Submit Proof', `
+    <div id="proofBody">
+      <p style="color:var(--text-secondary);margin-bottom:16px;font-size:14px">Complete the task and submit proof below</p>
+      <div class="form-group">
+        <label>Proof Screenshot URL (optional)</label>
+        <input class="form-input" id="proofImage" placeholder="Paste image URL or upload">
+      </div>
+      <div class="form-group">
+        <label>Transaction ID / Order ID</label>
+        <input class="form-input" id="proofTxnId" placeholder="Enter transaction ID if applicable">
+      </div>
+      <div class="form-group">
+        <label>Your UPI ID (for payment)</label>
+        <input class="form-input" id="proofUpi" placeholder="Enter your UPI ID" value="${CURRENT_USER?.upi||''}">
+      </div>
+      <button class="btn btn-success btn-block" onclick="submitProof(${taskId})">📤 Submit Proof</button>
+    </div>
+  `);
+}
+
+async function submitProof(taskId) {
+  const proof_image = document.getElementById('proofImage').value;
+  const txn_id = document.getElementById('proofTxnId').value;
+  const upi = document.getElementById('proofUpi').value;
+  if (!upi) { toast('Please enter your UPI ID'); return; }
+  const data = await api('/api/app/task/' + taskId + '/submit', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: USER.id, proof_image, txn_id, upi })
+  });
+  if (data.ok) {
+    closeModal();
+    toast('✅ Proof submitted! Admin will verify.');
+    loadTasks();
+  } else {
+    toast(data.error || 'Failed to submit');
+  }
+}
+
+function openLink(url) {
+  if (TG) { TG.openLink(url); } else { window.open(url, '_blank'); }
+}
+
+function showModal(title, bodyHtml) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+async function loadBonus() {
+  const el = document.getElementById('dailyBonusSection');
+  const data = await api('/api/app/bonus?' + new URLSearchParams({ user_id: USER.id }).toString());
+  const canClaim = data.can_claim;
+  const day = data.day || 1;
+  const amount = data.amount || 1;
+  const streak = data.streak || 0;
+  const nextIn = data.next_in || '';
+  el.innerHTML = `
+    <div class="bonus-card">
+      <h2>🎁 Daily Bonus</h2>
+      <div class="bonus-amount" id="dailyBonusAmount">₹${amount}</div>
+      <div class="sub">Day ${day}${streak > 0 ? ` • ${streak} day streak 🔥` : ''}</div>
+      ${canClaim ? `<button class="btn btn-success" style="margin-top:12px" onclick="claimDailyBonus()">🎁 Claim ${amount > 5 ? '🎉' : ''}</button>` : `<div style="margin-top:12px;opacity:0.7">Next bonus in ${nextIn}</div>`}
+    </div>
+    <div style="margin-top:8px;text-align:center;font-size:12px;color:var(--text-secondary)">
+      Come back daily for bigger rewards! Day 7 = ₹10 bonus 🎉
+    </div>
+  `;
+}
+
+async function claimDailyBonus() {
+  const data = await api('/api/app/bonus/claim', { method: 'POST', body: JSON.stringify({ user_id: USER.id, type: 'daily' }) });
+  if (data.ok) {
+    toast('🎉 Daily bonus claimed! ₹' + data.amount);
+    updateBalance(data.balance || CURRENT_USER.balance);
+    loadBonus();
+  } else { toast(data.error || 'Already claimed'); }
+}
+
+function startSpin() {
+  const btn = document.getElementById('spinBtn');
+  btn.disabled = true;
+  btn.textContent = 'Spinning...';
+  setTimeout(async () => {
+    const data = await api('/api/app/spin', { method: 'POST', body: JSON.stringify({ user_id: USER.id }) });
+    btn.disabled = false;
+    btn.textContent = '🎡 Spin Now';
+    if (data.ok) {
+      toast('🎉 You won ₹' + data.amount + '!');
+      updateBalance(data.balance || CURRENT_USER.balance);
+    } else { toast(data.error || 'Try again tomorrow'); }
+  }, 2000);
+}
+
+async function loadEarn() {
+  const el = document.getElementById('earnSection');
+  const data = await api('/api/app/earn?' + new URLSearchParams({ user_id: USER.id }).toString());
+  const ads = data.ads || [];
+  const adGoal = data.ad_goal || { current: 0, target: 20, reward: 1, reset_in: '—' };
+  const pct = Math.min(100, (adGoal.current / adGoal.target) * 100);
+  let adsHtml = ads.length > 0 ? ads.map(a => `
+    <div class="ad-card">
+      <div class="ad-icon" style="background:linear-gradient(135deg,${a.color1||'#ff6b6b'},${a.color2||'#ee5a24'})">${a.icon||'📺'}</div>
+      <div class="ad-info">
+        <h4>${a.title}</h4>
+        <p>${a.description||'Watch and earn'}</p>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="watchAd(${a.id})">▶ Watch</button>
+    </div>
+  `).join('') : '<div style="text-align:center;padding:16px;color:var(--text-secondary)">No ads available</div>';
+  el.innerHTML = `
+    <div class="card" style="text-align:center">
+      <h3 style="margin-bottom:4px">📺 Daily Ad Goal</h3>
+      <div style="margin:16px auto;width:100px;height:100px;border-radius:50%;background:conic-gradient(var(--primary) ${pct}%, var(--border) ${pct}%);display:flex;align-items:center;justify-content:center">
+        <div style="background:var(--card);width:80px;height:80px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <span style="font-weight:800;font-size:20px;color:var(--primary)">${adGoal.current}</span>
+          <span style="font-size:10px;color:var(--text-secondary)">of ${adGoal.target}</span>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--text-secondary)">Reward: ₹${adGoal.reward} • Resets: ${adGoal.reset_in}</div>
+    </div>
+    <h3 style="font-size:15px;margin:12px 0 8px">Available Ads</h3>
+    ${adsHtml}
+  `;
+}
+
+async function watchAd(adId) {
+  const data = await api('/api/app/ad/watch', { method: 'POST', body: JSON.stringify({ user_id: USER.id, ad_id: adId }) });
+  if (data.ok) {
+    toast('💰 +₹' + (data.amount || '0.10') + ' earned!');
+    updateBalance(data.balance || CURRENT_USER.balance);
+    loadEarn();
+  } else { toast(data.error || 'Failed'); }
+}
+
+async function loadWallet() {
+  const el = document.getElementById('walletSection');
+  const data = await api('/api/app/wallet?' + new URLSearchParams({ user_id: USER.id }).toString());
+  const w = data.wallet || { balance: 0, pending: 0, withdrawn: 0, upi: '' };
+  const min_withdraw = data.min_withdraw || 10;
+  const can_withdraw = w.balance >= min_withdraw;
+  el.innerHTML = `
+    <div class="wallet-header">
+      <div class="label">Total Balance</div>
+      <div class="balance">₹${(w.balance||0).toFixed(2)}</div>
+      <div style="display:flex;justify-content:center;gap:24px;margin-top:12px;font-size:12px;opacity:0.7">
+        <span>Pending: ₹${(w.pending||0).toFixed(2)}</span>
+        <span>Withdrawn: ₹${(w.withdrawn||0).toFixed(2)}</span>
+      </div>
+    </div>
+    <h3 style="font-size:15px;margin-bottom:8px">Withdraw</h3>
+    <div class="withdraw-grid">
+      <div class="withdraw-opt" onclick="startWithdraw('upi')">
+        <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
+        <h4>UPI</h4>
+        <p>Min ₹${min_withdraw}</p>
+      </div>
+      <div class="withdraw-opt" onclick="startWithdraw('stars')">
+        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <h4>Stars</h4>
+        <p>Instant</p>
+      </div>
+      <div class="withdraw-opt" onclick="startWithdraw('redeem')">
+        <svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="14" rx="2"/><path d="M12 2v6"/><path d="M8 2l4 6 4-6"/></svg>
+        <h4>Redeem</h4>
+        <p>Min ₹50</p>
+      </div>
+    </div>
+    <h3 style="font-size:15px;margin:12px 0 8px">Recent Transactions</h3>
+    <div id="txnList">${(data.transactions||[]).slice(0,5).map(t => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-size:13px;font-weight:600">${t.description||t.type}</div>
+          <div style="font-size:10px;color:var(--text-secondary)">${t.date||''}</div>
+        </div>
+        <div style="font-weight:700;color:${t.amount > 0 ? 'var(--success)' : 'var(--danger)'}">${t.amount > 0 ? '+' : ''}₹${(t.amount||0).toFixed(2)}</div>
+      </div>
+    `).join('') || '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:13px">No transactions yet</div>'}</div>
+  `;
+}
+
+function startWithdraw(method) {
+  let methods = { upi: 'UPI', stars: 'Telegram Stars', redeem: 'Redeem Code' };
+  let html = '';
+  if (method === 'upi') {
+    html = `
+      <div class="form-group"><label>UPI ID</label><input class="form-input" id="wUpi" placeholder="example@upi" value="${CURRENT_USER?.upi||''}"></div>
+      <div class="form-group"><label>Amount (₹)</label><input class="form-input" id="wAmount" type="number" placeholder="Min ₹10"></div>
+      <button class="btn btn-success btn-block" onclick="submitWithdraw('upi')">Withdraw via UPI</button>
+    `;
+  } else if (method === 'stars') {
+    html = `
+      <div class="form-group"><label>Amount (Stars)</label><input class="form-input" id="wStarsAmount" type="number" placeholder="Min 5 Stars"></div>
+      <button class="btn btn-success btn-block" onclick="submitWithdraw('stars')">Withdraw via Stars</button>
+    `;
+  } else if (method === 'redeem') {
+    html = `
+      <div class="form-group"><label>Amount (₹)</label><input class="form-input" id="wRedeemAmount" type="number" placeholder="Min ₹50"></div>
+      <button class="btn btn-success btn-block" onclick="submitWithdraw('redeem')">Request Redeem Code</button>
+    `;
+  }
+  showModal('Withdraw - ' + methods[method], html);
+}
+
+async function submitWithdraw(method) {
+  let body = { user_id: USER.id, method };
+  if (method === 'upi') { body.upi = document.getElementById('wUpi').value; body.amount = parseFloat(document.getElementById('wAmount').value); }
+  else if (method === 'stars') { body.amount = parseFloat(document.getElementById('wStarsAmount').value); }
+  else if (method === 'redeem') { body.amount = parseFloat(document.getElementById('wRedeemAmount').value); }
+  if (!body.amount || body.amount <= 0) { toast('Enter valid amount'); return; }
+  const data = await api('/api/app/withdraw', { method: 'POST', body: JSON.stringify(body) });
+  if (data.ok) {
+    toast('✅ Withdrawal requested!');
+    closeModal();
+    loadWallet();
+  } else { toast(data.error || 'Failed'); }
+}
+
+async function loadRefer() {
+  const el = document.getElementById('referSection');
+  const data = await api('/api/app/refer?' + new URLSearchParams({ user_id: USER.id }).toString());
+  const ref = data.referral || { code: '—', total: 0, active: 0, earned: 0, referrals: [] };
+  el.innerHTML = `
+    <div class="ref-card">
+      <h3 style="margin-bottom:8px">👥 Refer & Earn</h3>
+      <p style="opacity:0.8;font-size:13px">Invite friends and earn lifetime commission!</p>
+      <div class="ref-code" id="refCodeDisplay">${ref.code}</div>
+      <button class="btn btn-sm" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.3);margin-bottom:12px" onclick="copyReferral()">📋 Copy Code</button>
+      <div class="ref-stats">
+        <div class="ref-stat"><div class="num">${ref.total}</div><div class="lbl">Total</div></div>
+        <div class="ref-stat"><div class="num">${ref.active}</div><div class="lbl">Active</div></div>
+        <div class="ref-stat"><div class="num">₹${(ref.earned||0).toFixed(2)}</div><div class="lbl">Earned</div></div>
+      </div>
+    </div>
+    <h3 style="font-size:15px;margin-bottom:8px">Your Referrals</h3>
+    <div id="refList">${(ref.referrals||[]).slice(0,10).map(r => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-size:13px;font-weight:600">${r.name||'User ' + r.id}</div>
+          <div style="font-size:10px;color:var(--text-secondary)">${r.date||''}</div>
+        </div>
+        <div style="font-weight:700;color:var(--primary)">+₹${(r.earned||0).toFixed(2)}</div>
+      </div>
+    `).join('') || '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:13px">No referrals yet. Share your code!</div>'}</div>
+  `;
+}
+
+function copyReferral() {
+  const code = document.getElementById('refCodeDisplay')?.textContent;
+  if (code) { navigator.clipboard.writeText(code); toast('✅ Referral code copied!'); }
+}
+
+function loadContact() {
+  document.getElementById('contactSection').innerHTML = `
+    <div style="text-align:center;padding:24px">
+      <div style="font-size:48px;margin-bottom:12px">💬</div>
+      <h3 style="margin-bottom:8px">Contact Support</h3>
+      <p style="color:var(--text-secondary);margin-bottom:20px">Having issues? Reach out to our support team</p>
+      <button class="btn btn-primary btn-block" onclick="TG?.openTelegramLink('https://t.me/TeleforgeOfficial')">📨 Telegram Support</button>
+      <div style="margin-top:16px;padding:16px;background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);text-align:left">
+        <h4 style="font-size:14px;margin-bottom:8px">FAQ</h4>
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
+          <p><b>Q:</b> How do I earn?<br><b>A:</b> Complete tasks, play games, refer friends.</p>
+          <p><b>Q:</b> Minimum withdrawal?<br><b>A:</b> UPI: ₹10, Redeem: ₹50, Stars: 5.</p>
+          <p><b>Q:</b> How long for payout?<br><b>A:</b> UPI: 24-48 hrs, Stars: instant, Redeem: instant.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function loadGames() {
+  document.getElementById('gamesSection').innerHTML = `
+    <h3 style="font-size:15px;margin-bottom:8px">🎮 Games</h3>
+    <div class="game-grid">
+      <div class="game-card" onclick="alert('Coming soon')"><div class="icon">🎲</div><h4>Dice</h4><p>Heads or Tails</p></div>
+      <div class="game-card" onclick="alert('Coming soon')"><div class="icon">🎰</div><h4>Slots</h4><p>Spin to win</p></div>
+      <div class="game-card" onclick="alert('Coming soon')"><div class="icon">💣</div><h4>Mines</h4><p>Click to reveal</p></div>
+      <div class="game-card" onclick="alert('Coming soon')"><div class="icon">📈</div><h4>Crash</h4><p>Cash out timing</p></div>
+    </div>
+  `;
+}
+
+function loadAdmin() {
+  document.getElementById('adminSection').innerHTML = `
+    <h3 style="font-size:15px;margin-bottom:8px;color:var(--primary)">🛠 Admin Panel</h3>
+    <div class="admin-menu">
+      <div class="admin-item" onclick="adminPage('users')">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <div class="info"><h4>Users</h4><p>Manage users, bans, balance</p></div>
+        <span class="arrow">›</span>
+      </div>
+      <div class="admin-item" onclick="adminPage('tasks')">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
+        <div class="info"><h4>Tasks</h4><p>Add/edit tasks, manage proofs</p></div>
+        <span class="arrow">›</span>
+      </div>
+      <div class="admin-item" onclick="adminPage('withdrawals')">
+        <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
+        <div class="info"><h4>Withdrawals</h4><p>Approve/reject withdrawals</p></div>
+        <span class="arrow">›</span>
+      </div>
+      <div class="admin-item" onclick="adminPage('promoted')">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <div class="info"><h4>Promoted</h4><p>Manage promoted tasks</p></div>
+        <span class="arrow">›</span>
+      </div>
+      <div class="admin-item" onclick="adminPage('ads')">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+        <div class="info"><h4>Ads</h4><p>Manage ad campaigns</p></div>
+        <span class="arrow">›</span>
+      </div>
+      <div class="admin-item" onclick="adminPage('settings')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <div class="info"><h4>Settings</h4><p>Bot settings, payouts</p></div>
+        <span class="arrow">›</span>
+      </div>
+    </div>
+  `;
+}
+
+function adminPage(page) {
+  showModal('Admin › ' + page.charAt(0).toUpperCase() + page.slice(1), '<div id="adminPageBody"><div style="text-align:center;padding:24px"><div class="loader"></div></div></div>');
+  setTimeout(() => {
+    document.getElementById('adminPageBody').innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-secondary)">Coming soon in update</div>';
+  }, 500);
+}
+
+init();
 </script>
 </body>
 </html>
