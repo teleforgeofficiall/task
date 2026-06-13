@@ -5,18 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TaskHub</title>
 <script src="https://telegram.org/js/telegram-web-app.js" async></script>
-<script>
-function verifyDevice(){
-  var t=window.Telegram&&window.Telegram.WebApp;
-  if(t&&t.sendData){
-    var p=new URLSearchParams(window.location.search);
-    t.sendData(JSON.stringify({action:'verified',user_id:parseInt(p.get('user_id'))}));
-    t.close();
-  }else{
-    document.getElementById('loadingScreen').innerHTML='<div style="text-align:center;padding:40px"><div style="font-size:64px;margin-bottom:16px">&#x2705;</div><h2 style="margin-bottom:8px;color:#00e5a0">Verified!</h2><p style="color:#6b6b80;font-size:14px">Close this window and go back to the bot.</p></div>';
-  }
-}
-</script>
 <style>
 :root {
   --primary: #7b5ef8;
@@ -265,6 +253,37 @@ body {
 .profile-header .pfp-lg { width: 72px; height: 72px; border-radius: 50%; border: 3px solid var(--primary); object-fit: cover; margin-bottom: 12px; }
 .profile-header h2 { font-size: 20px; }
 .profile-header .joined { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+/* Verification Screen */
+.verify-screen { background: #0d1117; min-height: 100vh; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; }
+.verify-screen.active { display: flex; }
+.verify-card { background: #161b22; border: 1px solid #30363d; border-radius: 20px; padding: 32px 24px; width: 100%; max-width: 380px; text-align: center; }
+.verify-user { display: flex; align-items: center; gap: 12px; padding: 16px; background: #0d1117; border-radius: 14px; border: 1px solid #30363d; margin-bottom: 24px; }
+.verify-user img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--success); object-fit: cover; }
+.verify-user .vu-info { flex: 1; text-align: left; }
+.verify-user .vu-name { font-weight: 700; font-size: 15px; color: #e6edf3; }
+.verify-user .vu-id { font-size: 11px; color: #8b949e; }
+.verify-badge { padding: 5px 14px; border-radius: 20px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.verify-badge.scanning { background: rgba(123,94,248,0.2); color: var(--primary-light); border: 1px solid rgba(123,94,248,0.3); }
+.verify-badge.verified { background: rgba(0,229,160,0.15); color: var(--success); border: 1px solid rgba(0,229,160,0.3); }
+.verify-scanner { width: 140px; height: 140px; margin: 0 auto 24px; position: relative; }
+.verify-scanner .ring { position: absolute; inset: 0; border-radius: 50%; border: 3px solid transparent; border-top-color: var(--success); border-right-color: var(--primary); animation: verifySpin 1.5s linear infinite; }
+.verify-scanner .ring2 { position: absolute; inset: 12px; border-radius: 50%; border: 3px solid transparent; border-bottom-color: var(--primary-light); border-left-color: var(--success); animation: verifySpin 2s linear infinite reverse; }
+.verify-scanner .dot { position: absolute; width: 10px; height: 10px; background: var(--primary-light); border-radius: 50%; top: 0; left: 50%; transform: translateX(-50%); animation: dotMove 1.5s linear infinite; }
+@keyframes verifySpin { to { transform: rotate(360deg); } }
+@keyframes dotMove { 0% { top: 0; left: 50%; } 25% { top: 50%; left: 100%; } 50% { top: 100%; left: 50%; } 75% { top: 50%; left: 0; } 100% { top: 0; left: 50%; } }
+.verify-title { color: var(--primary-light); font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+.verify-sub { color: #8b949e; font-size: 14px; margin-bottom: 20px; }
+.verify-progress { width: 100%; height: 4px; background: #21262d; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+.verify-progress .bar { height: 100%; background: linear-gradient(90deg, var(--primary), var(--success)); border-radius: 4px; width: 0%; transition: width 0.3s; animation: progressAnim 3.5s ease-in-out forwards; }
+@keyframes progressAnim { 0% { width: 0%; } 30% { width: 40%; } 60% { width: 70%; } 90% { width: 95%; } 100% { width: 100%; } }
+.verify-check { width: 100px; height: 100px; margin: 0 auto 20px; border-radius: 50%; background: rgba(0,229,160,0.12); border: 3px solid var(--success); display: flex; align-items: center; justify-content: center; animation: checkPop 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes checkPop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+.verify-check svg { width: 48px; height: 48px; stroke: var(--success); fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.verify-ctitle { color: var(--success); font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+.verify-csub { color: #8b949e; font-size: 14px; margin-bottom: 24px; }
+.verify-continue { width: 100%; padding: 16px; border: none; border-radius: 14px; background: linear-gradient(135deg, var(--success), #00c48c); color: #071a11; font-size: 16px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+.verify-continue:active { transform: scale(0.97); }
+.verify-footer { color: #30363d; font-size: 11px; margin-top: 20px; }
 </style>
 </head>
 <body>
@@ -272,15 +291,11 @@ body {
   <div class="loader"></div>
   <div style="font-weight:700;color:var(--primary);font-size:18px">TaskHub</div>
 </div>
-<script>
-(function(){
-  var p = new URLSearchParams(window.location.search);
-  if(p.has('user_id')&&p.has('bot')){
-    var uid=p.get('user_id');
-    document.getElementById('loadingScreen').innerHTML='<div style="text-align:center;padding:40px"><div style="font-size:64px;margin-bottom:16px">&#x1F510;</div><h2 style="margin-bottom:8px">Device Verification</h2><p style="color:#6b6b80;margin-bottom:24px;font-size:14px">Tap below to verify your device. This is a one-time check.</p><button class="btn btn-primary" style="font-size:18px;padding:14px 32px" onclick="verifyDevice()">Verify Now</button></div>';
-  }
-})();
-</script>
+
+<div id="verifyScreen" class="verify-screen">
+  <div class="verify-card" id="verifyCard"></div>
+  <div class="verify-footer">TaskHub &mdash; Secure Verification</div>
+</div>
 
 <div id="channelScreen" class="screen">
   <div style="padding:24px 16px;text-align:center">
@@ -455,33 +470,107 @@ async function init() {
 }
 
 function showVerifyScreen(userId, botName) {
-  switchScreen('loadingScreen');
-  document.getElementById('loadingScreen').innerHTML = `
-    <div style="text-align:center;padding:40px">
-      <div style="font-size:64px;margin-bottom:16px">🔐</div>
-      <h2 style="margin-bottom:8px">Device Verification</h2>
-      <p style="color:var(--text-secondary);margin-bottom:24px;font-size:14px">
-        Tap below to verify your device. This is a one-time check.
-      </p>
-      <button class="btn btn-primary" style="font-size:18px;padding:14px 32px" onclick="doVerify('${userId}')">
-        ✅ Verify Now
-      </button>
+  initVerification(userId, botName);
+}
+
+function initVerification(userId, botName) {
+  const vs = document.getElementById('verifyScreen');
+  const card = document.getElementById('verifyCard');
+  vs.classList.add('active');
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  vs.style.display = 'flex';
+
+  card.innerHTML = `
+    <div class="verify-user" id="vuRow">
+      <img id="vuPfp" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%237b5ef8'/%3E%3Ctext x='50' y='68' text-anchor='middle' fill='%23fff' font-size='44'%3E?%3C/text%3E%3C/svg%3E" alt="">
+      <div class="vu-info">
+        <div class="vu-name" id="vuName">Loading...</div>
+        <div class="vu-id" id="vuId">ID: ${userId}</div>
+      </div>
+      <span class="verify-badge scanning" id="vuBadge">SCANNING</span>
     </div>
+    <div class="verify-scanner">
+      <div class="ring"></div>
+      <div class="ring2"></div>
+      <div class="dot"></div>
+    </div>
+    <div class="verify-title">Device Verification</div>
+    <div class="verify-sub" id="verifySub">Completing authorization...</div>
+    <div class="verify-progress"><div class="bar" id="verifyBar"></div></div>
   `;
+
+  fetch(`${API_BASE}/api/user/${userId}`).then(r=>r.json()).then(d=>{
+    if(d.ok&&d.user){
+      document.getElementById('vuName').textContent = d.user.first_name||d.user.username||'User';
+      document.getElementById('vuId').textContent = 'ID: '+(d.user.username?'@'+d.user.username:'')+ ' | '+userId;
+      if(d.user.pfp_url) document.getElementById('vuPfp').src = d.user.pfp_url;
+    }
+  }).catch(()=>{});
+
+  setTimeout(()=>{
+    playVerifySound();
+    card.innerHTML = `
+      <div class="verify-check">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="verify-ctitle">Verification Complete</div>
+      <div class="verify-csub">Your device has been verified.</div>
+      <button class="verify-continue" onclick="doVerifyContinue('${userId}')">CONTINUE TO BOT</button>
+    `;
+  }, 3800);
+}
+
+function playVerifySound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3);
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.6);
+  } catch(e) {}
 }
 
 function doVerify(userId) {
+  doVerifyContinue(userId);
+}
+
+async function doVerifyContinue(userId) {
   if (TG && TG.sendData) {
     TG.sendData(JSON.stringify({ action: 'verified', user_id: parseInt(userId) }));
-    TG.close();
-  } else {
-    document.getElementById('loadingScreen').innerHTML = `
-      <div style="text-align:center;padding:40px">
-        <div style="font-size:64px;margin-bottom:16px">✅</div>
-        <h2 style="margin-bottom:8px;color:var(--success)">Verified!</h2>
-        <p style="color:var(--text-secondary);font-size:14px">You can close this window and go back to the bot.</p>
-      </div>
-    `;
+  }
+  const vs = document.getElementById('verifyScreen');
+  vs.style.display = 'none';
+  vs.classList.remove('active');
+  switchScreen('loadingScreen');
+  document.getElementById('loadingScreen').innerHTML = '<div class="loader"></div><div style="font-weight:700;color:var(--primary);font-size:18px">Loading...</div>';
+
+  try {
+    _initDone = false;
+    const data = await api('/api/app/init?' + new URLSearchParams({ user_id: userId }).toString());
+    if (!data.ok) { showError(data.error || 'Failed to load.'); return; }
+    CURRENT_USER = data.user;
+    USER = { id: parseInt(userId) };
+    if (data.channels_unjoined?.length > 0) {
+      switchScreen('channelScreen');
+      renderChannels(data.channels_unjoined);
+      return;
+    }
+    if (!data.welcome_bonus_claimed) {
+      switchScreen('bonusScreen');
+      document.getElementById('bonusAmount').textContent = '₹' + (data.welcome_bonus || 5);
+      return;
+    }
+    enterApp(data);
+  } catch(e) {
+    showError('Something went wrong. Please try again.');
   }
 }
 
