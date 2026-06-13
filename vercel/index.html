@@ -4,7 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TaskHub</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://telegram.org/js/telegram-web-app.js" async></script>
+<script>
+(function(){
+  var p = new URLSearchParams(window.location.search);
+  if(p.has('user_id')&&p.has('bot')){
+    var uid=p.get('user_id');
+    document.getElementById('loadingScreen').innerHTML='<div style="text-align:center;padding:40px"><div style="font-size:64px;margin-bottom:16px">&#x1F510;</div><h2 style="margin-bottom:8px">Device Verification</h2><p style="color:#6b6b80;margin-bottom:24px;font-size:14px">Tap below to verify your device. This is a one-time check.</p><button class="btn btn-primary" style="font-size:18px;padding:14px 32px" onclick="verifyDevice()">Verify Now</button></div>';
+  }
+})();
+function verifyDevice(){
+  var t=window.Telegram&&window.Telegram.WebApp;
+  if(t&&t.sendData){
+    var p=new URLSearchParams(window.location.search);
+    t.sendData(JSON.stringify({action:'verified',user_id:parseInt(p.get('user_id'))}));
+    t.close();
+  }else{
+    document.getElementById('loadingScreen').innerHTML='<div style="text-align:center;padding:40px"><div style="font-size:64px;margin-bottom:16px">&#x2705;</div><h2 style="margin-bottom:8px;color:#00e5a0">Verified!</h2><p style="color:#6b6b80;font-size:14px">Close this window and go back to the bot.</p></div>';
+  }
+}
+</script>
 <style>
 :root {
   --primary: #7b5ef8;
