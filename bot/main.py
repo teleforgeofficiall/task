@@ -794,3 +794,13 @@ async def app_promoted(user_id: int = 0):
             items = []
         return {"ok": True, "items": items}
 
+
+if __name__ == "__main__":
+    # Start ASGI server
+    uvicorn.run(
+        "bot.main:app",
+        host="0.0.0.0",
+        port=settings.PORT,
+        reload=not settings.is_production
+    )
+
