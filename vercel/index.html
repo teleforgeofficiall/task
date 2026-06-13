@@ -254,7 +254,7 @@ body {
 .profile-header h2 { font-size: 20px; }
 .profile-header .joined { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 /* Verification Screen */
-.verify-screen { background: #0d1117; min-height: 100vh; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; }
+.verify-screen { background: #0d1117; min-height: 100vh; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; position: fixed; inset: 0; z-index: 999; }
 .verify-screen.active { display: flex; }
 .verify-card { background: #161b22; border: 1px solid #30363d; border-radius: 20px; padding: 32px 24px; width: 100%; max-width: 380px; text-align: center; }
 .verify-user { display: flex; align-items: center; gap: 12px; padding: 16px; background: #0d1117; border-radius: 14px; border: 1px solid #30363d; margin-bottom: 24px; }
@@ -296,6 +296,18 @@ body {
   <div class="verify-card" id="verifyCard"></div>
   <div class="verify-footer">TaskHub &mdash; Secure Verification</div>
 </div>
+<script>
+(function(){
+  var p = new URLSearchParams(window.location.search);
+  if(p.has('user_id')&&p.has('bot')){
+    var uid=p.get('user_id');
+    var vs=document.getElementById('verifyScreen');
+    var ls=document.getElementById('loadingScreen');
+    if(vs){vs.classList.add('active');vs.style.display='flex';}
+    if(ls){ls.classList.remove('active');ls.style.display='none';}
+  }
+})();
+</script>
 
 <div id="channelScreen" class="screen">
   <div style="padding:24px 16px;text-align:center">
