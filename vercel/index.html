@@ -359,6 +359,11 @@ body {
 <div class="toast" id="toast"></div>
 
 <script>
+window.onerror = function(msg, src, line, col, err) {
+  document.getElementById('loadingScreen').innerHTML = '<div style="text-align:center;padding:20px;font-size:12px;color:red;word-break:break-all"><b>JS Error:</b><br>' + msg + '<br>Line: ' + line + '<br>' + (err && err.stack ? err.stack.split('\n')[1] : '') + '</div>';
+  return true;
+};
+
 let TG = window.Telegram?.WebApp;
 let USER = null;
 let API_BASE = window.location.origin;
