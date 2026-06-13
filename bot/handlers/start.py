@@ -1,5 +1,6 @@
 """
-start.py — Start command handler, force-subscribe verification, and main menu routing.
+start.py — Start command handler, force-subscribe verification, device verification,
+and congrats + MiniApp flow.
 """
 from __future__ import annotations
 
@@ -9,11 +10,42 @@ from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMar
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 
 from bot.database import get_db, Repository
-from bot.keyboards.user_kb import main_menu_keyboard
+from bot.keyboards.user_kb import main_menu_keyboard, miniapp_keyboard
 from bot.middlewares.auth import check_access
 from bot.utils import edit_or_reply
 
 logger = logging.getLogger(__name__)
+
+
+async def send_congrats(update: Update, context: ContextTypes.DEFAULT_TYPE, repository: Repository) -> None:
+    """Send congrats message with MiniApp button after all checks pass."""
+    user = update.effective_user
+    if not user:
+        return
+
+    miniapp_url = await repository.get_setting("miniapp_url", "https://taskhub-khaki.vercel.app")
+    congrats_text = (
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🎉 <b>Congratulations!</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Aap ab <b>TaskHub</b> use kar sakte hai!\n\n"
+        "Niche diye gaye button se MiniApp open karein aur earning shuru karein.\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "💸 Complete Tasks & Earn\n"
+        "🎮 Play Games & Win\n"
+        "👥 Refer Friends for Commission\n"
+        "💰 Withdraw to UPI / Stars\n"
+        "━━━━━━━━━━━━━━━━━━━━━━"
+    )
+
+    kb = miniapp_keyboard(miniapp_url)
+    await edit_or_reply(
+        update=update,
+        context=context,
+        text=congrats_text,
+        reply_markup=kb,
+        parse_mode="HTML"
+    )
 
 
 async def send_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, repository: Repository) -> None:
@@ -101,7 +133,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             referrer=referrer_id
         )
 
-    # Check device verification
+    # STEP 1: Check force-subscribe channels
+    passed = await check_access(update, context, repository)
+    if not passed:
+        return
+
+    # STEP 2: Check device verification
     dev_verif_enabled = await repository.get_setting("device_verification_enabled", False)
     if dev_verif_enabled:
         db_user = await repository.get_user(user_id)
@@ -126,7 +163,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 await repository.update_setting(f"verify_msg:{user_id}", msg.message_id)
                 return
 
-    await send_main_menu(update, context, repository)
+    # STEP 3: All passed — send congrats + MiniApp button
+    await send_congrats(update, context, repository)
 
 
 async def verified_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -137,11 +175,9 @@ async def verified_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     repository = Repository(await get_db())
     db_user = await repository.get_user(user.id)
     if not db_user:
-        # User doesn't exist yet, redirect to /start flow
         await start_command(update, context)
         return
     if not db_user.device_verified:
-        # Re-check: maybe verification was completed but DB not refreshed
         db_user = await repository.get_user(user.id)
         if not db_user or not db_user.device_verified:
             await update.message.reply_text(
@@ -151,6 +187,7 @@ async def verified_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 parse_mode="HTML"
             )
             return
+
     # Delete the old verify message
     verify_msg_id = context.user_data.pop("verify_msg_id", None)
     if verify_msg_id:
@@ -159,7 +196,7 @@ async def verified_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         except Exception:
             pass
 
-    await send_main_menu(update, context, repository)
+    await send_congrats(update, context, repository)
 
 
 async def menu_main_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -175,8 +212,40 @@ async def fsub_verify_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     repository = Repository(await get_db())
     passed = await check_access(update, context, repository)
     if passed:
-        await query.answer("✅ Verification successful!", show_alert=True)
-        await send_main_menu(update, context, repository)
+        await query.answer("✅ All channels joined!", show_alert=True)
+
+        # After fsub passes, check device verification
+        user_id = query.from_user.id
+        dev_verif_enabled = await repository.get_setting("device_verification_enabled", False)
+        if dev_verif_enabled:
+            db_user = await repository.get_user(user_id)
+            if db_user and not db_user.device_verified:
+                verif_url = await repository.get_setting("device_verification_url", "")
+                if verif_url:
+                    bot_username = (await context.bot.get_me()).username or ""
+                    verify_url = f"{verif_url}/?user_id={user_id}&bot={bot_username}"
+                    if verify_url.startswith("https://"):
+                        btn = InlineKeyboardButton("🌐 Verify Device", web_app=WebAppInfo(url=verify_url))
+                    else:
+                        btn = InlineKeyboardButton("🌐 Verify Device", url=verify_url)
+                    await query.message.delete()
+                    msg = await context.bot.send_message(
+                        chat_id=user_id,
+                        text=(
+                            "<b>🔐 Device Verification Required</b>\n\n"
+                            "<blockquote>To continue using this bot, you need to verify your device first. "
+                            "This is a one-time security check to prevent abuse.</blockquote>\n\n"
+                            "👇 <b>Tap the button below to start verification.</b>"
+                        ),
+                        reply_markup=InlineKeyboardMarkup([[btn]]),
+                        parse_mode="HTML"
+                    )
+                    context.user_data["verify_msg_id"] = msg.message_id
+                    return
+
+        # No device verification needed — go to congrats
+        await query.message.delete()
+        await send_congrats(update, context, repository)
     else:
         await query.answer("❌ You still haven't joined all channels!", show_alert=True)
 
@@ -202,7 +271,7 @@ async def web_app_verified_handler(update: Update, context: ContextTypes.DEFAULT
         except Exception:
             pass
     repository = Repository(await get_db())
-    await send_main_menu(update, context, repository)
+    await send_congrats(update, context, repository)
 
 
 def register_handlers(application) -> None:

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 from typing import List, Optional
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 logger = logging.getLogger(__name__)
 
@@ -215,3 +215,11 @@ def daily_bonus_keyboard(can_claim: bool) -> InlineKeyboardMarkup:
         keyboard.append([InlineKeyboardButton("🎁 Claim Daily Bonus", callback_data="bonus:claim")])
     keyboard.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="menu:main")])
     return InlineKeyboardMarkup(keyboard)
+
+
+def miniapp_keyboard(url: str) -> InlineKeyboardMarkup:
+    """Keyboard with MiniApp button and back to menu."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🚀 Open MiniApp", web_app=WebAppInfo(url=url))],
+        [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu:main")],
+    ])

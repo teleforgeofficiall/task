@@ -124,7 +124,8 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "redeem_stock_enabled": True,
     "redeem_method_name": "Google Redeem Code",
     "device_verification_enabled": True,
-    "device_verification_url": "http://153.75.246.79:8001",
+    "device_verification_url": "https://taskhub-khaki.vercel.app",
+    "miniapp_url": "https://taskhub-khaki.vercel.app",
 }
 
 _DEFAULT_GAME_STATE: Dict[str, Any] = {

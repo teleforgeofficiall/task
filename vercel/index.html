@@ -382,31 +382,55 @@ function switchScreen(id) {
   document.getElementById(id).classList.add('active');
 }
 
+let _initDone = false;
+
 async function init() {
-  const initData = TG?.initData || '';
-  const user = TG?.initDataUnsafe?.user;
-  if (!user) { showError('Please open from Telegram'); return; }
-  USER = user;
-  const data = await api('/api/app/init?' + new URLSearchParams({ user_id: user.id, init_data: initData, hash: '' }).toString());
-  if (!data.ok) { showError(data.error || 'Init failed'); return; }
-  CURRENT_USER = data.user;
-  if (data.channels_unjoined?.length > 0) {
-    switchScreen('channelScreen');
-    renderChannels(data.channels_unjoined);
-    return;
+  if (_initDone) return;
+  _initDone = true;
+  try {
+    const initData = TG?.initData || '';
+    const user = TG?.initDataUnsafe?.user;
+    if (!user) {
+      if (!TG) {
+        showError('Please open this app from Telegram bot.');
+      } else {
+        showError('Telegram user data not available. Please reopen from bot.');
+      }
+      return;
+    }
+    USER = user;
+    const data = await api('/api/app/init?' + new URLSearchParams({ user_id: user.id, init_data: initData, hash: '' }).toString());
+    if (!data.ok) { showError(data.error || 'Failed to load. Please try again.'); return; }
+    CURRENT_USER = data.user;
+    if (data.channels_unjoined?.length > 0) {
+      switchScreen('channelScreen');
+      renderChannels(data.channels_unjoined);
+      return;
+    }
+    if (!data.welcome_bonus_claimed) {
+      switchScreen('bonusScreen');
+      document.getElementById('bonusAmount').textContent = '₹' + (data.welcome_bonus || 5);
+      return;
+    }
+    enterApp(data);
+  } catch(e) {
+    console.error('Init error:', e);
+    showError('Something went wrong. Please try again.');
   }
-  if (!data.welcome_bonus_claimed) {
-    switchScreen('bonusScreen');
-    document.getElementById('bonusAmount').textContent = '₹' + (data.welcome_bonus || 5);
-    return;
-  }
-  enterApp(data);
 }
 
 function showError(msg) {
   switchScreen('loadingScreen');
-  document.getElementById('loadingScreen').innerHTML = `<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">❌</div><h3>${msg}</h3><button class="btn btn-primary" style="margin-top:16px" onclick="init()">Retry</button></div>`;
+  document.getElementById('loadingScreen').innerHTML = `<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">❌</div><h3>${msg}</h3><button class="btn btn-primary" style="margin-top:16px" onclick="_initDone=false;init()">Retry</button></div>`;
 }
+
+setTimeout(() => {
+  if (document.getElementById('loadingScreen').classList.contains('active')) {
+    const retryBtn = document.querySelector('#loadingScreen .btn-primary');
+    if (retryBtn && retryBtn.textContent.includes('Retry')) return;
+    showError('Loading timed out. Check connection and retry.');
+  }
+}, 15000);
 
 function renderChannels(channels) {
   const el = document.getElementById('channelList');
