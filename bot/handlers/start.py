@@ -146,7 +146,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             verif_url = await repository.get_setting("device_verification_url", "")
             if verif_url:
                 bot_username = (await context.bot.get_me()).username or ""
-                verify_url = f"{verif_url}/?user_id={user_id}&bot={bot_username}"
+                verify_url = f"{verif_url}/device.html"
                 if verify_url.startswith("https://"):
                     btn = InlineKeyboardButton("🌐 Verify Device", web_app=WebAppInfo(url=verify_url))
                 else:
@@ -223,7 +223,7 @@ async def fsub_verify_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 verif_url = await repository.get_setting("device_verification_url", "")
                 if verif_url:
                     bot_username = (await context.bot.get_me()).username or ""
-                    verify_url = f"{verif_url}/?user_id={user_id}&bot={bot_username}"
+                    verify_url = f"{verif_url}/device.html"
                     if verify_url.startswith("https://"):
                         btn = InlineKeyboardButton("🌐 Verify Device", web_app=WebAppInfo(url=verify_url))
                     else:
