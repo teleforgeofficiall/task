@@ -556,6 +556,10 @@ async def app_tasks(user_id: int):
                 "steps": t.steps or [],
                 "is_multi_reward": t.is_multi_reward or False,
                 "offer_url": t.offer_url or "",
+                "referrer_reward": float(t.referrer_reward or 0),
+                "completer_reward": float(t.completer_reward or 0),
+                "max_completers": t.max_completers or 0,
+                "current_completers": t.current_completers or 0,
             })
         return {"ok": True, "tasks": result}
 
@@ -595,6 +599,10 @@ async def app_task_detail(task_id: int, user_id: int):
                 "ref_enabled": True,
                 "ref_code": f"T{user_id}T{task_id}",
                 "ref_link": f"https://t.me/{settings.BOT_USERNAME}?start=ref_{user_id}_task_{task_id}",
+                "referrer_reward": float(t.referrer_reward or 0),
+                "completer_reward": float(t.completer_reward or 0),
+                "max_completers": t.max_completers or 0,
+                "current_completers": t.current_completers or 0,
             }
         }
 

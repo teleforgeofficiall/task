@@ -145,6 +145,12 @@ class TaskTable(Base):
     is_multi_reward: Mapped[bool] = mapped_column(Boolean, default=False)
     offer_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Affiliate/payout fields
+    referrer_reward: Mapped[float] = mapped_column(Float, default=0.0)
+    completer_reward: Mapped[float] = mapped_column(Float, default=0.0)
+    max_completers: Mapped[int] = mapped_column(Integer, default=0)
+    current_completers: Mapped[int] = mapped_column(Integer, default=0)
+
 
 # ─── Proofs (Task Submissions) ─────────────────────────────────────────────────
 
