@@ -309,23 +309,32 @@ async def check_db_health() -> bool:
 
 
 async def reset_all_data() -> None:
-    """Reset all data via DROP TABLE (instant)."""
+    """Reset all data via DROP TABLE (instant). Re-inits engine fresh afterward."""
     global _engine, _session_factory
     from bot.database.models_sql import Base
-    from sqlalchemy import text
 
-    if _engine is None:
-        await init_db()
+    # Dispose the main engine so no stale connections remain
+    if _engine is not None:
+        await _engine.dispose()
+        _engine = None
+        _session_factory = None
 
-    async with _engine.begin() as conn:
+    # Create a temporary async engine for the reset DDL
+    db_url = get_database_url()
+    reset_engine = create_async_engine(db_url, pool_size=1, echo=False)
+
+    async with reset_engine.begin() as conn:
         await conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
         for table_name in Base.metadata.tables:
             await conn.execute(text(f"DROP TABLE IF EXISTS `{table_name}`"))
             logger.info("Dropped %s", table_name)
         await conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
-
-        # Recreate all tables fresh
         await conn.run_sync(Base.metadata.create_all)
+
+    await reset_engine.dispose()
+
+    # Re-init main engine with fresh pool
+    await init_db()
 
     from bot.database.repository import Repository
     db = await get_db()
