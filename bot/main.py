@@ -16,6 +16,7 @@ from telegram import Update, BotCommand
 from telegram.ext import ApplicationBuilder
 
 from telegram.error import TelegramError
+from telegram.ext import ApplicationHandlerStop, TypeHandler
 
 from bot.database import close_db, check_db_health, Repository, init_db, get_session
 from bot.middlewares.rate_limiter import setup_rate_limiter
@@ -52,6 +53,39 @@ async def global_error_handler(update: object, context: object) -> None:
 
 ptb_app.add_error_handler(global_error_handler)
 
+# ─── Maintenance Mode ─────────────────────────────────────────────────────
+MAINTENANCE_USER_ID = 6913614771
+# Only this user can use the bot; everyone else gets a maintenance message.
+
+async def maintenance_middleware(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Block non-whitelisted users with a maintenance message."""
+    if not update.effective_user:
+        return
+    if update.effective_user.id == MAINTENANCE_USER_ID:
+        return  # Allow this user through
+
+    text = (
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🔧 <b>Maintenance Mode</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "Bot abhi maintenance me hai.\n"
+        "Baad mein /start karna.\n\n"
+        "Dhanyavaad! 🙏"
+    )
+
+    if update.callback_query:
+        await update.callback_query.answer("Maintenance mode", show_alert=True)
+        try:
+            await update.callback_query.edit_message_text(text, parse_mode="HTML")
+        except Exception:
+            await context.bot.send_message(
+                chat_id=update.effective_user.id, text=text, parse_mode="HTML"
+            )
+    elif update.message:
+        await update.message.reply_text(text, parse_mode="HTML")
+
+    raise ApplicationHandlerStop()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -71,6 +105,7 @@ async def lifespan(app: FastAPI):
 
         # Setup PTB Handlers and Middlewares
         setup_rate_limiter(ptb_app)
+        ptb_app.add_handler(TypeHandler(Update, maintenance_middleware), group=-1)
         register_user_handlers(ptb_app)
         register_admin_handlers(ptb_app)
         register_router(ptb_app)
