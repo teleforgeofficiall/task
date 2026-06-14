@@ -272,18 +272,43 @@ body {
 .admin-item .info p { font-size: 11px; color: var(--text-secondary); }
 .admin-item .arrow { color: var(--text-secondary); font-size: 18px; }
 /* Promoted */
-.promoted-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0; scroll-snap-type: x mandatory; }
+.promoted-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 6px 0; scroll-snap-type: x mandatory; scroll-behavior: smooth; }
 .promoted-scroll::-webkit-scrollbar { display: none; }
 .promoted-card {
-  min-width: 200px; background: var(--card); border-radius: var(--radius); padding: 14px;
-  border: 1px solid var(--border); scroll-snap-align: start;
+  min-width: 260px; background: var(--card); border-radius: 14px; padding: 14px;
+  border: 1px solid var(--border); scroll-snap-align: start; display: flex; gap: 12px; align-items: center;
+  cursor: pointer; transition: transform 0.15s; flex-shrink: 0;
 }
-.promoted-card .badge {
-  display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: 700;
-  background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: #fff; margin-bottom: 6px;
+.promoted-card:active { transform: scale(0.97); }
+.promoted-card .promo-icon {
+  width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff;
 }
-.promoted-card h4 { font-size: 13px; margin-bottom: 4px; }
-.promoted-card p { font-size: 11px; color: var(--text-secondary); }
+.promoted-card .promo-info { flex: 1; min-width: 0; }
+.promoted-card .promo-info .badge {
+  display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 700;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: #fff; margin-bottom: 4px;
+}
+.promoted-card .promo-info h4 { font-size: 13px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.promoted-card .promo-info p { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.promoted-card .promo-open {
+  padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 700;
+  background: var(--primary); color: #fff; border: none; cursor: pointer; flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.promoted-card .promo-open:active { opacity: 0.8; }
+/* Hot badge */
+.hot-badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: #fff;
+  border-radius: 6px; font-size: 10px; font-weight: 700;
+}
+.hot-badge .bonus-tag { background: rgba(255,255,255,0.25); padding: 1px 5px; border-radius: 3px; font-size: 9px; }
+/* Auto-scroll animation */
+@keyframes promotedScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
 /* Pulses */
 .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } }
@@ -354,10 +379,28 @@ body {
   </div>
   <div class="tab-content" id="tabContent">
     <div id="tabTasks" class="tab-page active">
+      <div id="hotStreak" style="display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding:2px 0">
+        <div class="card" style="display:flex;align-items:center;gap:8px;padding:10px 14px;flex-shrink:0;background:linear-gradient(135deg,#ff6b6b,#ee5a24);color:#fff;border:none;min-width:160px">
+          <div style="font-size:20px">🔥</div>
+          <div>
+            <div style="font-weight:700;font-size:13px">+25% Bonus</div>
+            <div style="font-size:10px;opacity:0.8">On all tasks today!</div>
+          </div>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:8px;padding:10px 14px;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border:none;min-width:200px">
+          <div style="font-size:20px">💬</div>
+          <div>
+            <div style="font-weight:700;font-size:13px">Join Community</div>
+            <div style="font-size:10px;opacity:0.8">Earn ₹100 referral bonus!</div>
+          </div>
+        </div>
+      </div>
       <div id="promotedSection" style="margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <h3 style="font-size:15px">✨ Promoted</h3>
-          <button class="btn btn-sm btn-ghost" onclick="showPromoteModal()">PROMOTE HERE</button>
+          <div style="display:flex;align-items:center;gap:6px">
+            <h3 style="font-size:15px">✨ Promoted</h3>
+          </div>
+          <button class="btn btn-sm btn-ghost" onclick="showPromoteModal()" style="font-size:10px;color:var(--primary)">PROMOTE HERE</button>
         </div>
         <div id="promotedList" class="promoted-scroll"></div>
       </div>
@@ -679,9 +722,13 @@ async function loadPromoted() {
   if (items.length === 0) { el.innerHTML = ''; return; }
   el.innerHTML = items.map(p => `
     <div class="promoted-card" onclick="openLink('${p.url||'#'}')">
-      <span class="badge">${p.badge||'⭐ Official Partner'}</span>
-      <h4>${p.title}</h4>
-      <p>${p.description||''}</p>
+      <div class="promo-icon" style="background:linear-gradient(135deg,${p.color1||'#7b5ef8'},${p.color2||'#5a3fd6'})">${p.icon||'📢'}</div>
+      <div class="promo-info">
+        <span class="badge">${p.badge||'⭐ Official Partner'}</span>
+        <h4>${p.title}</h4>
+        <p>${p.description||''}</p>
+      </div>
+      <button class="promo-open" onclick="event.stopPropagation();openLink('${p.url||'#'}')">OPEN</button>
     </div>
   `).join('');
 }
