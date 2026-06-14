@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TaskHub</title>
-<script src="https://telegram.org/js/telegram-web-app.js" async></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root {
   --primary: #7b5ef8;
@@ -439,13 +439,12 @@ function switchScreen(id) {
 
 let _initDone = false;
 
-const params = new URLSearchParams(window.location.search);
-const VERIFY_MODE = params.has('user_id') && params.has('bot');
-
 async function init() {
   if (_initDone) return;
   _initDone = true;
   try {
+    // Refresh TG reference (SDK is now synchronous, but belt-and-suspenders)
+    var TG = window.Telegram?.WebApp;
     // Fresh URL param check + fallback to TG user data
     var _p = new URLSearchParams(window.location.search);
     var _uid = _p.get('user_id');
