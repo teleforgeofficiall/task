@@ -259,6 +259,7 @@ body {
 <div id="loadingScreen" class="screen active">
   <div class="loader"></div>
   <div style="font-weight:700;color:var(--primary);font-size:18px">TaskHub</div>
+  <div id="loadingStatus" style="font-size:13px;color:var(--text-secondary);margin-top:4px">Loading...</div>
 </div>
 
 
@@ -378,10 +379,18 @@ TG?.expand();
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
 
 async function api(path, opts = {}) {
+  const timeout = opts.timeout || 15000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const res = await fetch(API_BASE + path, { headers: { 'Content-Type': 'application/json', ...opts.headers }, ...opts });
+    const res = await fetch(API_BASE + path, { headers: { 'Content-Type': 'application/json', ...opts.headers }, ...opts, signal: controller.signal });
+    clearTimeout(timer);
     return await res.json();
-  } catch(e) { return { ok: false, error: 'Network error' }; }
+  } catch(e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') return { ok: false, error: 'Connection timed out. Check your network and try again.' };
+    return { ok: false, error: 'Network error. Check your connection.' };
+  }
 }
 
 function switchScreen(id) {
@@ -390,6 +399,11 @@ function switchScreen(id) {
 }
 
 let _initDone = false;
+
+function setLoadingStatus(msg) {
+  const el = document.getElementById('loadingStatus');
+  if (el) el.textContent = msg;
+}
 
 async function init() {
   if (_initDone) return;
@@ -408,6 +422,7 @@ async function init() {
       return;
     }
     USER = user;
+    setLoadingStatus('Connecting to server...');
     const data = await api('/api/app/init?' + new URLSearchParams({ user_id: user.id, init_data: initData, hash: '' }).toString());
     if (!data.ok) { showError(data.error || 'Failed to load. Please try again.'); return; }
     CURRENT_USER = data.user;
@@ -417,6 +432,7 @@ async function init() {
       return;
     }
     if (!data.welcome_bonus_claimed) {
+      setLoadingStatus('Claiming welcome bonus...');
       switchScreen('bonusScreen');
       document.getElementById('bonusAmount').textContent = '₹' + (data.welcome_bonus || 5);
       return;
@@ -437,9 +453,10 @@ setTimeout(() => {
   if (document.getElementById('loadingScreen').classList.contains('active')) {
     const retryBtn = document.querySelector('#loadingScreen .btn-primary');
     if (retryBtn && retryBtn.textContent.includes('Retry')) return;
-    showError('Loading timed out. Check connection and retry.');
+    setLoadingStatus('Still connecting...');
+    setTimeout(() => showError('Loading timed out. Check connection and retry.'), 5000);
   }
-}, 15000);
+}, 20000);
 
 function renderChannels(channels) {
   const el = document.getElementById('channelList');

@@ -290,36 +290,43 @@ async def api_verification_done(request: Request):
     user_id = data.get("user_id")
     if not user_id:
         return {"ok": False}
-    async with get_session() as session:
-        repo = Repository(session)
-        miniapp_url = await repo.get_setting("miniapp_url", "https://taskhub-khaki.vercel.app")
-        congrats_text = (
-            "━━━━━━━━━━━━━━━━━━━━━━\n"
-            "🎉 <b>Congratulations!</b>\n"
-            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "Welcome to <b>TaskHub</b>! You now have full access.\n\n"
-            "Open the MiniApp below to start earning:\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━━\n"
-            "💸 Complete Tasks & Earn\n"
-            "🎮 Play Games & Win\n"
-            "👥 Refer Friends for Commission\n"
-            "💰 Withdraw to UPI / Stars\n"
-            "━━━━━━━━━━━━━━━━━━━━━━"
-        )
-        kb = miniapp_keyboard(miniapp_url)
-        await ptb_app.bot.send_message(
-            chat_id=user_id, text=congrats_text,
-            reply_markup=kb, parse_mode="HTML"
-        )
-        # Delete the stored verify message from DB
-        verify_msg_id = await repo.get_setting(f"verify_msg:{user_id}")
-        if verify_msg_id:
-            try:
-                await ptb_app.bot.delete_message(chat_id=user_id, message_id=int(verify_msg_id))
-            except Exception:
-                pass
-            await repo.update_setting(f"verify_msg:{user_id}", None)
-    return {"ok": True}
+    try:
+        async with get_session() as session:
+            repo = Repository(session)
+            miniapp_url = await repo.get_setting("miniapp_url", "https://taskhub-khaki.vercel.app")
+            congrats_text = (
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "🎉 <b>Congratulations!</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                "Welcome to <b>TaskHub</b>! You now have full access.\n\n"
+                "Open the MiniApp below to start earning:\n\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "💸 Complete Tasks & Earn\n"
+                "🎮 Play Games & Win\n"
+                "👥 Refer Friends for Commission\n"
+                "💰 Withdraw to UPI / Stars\n"
+                "━━━━━━━━━━━━━━━━━━━━━━"
+            )
+            kb = miniapp_keyboard(miniapp_url)
+            if not settings.DISABLE_TELEGRAM_NETWORK:
+                await ptb_app.bot.send_message(
+                    chat_id=user_id, text=congrats_text,
+                    reply_markup=kb, parse_mode="HTML"
+                )
+            else:
+                logger.warning("verification-done: DISABLE_TELEGRAM_NETWORK is on, skipping send_message")
+            # Delete the stored verify message from DB
+            verify_msg_id = await repo.get_setting(f"verify_msg:{user_id}")
+            if verify_msg_id:
+                try:
+                    await ptb_app.bot.delete_message(chat_id=user_id, message_id=int(verify_msg_id))
+                except Exception:
+                    pass
+                await repo.update_setting(f"verify_msg:{user_id}", None)
+        return {"ok": True}
+    except Exception as exc:
+        logger.exception("verification-done: error for user %s: %s", user_id, exc)
+        return {"ok": False, "error": "Server error"}
 
 
 @app.get("/api/user/{user_id}/photo")
@@ -386,46 +393,54 @@ async def webhook_handler(request: Request):
 @app.get("/api/app/init")
 async def app_init(user_id: int, init_data: str = "", hash: str = ""):
     """Initialize the Mini App - check user, channels, welcome bonus."""
-    from bot.database import get_session, Repository
-    from bot.database.models_sql import UserTable
-    from bot.middlewares.auth import get_unjoined_channels
-    from sqlalchemy import select
-    async with get_session() as session:
-        repo = Repository(session)
-        user = await repo.get_user(user_id)
-        if not user:
-            user = await repo.create_user(user_id, "User", "User")
-        from bot.admin.panel import get_admin_ids
-        is_admin = user_id in get_admin_ids()
-        channels_unjoined = await get_unjoined_channels(ptb_app.bot, user_id, repo) if not settings.DISABLE_TELEGRAM_NETWORK else []
-        welcome_bonus_claimed = user.referral_earnings is not None or (await repo.get_setting("welcome_bonus_claimed_" + str(user_id), False))
-        if not welcome_bonus_claimed:
-            welcome_bonus_claimed = False
-        try:
-            pfp = ""
+    try:
+        from bot.database import get_session, Repository
+        from bot.middlewares.auth import get_unjoined_channels
+        async with get_session() as session:
+            repo = Repository(session)
+            user = await repo.get_user(user_id)
+            if not user:
+                user = await repo.create_user(user_id, "User", "User")
+            from bot.admin.panel import get_admin_ids
+            is_admin = user_id in get_admin_ids()
+            channels_unjoined = []
             if not settings.DISABLE_TELEGRAM_NETWORK:
-                photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
-                if photos.photos:
-                    f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
-                    pfp = f.file_path or ""
-        except Exception:
-            pfp = ""
-        return {
-            "ok": True,
-            "user": {
-                "id": user.user_id,
-                "first_name": user.first_name,
-                "username": user.username,
-                "balance": float(user.balance or 0),
-                "pfp": pfp,
-                "upi": "",
-                "banned": user.banned,
-            },
-            "is_admin": is_admin,
-            "channels_unjoined": [{"id": c.get("id"), "title": c.get("title", "Channel")} for c in channels_unjoined],
-            "welcome_bonus_claimed": welcome_bonus_claimed,
-            "welcome_bonus": float(await repo.get_setting("welcome_bonus_amount", 5)),
-        }
+                try:
+                    channels_unjoined = await get_unjoined_channels(ptb_app.bot, user_id, repo)
+                except Exception as exc:
+                    logger.warning("app_init: get_unjoined_channels failed: %s", exc)
+            welcome_bonus_claimed = user.referral_earnings is not None or (await repo.get_setting("welcome_bonus_claimed_" + str(user_id), False))
+            if not welcome_bonus_claimed:
+                welcome_bonus_claimed = False
+            try:
+                pfp = ""
+                if not settings.DISABLE_TELEGRAM_NETWORK:
+                    photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
+                    if photos.photos:
+                        f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
+                        pfp = f.file_path or ""
+            except Exception as exc:
+                logger.debug("app_init: profile photo failed: %s", exc)
+                pfp = ""
+            return {
+                "ok": True,
+                "user": {
+                    "id": user.user_id,
+                    "first_name": user.first_name,
+                    "username": user.username,
+                    "balance": float(user.balance or 0),
+                    "pfp": pfp,
+                    "upi": "",
+                    "banned": user.banned,
+                },
+                "is_admin": is_admin,
+                "channels_unjoined": [{"id": c.get("id"), "title": c.get("title", "Channel")} for c in channels_unjoined],
+                "welcome_bonus_claimed": welcome_bonus_claimed,
+                "welcome_bonus": float(await repo.get_setting("welcome_bonus_amount", 5)),
+            }
+    except Exception as exc:
+        logger.exception("app_init: unhandled error for user %s: %s", user_id, exc)
+        return {"ok": False, "error": "Server error. Please try again later."}
 
 
 @app.get("/api/app/check-channels")
