@@ -302,7 +302,7 @@ def settings_menu(require_contact: bool = True, refer_paused: bool = False, main
         ],
         [
             InlineKeyboardButton("💾 Backup & Restore", callback_data="admin:backup_menu"),
-            InlineKeyboardButton("⚠️ Reset Data", callback_data="admin:reset_data"),
+            InlineKeyboardButton("⚠️ Reset Data", callback_data="admin:reset_data_cli"),
         ],
         [
             InlineKeyboardButton("🔙 Back to Main", callback_data="admin:main")

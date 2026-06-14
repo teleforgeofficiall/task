@@ -226,8 +226,8 @@ async def admin_settings_text_handler(update: Update, context: ContextTypes.DEFA
 # RESET DATA
 # ═══════════════════════════════════════════════════════════════════════════════
 
-async def admin_reset_data_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show reset data confirmation."""
+async def admin_reset_data_cli(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show CLI-based reset instructions."""
     query = update.callback_query
     if not query or not is_admin(query.from_user.id):
         return
@@ -235,58 +235,19 @@ async def admin_reset_data_start(update: Update, context: ContextTypes.DEFAULT_T
     await query.edit_message_text(
         text=(
             "⚠️ <b>Reset All Data</b>\n\n"
-            "Are you sure? This will <b>permanently delete ALL</b> data:\n"
-            "• All users, balances & history\n"
-            "• All tasks & proofs\n"
-            "• All withdrawals & transactions\n"
-            "• All settings will reset to defaults\n\n"
-            "<b>This action cannot be undone!</b>"
+            "Reset cannot be done from Telegram. "
+            "Run this command in your VPS terminal:\n\n"
+            "<code>cd /opt/taskhub && systemctl stop taskhub</code>\n"
+            "<code>venv/bin/python scripts/reset_database.py</code>\n"
+            "<code>systemctl start taskhub</code>\n\n"
+            "This will <b>permanently delete ALL</b> data."
         ),
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Yes, Reset Everything", callback_data="admin:reset_data_confirm")],
-            [InlineKeyboardButton("❌ Cancel", callback_data="admin:settings_menu")]
+            [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")]
         ]),
         parse_mode="HTML"
     )
     await query.answer()
-
-
-async def admin_reset_data_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Execute full database reset."""
-    query = update.callback_query
-    if not query or not is_admin(query.from_user.id):
-        return
-
-    from bot.database.session import reset_all_data
-
-    await query.edit_message_text(
-        "⏳ <b>Resetting database...</b>\n\nPlease wait, this may take a moment.",
-        parse_mode="HTML"
-    )
-    await query.answer()
-
-    try:
-        await reset_all_data()
-        await query.edit_message_text(
-            "✅ <b>All data has been reset to factory defaults.</b>\n\n"
-            "The bot is ready for fresh use.",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Back to Admin", callback_data="admin:main")]
-            ]),
-            parse_mode="HTML"
-        )
-        await query.answer("✅ Database reset complete!")
-    except Exception as exc:
-        logger.exception("Reset failed: %s", exc)
-        error_text = f"{type(exc).__name__}: {exc}" if str(exc) else traceback.format_exc()
-        await query.edit_message_text(
-            f"❌ <b>Reset failed:</b>\n<code>{escape_html(error_text[:500])}</code>",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")]
-            ]),
-            parse_mode="HTML"
-        )
-        await query.answer("❌ Reset failed!")
 
 
 def register_handlers(application) -> None:
@@ -297,8 +258,7 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(admin_manage_admins_start, pattern="^admin:manage_admins$"))
     application.add_handler(CallbackQueryHandler(admin_messages_menu_handler, pattern="^admin:set_messages$"))
     application.add_handler(CallbackQueryHandler(admin_msg_edit_start, pattern="^admin:msg_edit:[a-z_]+$"))
-    application.add_handler(CallbackQueryHandler(admin_reset_data_start, pattern="^admin:reset_data$"))
-    application.add_handler(CallbackQueryHandler(admin_reset_data_confirm, pattern="^admin:reset_data_confirm$"))
+    application.add_handler(CallbackQueryHandler(admin_reset_data_cli, pattern="^admin:reset_data_cli$"))
     
     # Text input handlers for updating templates
     application.add_handler(MessageHandler(

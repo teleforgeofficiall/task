@@ -308,42 +308,4 @@ async def check_db_health() -> bool:
         return False
 
 
-async def reset_all_data() -> None:
-    """Reset all data via DROP TABLE (instant). Re-inits engine fresh afterward."""
-    global _engine, _session_factory
-    from bot.database.models_sql import Base
 
-    # Drop old engine reference WITHOUT disposing (prevents hanging on stale conns)
-    _engine = None
-    _session_factory = None
-
-    # Fresh single-connection engine for DDL (bypasses any stale pool issues)
-    db_url = get_database_url()
-    reset_engine = create_async_engine(db_url, pool_size=1, echo=False)
-    try:
-        async with reset_engine.begin() as conn:
-            await conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
-            for table_name in Base.metadata.tables:
-                await conn.execute(text(f"DROP TABLE IF EXISTS `{table_name}`"))
-                logger.info("Dropped %s", table_name)
-            await conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
-            await conn.run_sync(Base.metadata.create_all)
-    finally:
-        await reset_engine.dispose()
-
-    # Re-init main engine with fresh pool
-    await init_db()
-
-    from bot.database.repository import Repository
-    db = await get_db()
-    repo = Repository(db)
-    await repo.ensure_defaults()
-
-    # Refresh admin ID cache after reset
-    try:
-        from bot.admin.panel import refresh_admin_ids
-        await refresh_admin_ids()
-    except Exception:
-        pass
-
-    logger.info("Database reset complete — all tables cleared and seeded.")

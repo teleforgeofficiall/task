@@ -10,6 +10,7 @@ pydantic-settings==2.5.2
 # Database (MySQL)
 sqlalchemy[asyncio]==2.0.35
 aiomysql==0.2.0
+pymysql==1.1.1
 alembic==1.13.2
 aiosqlite==0.22.1
 
