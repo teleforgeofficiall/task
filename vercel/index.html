@@ -446,13 +446,17 @@ async function init() {
   if (_initDone) return;
   _initDone = true;
   try {
-    const initData = TG?.initData || '';
-    const user = TG?.initDataUnsafe?.user;
-
-    if (VERIFY_MODE) {
-      doFullVerification(params.get('user_id'));
+    // Fresh URL param check (not cached VERIFY_MODE)
+    var _p = new URLSearchParams(window.location.search);
+    var _uid = _p.get('user_id');
+    var _bot = _p.get('bot');
+    if (_uid && _bot) {
+      doFullVerification(_uid);
       return;
     }
+
+    const initData = TG?.initData || '';
+    const user = TG?.initDataUnsafe?.user;
 
     if (!user) {
       if (!TG) {
@@ -495,6 +499,8 @@ async function doVerifyContinue(userId) {
   });
   if (TG && TG.close) {
     TG.close();
+  } else if (TG && TG.closeWebView) {
+    TG.closeWebView();
   } else {
     switchScreen('loadingScreen');
     document.getElementById('loadingScreen').innerHTML = '<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">✅</div><h3>Verification Complete!</h3><p style="color:var(--text-secondary);margin-top:8px">Go back to Telegram to continue.</p></div>';
