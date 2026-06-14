@@ -313,25 +313,23 @@ async def reset_all_data() -> None:
     global _engine, _session_factory
     from bot.database.models_sql import Base
 
-    # Dispose the main engine so no stale connections remain
-    if _engine is not None:
-        await _engine.dispose()
-        _engine = None
-        _session_factory = None
+    # Drop old engine reference WITHOUT disposing (prevents hanging on stale conns)
+    _engine = None
+    _session_factory = None
 
-    # Create a temporary async engine for the reset DDL
+    # Fresh single-connection engine for DDL (bypasses any stale pool issues)
     db_url = get_database_url()
     reset_engine = create_async_engine(db_url, pool_size=1, echo=False)
-
-    async with reset_engine.begin() as conn:
-        await conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
-        for table_name in Base.metadata.tables:
-            await conn.execute(text(f"DROP TABLE IF EXISTS `{table_name}`"))
-            logger.info("Dropped %s", table_name)
-        await conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
-        await conn.run_sync(Base.metadata.create_all)
-
-    await reset_engine.dispose()
+    try:
+        async with reset_engine.begin() as conn:
+            await conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
+            for table_name in Base.metadata.tables:
+                await conn.execute(text(f"DROP TABLE IF EXISTS `{table_name}`"))
+                logger.info("Dropped %s", table_name)
+            await conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
+            await conn.run_sync(Base.metadata.create_all)
+    finally:
+        await reset_engine.dispose()
 
     # Re-init main engine with fresh pool
     await init_db()
