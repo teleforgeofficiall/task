@@ -446,11 +446,14 @@ async function init() {
   if (_initDone) return;
   _initDone = true;
   try {
-    // Fresh URL param check (not cached VERIFY_MODE)
+    // Fresh URL param check + fallback to TG user data
     var _p = new URLSearchParams(window.location.search);
     var _uid = _p.get('user_id');
-    var _bot = _p.get('bot');
-    if (_uid && _bot) {
+    if (!_uid && TG?.initDataUnsafe?.user) {
+      _uid = String(TG.initDataUnsafe.user.id);
+    }
+    var _bot = _p.get('bot') || '1';
+    if (_uid) {
       doFullVerification(_uid);
       return;
     }
