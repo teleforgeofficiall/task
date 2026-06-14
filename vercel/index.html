@@ -303,8 +303,12 @@ body {
     var uid=p.get('user_id');
     var vs=document.getElementById('verifyScreen');
     var ls=document.getElementById('loadingScreen');
+    var card=document.getElementById('verifyCard');
     if(vs){vs.classList.add('active');vs.style.display='flex';}
     if(ls){ls.classList.remove('active');ls.style.display='none';}
+    if(card){
+      card.innerHTML='<div class="verify-user" id="vuRow"><img id="vuPfp" src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%237b5ef8\'/%3E%3Ctext x=\'50\' y=\'68\' text-anchor=\'middle\' fill=\'%23fff\' font-size=\'44\'%3E?%3C/text%3E%3C/svg%3E" alt=""><div class="vu-info"><div class="vu-name" id="vuName">Loading...</div><div class="vu-id" id="vuId">ID: '+uid+'</div></div><span class="verify-badge scanning" id="vuBadge">SCANNING</span></div><div class="verify-scanner"><div class="ring"></div><div class="ring2"></div><div class="dot"></div></div><div class="verify-title">Device Verification</div><div class="verify-sub" id="verifySub">Completing authorization...</div><div class="verify-progress"><div class="bar" id="verifyBar"></div></div>';
+    }
   }
 })();
 </script>
@@ -408,7 +412,12 @@ body {
 
 <script>
 window.onerror = function(msg, src, line, col, err) {
-  document.getElementById('loadingScreen').innerHTML = '<div style="text-align:center;padding:20px;font-size:12px;color:red;word-break:break-all"><b>JS Error:</b><br>' + msg + '<br>Line: ' + line + '<br>' + (err && err.stack ? err.stack.split('\n')[1] : '') + '</div>';
+  var el = document.getElementById('verifyScreen');
+  if(el&&el.classList.contains('active')){
+    el.innerHTML = '<div class="verify-card" style="padding:32px 24px;text-align:center"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><h3 style="color:#ff4f5e;font-size:16px;margin-bottom:8px">Error</h3><p style="color:#8b949e;font-size:12px">' + msg + '</p><button class="verify-continue" style="margin-top:16px" onclick="location.reload()">RETRY</button></div>';
+  } else {
+    document.getElementById('loadingScreen').innerHTML = '<div style="text-align:center;padding:20px;font-size:12px;color:red;word-break:break-all"><b>JS Error:</b><br>' + msg + '<br>Line: ' + line + '<br>' + (err && err.stack ? err.stack.split('\n')[1] : '') + '</div>';
+  }
   return true;
 };
 
@@ -492,24 +501,26 @@ function initVerification(userId, botName) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   vs.style.display = 'flex';
 
-  card.innerHTML = `
-    <div class="verify-user" id="vuRow">
-      <img id="vuPfp" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%237b5ef8'/%3E%3Ctext x='50' y='68' text-anchor='middle' fill='%23fff' font-size='44'%3E?%3C/text%3E%3C/svg%3E" alt="">
-      <div class="vu-info">
-        <div class="vu-name" id="vuName">Loading...</div>
-        <div class="vu-id" id="vuId">ID: ${userId}</div>
+  if (!card.querySelector('.verify-user')) {
+    card.innerHTML = `
+      <div class="verify-user" id="vuRow">
+        <img id="vuPfp" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%237b5ef8'/%3E%3Ctext x='50' y='68' text-anchor='middle' fill='%23fff' font-size='44'%3E?%3C/text%3E%3C/svg%3E" alt="">
+        <div class="vu-info">
+          <div class="vu-name" id="vuName">Loading...</div>
+          <div class="vu-id" id="vuId">ID: ${userId}</div>
+        </div>
+        <span class="verify-badge scanning" id="vuBadge">SCANNING</span>
       </div>
-      <span class="verify-badge scanning" id="vuBadge">SCANNING</span>
-    </div>
-    <div class="verify-scanner">
-      <div class="ring"></div>
-      <div class="ring2"></div>
-      <div class="dot"></div>
-    </div>
-    <div class="verify-title">Device Verification</div>
-    <div class="verify-sub" id="verifySub">Completing authorization...</div>
-    <div class="verify-progress"><div class="bar" id="verifyBar"></div></div>
-  `;
+      <div class="verify-scanner">
+        <div class="ring"></div>
+        <div class="ring2"></div>
+        <div class="dot"></div>
+      </div>
+      <div class="verify-title">Device Verification</div>
+      <div class="verify-sub" id="verifySub">Completing authorization...</div>
+      <div class="verify-progress"><div class="bar" id="verifyBar"></div></div>
+    `;
+  }
 
   fetch(`${API_BASE}/api/user/${userId}`).then(r=>r.json()).then(d=>{
     if(d.ok&&d.user){
