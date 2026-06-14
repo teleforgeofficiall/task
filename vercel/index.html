@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TaskHub</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root {
@@ -510,7 +513,7 @@ async function claimWelcomeBonus() {
 
 function enterApp(data) {
   CURRENT_USER = data.user;
-  document.getElementById('headerPfp').src = data.user.pfp || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="%237b5ef8"/%3E%3Ctext x="50" y="68" text-anchor="middle" fill="%23fff" font-size="44"%3E${(data.user.first_name||'U')[0]}%3C/text%3E%3C/svg%3E';
+  document.getElementById('headerPfp').src = data.user.pfp || `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="%237b5ef8"/%3E%3Ctext x="50" y="68" text-anchor="middle" fill="%23fff" font-size="44"%3E${(data.user.first_name||'U')[0]}%3C/text%3E%3C/svg%3E`;
   document.getElementById('headerName').textContent = data.user.first_name || 'User';
   document.getElementById('headerId').textContent = 'ID: ' + data.user.id;
   updateBalance(data.user.balance || 0);
@@ -986,6 +989,7 @@ function adminPage(page) {
   }, 500);
 }
 
+// deploy-v2-cache-bust
 init();
 </script>
 </body>
