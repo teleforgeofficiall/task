@@ -888,6 +888,46 @@ async def app_promoted(user_id: int = 0):
         return {"ok": True, "items": items}
 
 
+@app.get("/api/app/leaderboard")
+async def app_leaderboard(user_id: int = 0):
+    """Get top earners leaderboard."""
+    from bot.database import get_session, Repository
+    from bot.database.models_sql import UserTable
+    from sqlalchemy import select, desc
+    async with get_session() as session:
+        repo = Repository(session)
+        result = await session.execute(
+            select(UserTable)
+            .where(UserTable.banned == False)
+            .where(UserTable.lifetime_earnings > 0)
+            .order_by(desc(UserTable.lifetime_earnings))
+            .limit(20)
+        )
+        top_users = result.scalars().all()
+        leaders = []
+        for i, u in enumerate(top_users):
+            leaders.append({
+                "rank": i + 1,
+                "name": u.first_name or "User",
+                "user_id": u.user_id,
+                "earnings": float(u.lifetime_earnings or 0),
+                "tasks": len(u.completed_tasks or []),
+            })
+        my_rank = "-"
+        my_earnings = 0.0
+        if user_id:
+            me = await repo.get_user(user_id)
+            if me:
+                my_earnings = float(me.lifetime_earnings or 0)
+                rank_result = await session.execute(
+                    select(UserTable)
+                    .where(UserTable.banned == False)
+                    .where(UserTable.lifetime_earnings > my_earnings)
+                )
+                my_rank = len(rank_result.scalars().all()) + 1
+        return {"ok": True, "leaders": leaders, "my_rank": my_rank, "my_earnings": my_earnings}
+
+
 if __name__ == "__main__":
     # Start ASGI server
     uvicorn.run(
