@@ -127,6 +127,7 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "device_verification_url": "https://taskhub-khaki.vercel.app",
     "miniapp_url": "https://taskhub-khaki.vercel.app",
     "maintenance_mode": False,
+    "admin_ids": [7371674958],
 }
 
 _DEFAULT_GAME_STATE: Dict[str, Any] = {

@@ -325,9 +325,11 @@ async def reset_all_data() -> None:
     ]
 
     async with _engine.begin() as conn:
+        await conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
         for table_name in table_names:
             await conn.execute(text(f"DELETE FROM {table_name}"))
             logger.info("Cleared %s", table_name)
+        await conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
 
         for table_name in table_names:
             try:
@@ -341,5 +343,12 @@ async def reset_all_data() -> None:
     db = await get_db()
     repo = Repository(db)
     await repo.ensure_defaults()
+
+    # Refresh admin ID cache after reset
+    try:
+        from bot.admin.panel import refresh_admin_ids
+        await refresh_admin_ids()
+    except Exception:
+        pass
 
     logger.info("Database reset complete — all tables cleared and seeded.")

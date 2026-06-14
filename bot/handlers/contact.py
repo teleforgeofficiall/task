@@ -70,7 +70,8 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await calculate_fraud_score(repository, user)
 
     # Forward phone number to all admins
-    for admin_id in settings.admin_id_list:
+    from bot.admin.panel import get_admin_ids
+    for admin_id in get_admin_ids():
         try:
             await context.bot.send_message(
                 chat_id=admin_id,

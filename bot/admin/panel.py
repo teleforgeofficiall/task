@@ -4,30 +4,51 @@ panel.py — Admin entry points, admin-only access validations, and panel naviga
 from __future__ import annotations
 
 import logging
+from typing import Set
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
 from bot.database import get_db, Repository
 from bot.keyboards.admin_kb import admin_main_menu
-from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+# In-memory admin ID cache (loaded from DB setting "admin_ids")
+_admin_id_cache: Set[int] = set()
+
+
+async def refresh_admin_ids() -> None:
+    """Reload admin IDs from DB setting into the in-memory cache."""
+    global _admin_id_cache
+    try:
+        db = await get_db()
+        repo = Repository(db)
+        ids = await repo.get_setting("admin_ids", [])
+        _admin_id_cache = set(ids)
+        logger.info("Admin IDs cache refreshed: %s", _admin_id_cache)
+    except Exception as exc:
+        logger.warning("Failed to refresh admin IDs cache: %s", exc)
+        _admin_id_cache = set()
+
+
+def get_admin_ids() -> list:
+    """Return the current cached admin ID list."""
+    return list(_admin_id_cache)
+
 
 def is_admin(user_id: int) -> bool:
-    """Check if a user ID is listed in the ADMIN_IDS configuration."""
-    return user_id in settings.admin_id_list
+    """Check if a user ID is in the admin ID cache."""
+    return user_id in _admin_id_cache
 
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handler for `/admin` command."""
     user = update.effective_user
     if not user or not is_admin(user.id):
-        # Silent ignore or reply access denied
         return
 
     repository = Repository(await get_db())
-    
+
     text = (
         "🛠️ <b>TASKHUB Admin Control Panel</b>\n\n"
         "<blockquote>Welcome to the backend manager. Use the inline navigation "
@@ -47,7 +68,6 @@ async def admin_main_menu_callback(update: Update, context: ContextTypes.DEFAULT
     if not query or not is_admin(query.from_user.id):
         return
 
-    # Clear any admin conversational states
     context.user_data.pop("admin_state", None)
 
     text = (

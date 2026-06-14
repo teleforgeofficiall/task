@@ -113,6 +113,10 @@ async def lifespan(app: FastAPI):
             repository = Repository(session)
             await repository.ensure_defaults()
 
+        # Load admin IDs cache from DB
+        from bot.admin.panel import refresh_admin_ids
+        await refresh_admin_ids()
+
         # Setup PTB Handlers and Middlewares
         setup_rate_limiter(ptb_app)
         ptb_app.add_handler(TypeHandler(Update, maintenance_middleware), group=-1)
@@ -414,7 +418,8 @@ async def app_init(user_id: int, init_data: str = "", hash: str = ""):
         user = await repo.get_user(user_id)
         if not user:
             user = await repo.create_user(user_id, "User", "User")
-        is_admin = user_id in settings.admin_id_list
+        from bot.admin.panel import get_admin_ids
+        is_admin = user_id in get_admin_ids()
         channels_unjoined = await get_unjoined_channels(ptb_app.bot, user_id, repo) if not settings.DISABLE_TELEGRAM_NETWORK else []
         welcome_bonus_claimed = user.referral_earnings is not None or (await repo.get_setting("welcome_bonus_claimed_" + str(user_id), False))
         if not welcome_bonus_claimed:

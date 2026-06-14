@@ -90,6 +90,32 @@ async def admin_settings_toggle_maintenance(update: Update, context: ContextType
     await admin_settings_menu_handler(update, context)
 
 
+async def admin_manage_admins_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show current admin IDs and prompt to change."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    repository = Repository(await get_db())
+    admin_ids = await repository.get_setting("admin_ids", [])
+    text = (
+        "👑 <b>Admin Management</b>\n\n"
+        f"Current Admin IDs: <code>{', '.join(str(a) for a in admin_ids)}</code>\n\n"
+        "Send new comma-separated admin IDs to update.\n"
+        "Example: <code>7371674958, 123456789</code>\n\n"
+        "Type /cancel to abort."
+    )
+    context.user_data["admin_state"] = "edit_admin_ids"
+    await query.edit_message_text(
+        text=text,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ Cancel", callback_data="admin:settings_menu")]
+        ]),
+        parse_mode="HTML"
+    )
+    await query.answer()
+
+
 async def admin_messages_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show customized messages menu."""
     query = update.callback_query
@@ -144,11 +170,11 @@ async def admin_msg_edit_start(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def admin_settings_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Process incoming text template updates."""
+    """Process incoming text template updates and admin ID changes."""
     if context.user_data is None:
         return
     admin_state = context.user_data.get("admin_state", "")
-    if not admin_state.startswith("edit_msg_"):
+    if not admin_state:
         return
 
     user_id = update.effective_user.id
@@ -159,16 +185,36 @@ async def admin_settings_text_handler(update: Update, context: ContextTypes.DEFA
     text = msg.text.strip()
     repository = Repository(await get_db())
 
+    if text.lower() == "/cancel":
+        context.user_data.pop("admin_state", None)
+        await msg.reply_text("❌ Cancelled.", reply_markup=messages_manager_keyboard())
+        return
+
+    if admin_state == "edit_admin_ids":
+        ids = [int(x.strip()) for x in text.split(",") if x.strip().isdigit()]
+        if not ids:
+            await msg.reply_text("❌ No valid IDs found. Send numbers separated by commas.")
+            return
+        await repository.update_setting("admin_ids", ids)
+        from bot.admin.panel import refresh_admin_ids
+        await refresh_admin_ids()
+        context.user_data.pop("admin_state", None)
+        await msg.reply_text(
+            f"✅ Admin IDs updated: <code>{', '.join(str(a) for a in ids)}</code>",
+            parse_mode="HTML",
+            reply_markup=messages_manager_keyboard()
+        )
+        return
+
+    if not admin_state.startswith("edit_msg_"):
+        return
+
     key = admin_state.replace("edit_msg_", "")
     context.user_data.pop("admin_state", None)
 
-    if text.lower() == "/cancel":
-        await msg.reply_text("❌ Edit cancelled.", reply_markup=messages_manager_keyboard())
-        return
-
     # Update template in DB
     await repository.update_setting(key, text)
-    
+
     await msg.reply_text(
         f"✅ Template <b>{key.upper()}</b> successfully updated!",
         parse_mode="HTML",
@@ -213,6 +259,12 @@ async def admin_reset_data_confirm(update: Update, context: ContextTypes.DEFAULT
 
     from bot.database.session import reset_all_data
 
+    await query.edit_message_text(
+        "⏳ <b>Resetting database...</b>\n\nPlease wait, this may take a moment.",
+        parse_mode="HTML"
+    )
+    await query.answer()
+
     try:
         await reset_all_data()
         await query.edit_message_text(
@@ -242,6 +294,7 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(admin_settings_menu_handler, pattern="^admin:settings_menu$"))
     application.add_handler(CallbackQueryHandler(admin_settings_toggle_refer, pattern="^admin:set_toggle_refer$"))
     application.add_handler(CallbackQueryHandler(admin_settings_toggle_maintenance, pattern="^admin:set_toggle_maintenance$"))
+    application.add_handler(CallbackQueryHandler(admin_manage_admins_start, pattern="^admin:manage_admins$"))
     application.add_handler(CallbackQueryHandler(admin_messages_menu_handler, pattern="^admin:set_messages$"))
     application.add_handler(CallbackQueryHandler(admin_msg_edit_start, pattern="^admin:msg_edit:[a-z_]+$"))
     application.add_handler(CallbackQueryHandler(admin_reset_data_start, pattern="^admin:reset_data$"))

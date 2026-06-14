@@ -65,7 +65,8 @@ async def notify_admins(
     Notify all admin IDs in settings.
     Returns the count of admins successfully notified.
     """
-    admin_list = settings.admin_id_list
+    from bot.admin.panel import get_admin_ids
+    admin_list = get_admin_ids()
     if not admin_list:
         logger.warning("No admin IDs configured to notify.")
         return 0

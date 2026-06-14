@@ -281,6 +281,7 @@ def settings_menu(require_contact: bool = True, refer_paused: bool = False, main
         ],
         [
             InlineKeyboardButton(referral_toggle, callback_data="admin:set_toggle_refer"),
+            InlineKeyboardButton("👑 Admins", callback_data="admin:manage_admins"),
         ],
         [
             InlineKeyboardButton("📣 Force Subscribe", callback_data="admin:set_fsub"),
