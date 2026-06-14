@@ -218,8 +218,7 @@ def daily_bonus_keyboard(can_claim: bool) -> InlineKeyboardMarkup:
 
 
 def miniapp_keyboard(url: str) -> InlineKeyboardMarkup:
-    """Keyboard with MiniApp button and back to menu."""
+    """Keyboard with MiniApp button only — menu lives inside the MiniApp."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🚀 Open MiniApp", web_app=WebAppInfo(url=url))],
-        [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu:main")],
     ])
