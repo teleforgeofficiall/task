@@ -838,40 +838,86 @@ function shareRef(taskId) {
 
 function startTask(taskId) {
   closeModal();
-  showModal('Submit Proof', `
-    <div id="proofBody">
-      <p style="color:var(--text-secondary);margin-bottom:16px;font-size:14px">Complete the task and submit proof below</p>
-      <div class="form-group">
-        <label>Proof Screenshot URL (optional)</label>
-        <input class="form-input" id="proofImage" placeholder="Paste image URL or upload">
+  // Fetch task details to show steps
+  api('/api/app/task/' + taskId + '?' + new URLSearchParams({ user_id: USER.id }).toString()).then(data => {
+    if (!data.ok) { return; }
+    const t = data.task;
+    const steps = t.steps || (t.guide ? t.guide.split('\n').filter(s => s.trim()) : []);
+    let stepsHtml = '';
+    if (steps.length > 0) {
+      stepsHtml = `
+        <div style="margin:12px 0;padding:12px 16px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
+          <h4 style="font-size:13px;margin-bottom:6px;color:var(--text-secondary)">📋 Task Steps:</h4>
+          <ol style="padding-left:18px;font-size:12px;color:var(--text);line-height:1.9;margin:0">
+            ${steps.map(s => `<li>${s}</li>`).join('')}
+          </ol>
+        </div>`;
+    }
+    showModal('Submit Proof', `
+      <div id="proofBody" style="max-width:400px;margin:0 auto">
+        <div style="text-align:center;margin-bottom:16px">
+          <div style="width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,${t.color||'#7b5ef8'},${t.color2||'#5a3fd6'});display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;margin:0 auto 8px">${t.icon||'📋'}</div>
+          <h3 style="font-size:16px;font-weight:700">${t.title}</h3>
+          <div style="color:var(--success);font-weight:700;font-size:20px;margin-top:4px">₹${t.reward}</div>
+        </div>
+        ${stepsHtml}
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;padding:8px 12px;background:rgba(255,79,94,0.08);border-radius:8px;border:1px solid rgba(255,79,94,0.15)">
+          ⚠️ Complete the task above, then submit screenshot as proof. Admin will verify and credit your reward.
+        </div>
+        <div class="form-group">
+          <label>📸 Screenshot Proof</label>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="proofImage" placeholder="Paste image URL or screenshot link" style="flex:1">
+            <button class="btn btn-sm btn-outline" onclick="document.getElementById('proofFileInput').click()" style="white-space:nowrap">📁 Upload</button>
+          </div>
+          <input type="file" id="proofFileInput" accept="image/*" style="display:none" onchange="handleProofFile(event)">
+          <div id="proofFileName" style="font-size:11px;color:var(--text-secondary);margin-top:4px"></div>
+        </div>
+        <div class="form-group">
+          <label>🔑 Transaction ID / Order ID</label>
+          <input class="form-input" id="proofTxnId" placeholder="Enter transaction ID if applicable">
+        </div>
+        <div class="form-group">
+          <label>💳 Your UPI ID (for payment)</label>
+          <input class="form-input" id="proofUpi" placeholder="Enter your UPI ID" value="${CURRENT_USER?.upi||''}">
+        </div>
+        <button class="btn btn-success btn-block" onclick="submitProof(${taskId})" style="font-size:15px;padding:14px">📤 Submit Proof</button>
       </div>
-      <div class="form-group">
-        <label>Transaction ID / Order ID</label>
-        <input class="form-input" id="proofTxnId" placeholder="Enter transaction ID if applicable">
-      </div>
-      <div class="form-group">
-        <label>Your UPI ID (for payment)</label>
-        <input class="form-input" id="proofUpi" placeholder="Enter your UPI ID" value="${CURRENT_USER?.upi||''}">
-      </div>
-      <button class="btn btn-success btn-block" onclick="submitProof(${taskId})">📤 Submit Proof</button>
-    </div>
-  `);
+    `);
+  });
+}
+
+function handleProofFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const el = document.getElementById('proofFileName');
+  el.textContent = '📎 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+  // Convert to base64 for submission
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('proofImage').value = e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 async function submitProof(taskId) {
   const proof_image = document.getElementById('proofImage').value;
   const txn_id = document.getElementById('proofTxnId').value;
   const upi = document.getElementById('proofUpi').value;
-  if (!upi) { toast('Please enter your UPI ID'); return; }
+  if (!proof_image && !txn_id) { toast('📸 Please provide a screenshot or transaction ID'); return; }
+  if (!upi) { toast('💳 Please enter your UPI ID for payment'); return; }
+  const btn = document.querySelector('#proofBody .btn-success');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Submitting...'; }
   const data = await api('/api/app/task/' + taskId + '/submit', {
     method: 'POST',
     body: JSON.stringify({ user_id: USER.id, proof_image, txn_id, upi })
   });
   if (data.ok) {
     closeModal();
-    toast('✅ Proof submitted! Admin will verify.');
+    toast('✅ Proof submitted! Admin will review and approve shortly.');
     loadTasks();
   } else {
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Proof'; }
     toast(data.error || 'Failed to submit');
   }
 }

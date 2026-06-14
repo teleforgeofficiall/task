@@ -601,7 +601,7 @@ async def app_task_detail(task_id: int, user_id: int):
 
 @app.post("/api/app/task/{task_id}/submit")
 async def app_submit_proof(task_id: int, request: Request):
-    """Submit task proof from Mini App."""
+    """Submit task proof from Mini App - admin will review before marking complete."""
     from bot.database import get_session, Repository
     try:
         data = await request.json()
@@ -613,6 +613,8 @@ async def app_submit_proof(task_id: int, request: Request):
     upi = data.get("upi", "")
     if not user_id:
         return {"ok": False, "error": "Missing user_id"}
+    if not proof_image and not txn_id:
+        return {"ok": False, "error": "Please provide proof screenshot or transaction ID"}
     async with get_session() as session:
         repo = Repository(session)
         task = await repo.get_task(task_id)
@@ -624,11 +626,17 @@ async def app_submit_proof(task_id: int, request: Request):
             return {"ok": False, "error": "Already completed"}
         if await repo.has_pending_proof(user_id, task_id):
             return {"ok": False, "error": "Proof already submitted, awaiting review"}
+        # Store proof for admin review - do NOT mark task as completed yet
         await repo.add_proof(user_id, task_id, proof_image, "photo")
-        completed_tasks.append(task_id)
-        await repo.update_user_fields(user_id, completed_tasks=completed_tasks)
-        await repo.increment_task_completion(task_id)
-        return {"ok": True, "message": "Proof submitted for review"}
+        # Save UPI for payout if provided
+        if upi:
+            meta = dict(user.user_meta or {})
+            meta["upi"] = upi
+            await repo.update_user_fields(user_id, user_meta=meta)
+        # Store txn_id in proof details via settings (simple storage)
+        if txn_id:
+            await repo.update_setting(f"proof_txn:{user_id}:{task_id}", txn_id)
+        return {"ok": True, "message": "Proof submitted! Admin will review and approve."}
 
 
 @app.get("/api/app/bonus")
