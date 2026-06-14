@@ -796,11 +796,15 @@ async function loadTaskDetail(taskId) {
     </div>
     <div style="margin-top:12px">
       ${t.ref_enabled ? `
-        <div style="margin-bottom:10px">
-          <label style="font-size:12px;color:var(--text-secondary);font-weight:600;display:block;margin-bottom:4px">Your Referral Link:</label>
+        <div style="margin-bottom:10px;background:var(--bg);border-radius:12px;padding:12px;border:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:12px;color:var(--text-secondary);font-weight:600">🔗 Your Referral Code</span>
+            <span style="font-size:13px;font-weight:800;color:var(--primary);letter-spacing:2px" id="refCodeDisplayDetail">${t.ref_code || ''}</span>
+          </div>
           <div style="display:flex;gap:6px">
             <input class="form-input" id="refLinkInput${taskId}" value="${t.ref_link || ''}" readonly style="flex:1;font-size:11px;padding:8px 10px">
             <button class="btn btn-sm btn-outline" onclick="copyRef(${taskId})" style="white-space:nowrap">📋 Copy</button>
+            <button class="btn btn-sm btn-primary" onclick="shareRef(${taskId})" style="white-space:nowrap">📤 Share</button>
           </div>
         </div>
       ` : ''}
@@ -815,6 +819,21 @@ async function loadTaskDetail(taskId) {
 function copyRef(taskId) {
   const el = document.getElementById('refLinkInput' + taskId);
   if (el) { navigator.clipboard.writeText(el.value); toast('✅ Link copied!'); }
+}
+
+function shareRef(taskId) {
+  const el = document.getElementById('refLinkInput' + taskId);
+  const codeEl = document.getElementById('refCodeDisplayDetail');
+  if (!el) return;
+  const link = el.value;
+  const code = codeEl ? codeEl.textContent : '';
+  const text = `🚀 Complete this task and earn!\n\n📋 Referral Code: ${code}\n🔗 Link: ${link}\n\nJoin @Taskhubpocketbot`;
+  if (navigator.share) {
+    navigator.share({ title: 'TaskHub Referral', text: text }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text);
+    toast('✅ Referral details copied! Share anywhere.');
+  }
 }
 
 function startTask(taskId) {

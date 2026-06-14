@@ -593,7 +593,8 @@ async def app_task_detail(task_id: int, user_id: int):
                 "is_multi_reward": t.is_multi_reward or False,
                 "offer_url": t.offer_url or "",
                 "ref_enabled": True,
-                "ref_link": f"{API_BASE}/ref/{user_id}/{task_id}",
+                "ref_code": f"T{user_id}T{task_id}",
+                "ref_link": f"https://t.me/{settings.BOT_USERNAME}?start=ref_{user_id}_task_{task_id}",
             }
         }
 

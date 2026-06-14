@@ -117,7 +117,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             arg = context.args[0]
             if arg.startswith("ref_"):
                 try:
-                    referrer_id = int(arg.split("_")[1])
+                    parts = arg.split("_")
+                    referrer_id = int(parts[1])
+                    if len(parts) >= 4 and parts[2] == "task":
+                        task_ref = int(parts[3])
+                        context.user_data["referred_task"] = task_ref
                 except (ValueError, IndexError):
                     pass
 
