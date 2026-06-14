@@ -376,23 +376,10 @@ let NAV_ITEMS = [];
 TG?.ready();
 TG?.expand();
 
-// DIAGNOSTIC: test API directly
-(async function() {
-  try {
-    const r = await fetch(API_BASE + '/api/health');
-    const d = await r.json();
-    const el = document.getElementById('loadingStatus');
-    if (el) el.textContent = 'API: ' + d.status;
-  } catch(e) {
-    const el = document.getElementById('loadingStatus');
-    if (el) el.textContent = 'API FAIL: ' + e.message;
-  }
-})();
-
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
 
 async function api(path, opts = {}) {
-  const timeout = opts.timeout || 15000;
+  const timeout = opts.timeout || 10000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
@@ -401,8 +388,8 @@ async function api(path, opts = {}) {
     return await res.json();
   } catch(e) {
     clearTimeout(timer);
-    if (e.name === 'AbortError') return { ok: false, error: 'Connection timed out. Check your network and try again.' };
-    return { ok: false, error: 'Network error. Check your connection.' };
+    if (e.name === 'AbortError') return { ok: false, error: 'Timed out after 10s' };
+    return { ok: false, error: 'Network error: ' + e.message };
   }
 }
 
@@ -418,58 +405,69 @@ function setLoadingStatus(msg) {
   if (el) el.textContent = msg;
 }
 
+function showError(msg, detail) {
+  switchScreen('loadingScreen');
+  let html = `<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">❌</div><h3>${msg}</h3>`;
+  if (detail) html += `<p style="font-size:12px;color:var(--text-secondary);word-break:break-word;margin-top:8px">${detail}</p>`;
+  html += `<button class="btn btn-primary" style="margin-top:16px" onclick="_initDone=false;init()">Retry</button></div>`;
+  document.getElementById('loadingScreen').innerHTML = html;
+}
+
+let _init5sTimer = setTimeout(() => {
+  if (document.getElementById('loadingScreen').classList.contains('active')) {
+    showError('Taking longer than expected...', 'Will retry automatically. Check your connection.');
+  }
+}, 5000);
+
 async function init() {
   if (_initDone) return;
   _initDone = true;
-  try {
-    const TG = window.Telegram?.WebApp;
-    const initData = TG?.initData || '';
-    const user = TG?.initDataUnsafe?.user;
+  clearTimeout(_init5sTimer);
 
-    if (!user) {
-      if (!TG) {
-        showError('Please open this app from Telegram bot.');
-      } else {
-        showError('Telegram user data not available. Please reopen from bot.');
-      }
-      return;
-    }
-    USER = user;
-    setLoadingStatus('Connecting to server...');
-    const data = await api('/api/app/init?' + new URLSearchParams({ user_id: user.id, init_data: initData, hash: '' }).toString());
-    if (!data.ok) { showError(data.error || 'Failed to load. Please try again.'); return; }
-    CURRENT_USER = data.user;
-    if (data.channels_unjoined?.length > 0) {
-      switchScreen('channelScreen');
-      renderChannels(data.channels_unjoined);
-      return;
-    }
-    if (!data.welcome_bonus_claimed) {
-      setLoadingStatus('Claiming welcome bonus...');
-      switchScreen('bonusScreen');
-      document.getElementById('bonusAmount').textContent = '₹' + (data.welcome_bonus || 5);
-      return;
-    }
-    enterApp(data);
-  } catch(e) {
-    console.error('Init error:', e);
-    showError('Something went wrong. Please try again.');
+  // Step 1: Check Telegram WebApp
+  setLoadingStatus('Checking Telegram...');
+  const TG = window.Telegram?.WebApp;
+  const initData = TG?.initData || '';
+  const user = TG?.initDataUnsafe?.user;
+
+  if (!user) {
+    if (!TG) { showError('Not in Telegram', 'Open this from the Telegram bot.'); return; }
+    else { showError('No user data', 'Restart Telegram and try again.'); return; }
   }
-}
+  USER = user;
 
-function showError(msg) {
-  switchScreen('loadingScreen');
-  document.getElementById('loadingScreen').innerHTML = `<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">❌</div><h3>${msg}</h3><button class="btn btn-primary" style="margin-top:16px" onclick="_initDone=false;init()">Retry</button></div>`;
-}
-
-setTimeout(() => {
-  if (document.getElementById('loadingScreen').classList.contains('active')) {
-    const retryBtn = document.querySelector('#loadingScreen .btn-primary');
-    if (retryBtn && retryBtn.textContent.includes('Retry')) return;
-    setLoadingStatus('Still connecting...');
-    setTimeout(() => showError('Loading timed out. Check connection and retry.'), 5000);
+  // Step 2: Health check
+  setLoadingStatus('Testing connection...');
+  var health = await api('/api/health');
+  if (!health.ok || health.status !== 'healthy') {
+    showError('Backend offline', 'Server not responding. Try again later.');
+    return;
   }
-}, 20000);
+
+  // Step 3: Init API
+  setLoadingStatus('Loading your data...');
+  var data = await api('/api/app/init?' + new URLSearchParams({ user_id: user.id, init_data: initData, hash: '' }).toString());
+  if (!data.ok) {
+    showError('Init failed', data.error || 'Unknown server error');
+    return;
+  }
+  CURRENT_USER = data.user;
+
+  // Step 4: Route to correct screen
+  if (data.channels_unjoined?.length > 0) {
+    switchScreen('channelScreen');
+    renderChannels(data.channels_unjoined);
+    return;
+  }
+  if (!data.welcome_bonus_claimed) {
+    switchScreen('bonusScreen');
+    document.getElementById('bonusAmount').textContent = '₹' + (data.welcome_bonus || 5);
+    return;
+  }
+
+  // Step 5: Enter app
+  enterApp(data);
+}
 
 function renderChannels(channels) {
   const el = document.getElementById('channelList');
