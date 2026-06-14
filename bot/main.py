@@ -448,6 +448,29 @@ async def app_init(user_id: int, init_data: str = "", hash: str = ""):
         return {"ok": False, "error": "Server error. Please try again later."}
 
 
+@app.get("/api/app/debug")
+async def app_debug(user_id: int = 0):
+    """Return debug info about MiniApp settings."""
+    from bot.database import get_session, Repository
+    try:
+        async with get_session() as session:
+            repo = Repository(session)
+            miniapp_url = await repo.get_setting("miniapp_url", "https://taskhub-khaki.vercel.app")
+            verif_url = await repo.get_setting("device_verification_url", "")
+            dev_enabled = await repo.get_setting("device_verification_enabled", False)
+            user = await repo.get_user(user_id) if user_id else None
+            return {
+                "ok": True,
+                "miniapp_url": miniapp_url,
+                "device_verification_url": verif_url,
+                "device_verification_enabled": dev_enabled,
+                "user_found": user is not None,
+            }
+    except Exception as exc:
+        logger.exception("debug endpoint error: %s", exc)
+        return {"ok": False, "error": str(exc)}
+
+
 @app.get("/api/app/check-channels")
 async def app_check_channels(user_id: int):
     """Verify user has joined all required channels."""
@@ -457,7 +480,17 @@ async def app_check_channels(user_id: int):
         return {"ok": True, "all_joined": True, "joined": []}
     async with get_session() as session:
         repo = Repository(session)
-        unjoined = await get_unjoined_channels(ptb_app.bot, user_id, repo)
+        try:
+            unjoined = await asyncio.wait_for(
+                get_unjoined_channels(ptb_app.bot, user_id, repo),
+                timeout=5.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning("check-channels: timeout for user %s", user_id)
+            unjoined = []
+        except Exception as exc:
+            logger.warning("check-channels: failed for user %s: %s", user_id, exc)
+            unjoined = []
         all_joined = len(unjoined) == 0
         joined = []
         if not all_joined:
