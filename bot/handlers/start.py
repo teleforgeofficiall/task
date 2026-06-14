@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import json
+import time
 from telegram import Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 
@@ -24,6 +25,8 @@ async def send_congrats(update: Update, context: ContextTypes.DEFAULT_TYPE, repo
         return
 
     miniapp_url = await repository.get_setting("miniapp_url", "https://taskhub-khaki.vercel.app")
+    separator = "&" if "?" in miniapp_url else "?"
+    miniapp_url = f"{miniapp_url}{separator}_cb={int(time.time())}"
     congrats_text = (
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         "🎉 <b>Congratulations!</b>\n"

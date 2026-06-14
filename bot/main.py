@@ -294,6 +294,8 @@ async def api_verification_done(request: Request):
         async with get_session() as session:
             repo = Repository(session)
             miniapp_url = await repo.get_setting("miniapp_url", "https://taskhub-khaki.vercel.app")
+            separator = "&" if "?" in miniapp_url else "?"
+            miniapp_url = f"{miniapp_url}{separator}_cb={int(time.time())}"
             congrats_text = (
                 "━━━━━━━━━━━━━━━━━━━━━━\n"
                 "🎉 <b>Congratulations!</b>\n"
