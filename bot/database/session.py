@@ -309,7 +309,7 @@ async def check_db_health() -> bool:
 
 
 async def reset_all_data() -> None:
-    """Reset all data via DELETE (works through pooler)."""
+    """Reset all data via DROP TABLE (instant)."""
     global _engine, _session_factory
     from bot.database.models_sql import Base
     from sqlalchemy import text
@@ -317,26 +317,14 @@ async def reset_all_data() -> None:
     if _engine is None:
         await init_db()
 
-    table_names = [
-        "settings", "game_state", "users", "tasks", "proofs",
-        "withdrawals", "redeem_codes", "transactions", "admin_logs",
-        "game_rounds", "backup_records", "game_sessions",
-        "device_fingerprints", "jackpot_events", "retention_events",
-    ]
-
     async with _engine.begin() as conn:
         await conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
-        for table_name in table_names:
-            await conn.execute(text(f"DELETE FROM {table_name}"))
-            logger.info("Cleared %s", table_name)
+        for table_name in Base.metadata.tables:
+            await conn.execute(text(f"DROP TABLE IF EXISTS `{table_name}`"))
+            logger.info("Dropped %s", table_name)
         await conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
 
-        for table_name in table_names:
-            try:
-                await conn.execute(text(f"ALTER TABLE {table_name} AUTO_INCREMENT = 1"))
-            except Exception:
-                pass
-
+        # Recreate all tables fresh
         await conn.run_sync(Base.metadata.create_all)
 
     from bot.database.repository import Repository
