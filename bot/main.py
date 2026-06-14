@@ -197,6 +197,7 @@ async def health_check():
     """Health check endpoint for Render deployment."""
     db_healthy = await check_db_health()
     return {
+        "ok": True,
         "status": "healthy" if db_healthy else "degraded",
         "service": "taskhub-backend",
         "database": "connected" if db_healthy else "disconnected",
