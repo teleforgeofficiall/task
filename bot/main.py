@@ -406,7 +406,12 @@ async def app_init(user_id: int, init_data: str = "", hash: str = ""):
             channels_unjoined = []
             if not settings.DISABLE_TELEGRAM_NETWORK:
                 try:
-                    channels_unjoined = await get_unjoined_channels(ptb_app.bot, user_id, repo)
+                    channels_unjoined = await asyncio.wait_for(
+                        get_unjoined_channels(ptb_app.bot, user_id, repo),
+                        timeout=5.0
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("app_init: get_unjoined_channels timed out for user %s", user_id)
                 except Exception as exc:
                     logger.warning("app_init: get_unjoined_channels failed: %s", exc)
             welcome_bonus_claimed = user.referral_earnings is not None or (await repo.get_setting("welcome_bonus_claimed_" + str(user_id), False))
