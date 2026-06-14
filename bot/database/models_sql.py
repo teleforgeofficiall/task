@@ -136,6 +136,15 @@ class TaskTable(Base):
     channel_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     channel_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
+    # MiniApp UI fields
+    video_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    steps: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    color: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    color2: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    duration_text: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    is_multi_reward: Mapped[bool] = mapped_column(Boolean, default=False)
+    offer_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
 
 # ─── Proofs (Task Submissions) ─────────────────────────────────────────────────
 

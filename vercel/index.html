@@ -78,19 +78,21 @@ body {
   box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 12px;
 }
 .task-card {
-  display: flex; gap: 12px; cursor: pointer; transition: transform 0.15s;
+  display: flex; gap: 12px; cursor: pointer; transition: transform 0.15s; position: relative; overflow: hidden;
 }
 .task-card:active { transform: scale(0.98); }
 .task-img {
-  width: 80px; height: 80px; border-radius: var(--radius-sm); object-fit: cover; flex-shrink: 0;
+  width: 90px; height: 90px; border-radius: 14px; object-fit: cover; flex-shrink: 0;
   background: linear-gradient(135deg, var(--primary-light), var(--primary));
+  display: flex; align-items: center; justify-content: center; color: #fff; font-size: 32px;
 }
-.task-info { flex: 1; min-width: 0; }
-.task-info h3 { font-size: 14px; margin-bottom: 4px; }
+.task-img img { width: 100%; height: 100%; border-radius: 14px; object-fit: cover; }
+.task-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.task-info h3 { font-size: 14px; margin-bottom: 3px; font-weight: 700; line-height: 1.2; }
 .task-info .reward {
-  color: var(--primary); font-weight: 700; font-size: 16px; display: inline-block; margin-right: 8px;
+  color: var(--success); font-weight: 800; font-size: 18px; display: inline-block; margin-right: 8px;
 }
-.task-info .meta { font-size: 11px; color: var(--text-secondary); display: flex; gap: 12px; margin-top: 4px; }
+.task-info .meta { font-size: 11px; color: var(--text-secondary); display: flex; gap: 10px; margin-top: 4px; align-items: center; }
 .task-badge {
   display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase;
 }
@@ -98,6 +100,35 @@ body {
 .badge-social { background: #e3f2fd; color: #1976d2; }
 .badge-app { background: #e8f5e9; color: #388e3c; }
 .badge-survey { background: #fff3e0; color: #f57c00; }
+.task-actions { display: flex; gap: 8px; margin-top: 8px; }
+.task-btn-video {
+  display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px;
+  border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;
+  border: 1.5px solid var(--warning); color: var(--warning); background: transparent;
+  transition: all 0.15s;
+}
+.task-btn-video:active { background: var(--warning); color: #fff; }
+.task-btn-start {
+  display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px;
+  border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;
+  border: none; color: #fff; background: var(--primary);
+  transition: all 0.15s; flex: 1; justify-content: center;
+}
+.task-btn-start:active { opacity: 0.85; transform: scale(0.97); }
+.task-completed-badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px;
+  border-radius: 8px; font-size: 11px; font-weight: 700;
+  border: none; color: #fff; background: var(--success);
+}
+.task-multi-badge {
+  display: inline-block; padding: 1px 6px; border-radius: 4px;
+  font-size: 9px; font-weight: 700; background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: #fff;
+}
+.task-reward-col {
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: center; flex-shrink: 0;
+}
+.task-reward-col .reward { color: var(--success); font-weight: 800; font-size: 18px; white-space: nowrap; }
+.task-reward-col .meta { font-size: 10px; color: var(--text-secondary); margin-top: 2px; text-align: right; }
 /* Buttons */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -156,7 +187,7 @@ body {
 .modal-overlay.open { opacity: 1; pointer-events: auto; }
 .modal-content {
   background: var(--card); border-radius: var(--radius) var(--radius) 0 0; padding: 24px; width: 100%; max-width: 480px;
-  max-height: 80vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  max-height: 85vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
 }
 .modal-overlay.open .modal-content { transform: translateY(0); }
 .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; text-align: center; }
@@ -309,12 +340,16 @@ body {
   </div>
   <div class="tab-content" id="tabContent">
     <div id="tabTasks" class="tab-page active">
-      <div id="promotedSection" style="margin-bottom:12px">
+      <div id="promotedSection" style="margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <h3 style="font-size:15px">✨ Promoted</h3>
           <button class="btn btn-sm btn-ghost" onclick="showPromoteModal()">PROMOTE HERE</button>
         </div>
         <div id="promotedList" class="promoted-scroll"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="font-size:15px">🎯 Available Tasks</h3>
+        <span id="taskCount" style="font-size:12px;color:var(--text-secondary)"></span>
       </div>
       <div id="taskList"></div>
     </div>
@@ -578,29 +613,48 @@ async function loadTasks() {
   const el = document.getElementById('taskList');
   const data = await api('/api/app/tasks?' + new URLSearchParams({ user_id: USER.id }).toString());
   const tasks = data.tasks || [];
+  const countEl = document.getElementById('taskCount');
+  if (countEl) countEl.textContent = tasks.length + ' tasks';
   if (tasks.length === 0) {
     el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:14px">No tasks available</div>';
     return;
   }
-  el.innerHTML = tasks.map(t => `
-    <div class="card task-card" onclick="showTaskDetail(${t.id})">
-      <div class="task-img" style="background:linear-gradient(135deg,${t.color||'#7b5ef8'},${t.color2||'#5a3fd6'});display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px">${t.icon||'📋'}</div>
+  el.innerHTML = tasks.map(t => {
+    const isDone = t.is_completed;
+    const hasImage = t.image && t.image.length > 5;
+    const imgContent = hasImage
+      ? `<img src="${t.image}" alt="${t.title}">`
+      : `${t.icon || '📋'}`;
+    const badgeClass = 'badge-' + (t.type || 'social');
+    return `
+    <div class="card task-card" onclick="showTaskDetail(${t.id})" style="border-left:3px solid ${t.color || 'var(--primary)'}">
+      <div class="task-img" style="background:linear-gradient(135deg,${t.color || '#7b5ef8'},${t.color2 || '#5a3fd6'})">
+        ${imgContent}
+      </div>
       <div class="task-info">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-          <span class="task-badge badge-${t.type||'social'}">${t.type||'social'}</span>
+          <span class="task-badge ${badgeClass}">${t.type || 'social'}</span>
+          ${t.is_multi_reward ? '<span class="task-multi-badge">Multi Reward</span>' : ''}
         </div>
         <h3>${t.title}</h3>
-        <div>
-          <span class="reward">₹${t.reward}</span>
-        </div>
         <div class="meta">
-          <span>⏱ ${t.duration||'15 min'}</span>
-          <span>👥 ${t.completions||0} users</span>
-          ${t.ref_link ? `<span>🔗 Referral available</span>` : ''}
+          <span>⏱ ${t.duration || '15 min'}</span>
+          <span>👥 ${t.completions || 0}</span>
+        </div>
+        <div class="task-actions" onclick="event.stopPropagation()">
+          ${t.video_url ? `<button class="task-btn-video" onclick="openLink('${t.video_url}')">▶ Video</button>` : ''}
+          ${isDone
+            ? '<span class="task-completed-badge">✓ Done</span>'
+            : `<button class="task-btn-start" onclick="showTaskDetail(${t.id})">Start Task</button>`
+          }
         </div>
       </div>
-    </div>
-  `).join('');
+      <div class="task-reward-col">
+        <span class="reward">₹${t.reward}</span>
+        ${isDone ? '<span style="color:var(--success);font-size:10px">✓ Completed</span>' : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function loadPromoted() {
@@ -630,23 +684,56 @@ async function loadTaskDetail(taskId) {
   const data = await api('/api/app/task/' + taskId + '?' + new URLSearchParams({ user_id: USER.id }).toString());
   if (!data.ok) { document.getElementById('taskDetailBody').innerHTML = '<p style="text-align:center;color:var(--danger)">Failed to load</p>'; return; }
   const t = data.task;
+  const isDone = t.is_completed;
+  const hasImage = t.image && t.image.length > 5;
+
   let stepsHtml = '';
-  if (t.steps && t.steps.length > 0) {
-    stepsHtml = '<div style="margin:12px 0"><h4 style="margin-bottom:8px;font-size:14px">Steps:</h4><ol style="padding-left:20px;font-size:13px;color:var(--text-secondary);line-height:1.8">' + t.steps.map(s => '<li>' + s + '</li>').join('') + '</ol></div>';
+  const steps = t.steps || (t.guide ? t.guide.split('\n').filter(s => s.trim()) : []);
+  if (steps.length > 0) {
+    stepsHtml = `
+      <div style="margin:14px 0">
+        <h4 style="margin-bottom:8px;font-size:13px;color:var(--text-secondary)">📋 Steps to Complete:</h4>
+        <ol style="padding-left:20px;font-size:13px;color:var(--text);line-height:2">
+          ${steps.map(s => `<li>${s}</li>`).join('')}
+        </ol>
+      </div>`;
   }
+
   document.getElementById('taskDetailBody').innerHTML = `
-    <div style="text-align:center;margin-bottom:12px">
-      <div class="task-img" style="width:120px;height:120px;border-radius:16px;background:linear-gradient(135deg,${t.color||'#7b5ef8'},${t.color2||'#5a3fd6'});display:flex;align-items:center;justify-content:center;color:#fff;font-size:48px;margin:0 auto 12px">${t.icon||'📋'}</div>
-      <h3 style="font-size:18px">${t.title}</h3>
-      <div style="color:var(--primary);font-weight:800;font-size:24px;margin:4px 0">₹${t.reward}</div>
-      <span class="task-badge badge-${t.type||'social'}">${t.type||'social'}</span>
-      <div style="margin:8px 0;font-size:12px;color:var(--text-secondary)">👥 ${t.completions||0} users completed • ⏱ ${t.duration||'15 min'}</div>
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="width:100px;height:100px;border-radius:18px;background:linear-gradient(135deg,${t.color || '#7b5ef8'},${t.color2 || '#5a3fd6'});display:flex;align-items:center;justify-content:center;color:#fff;font-size:44px;margin:0 auto 12px;overflow:hidden">
+        ${hasImage ? `<img src="${t.image}" style="width:100%;height:100%;object-fit:cover">` : (t.icon || '📋')}
+      </div>
+      <h3 style="font-size:17px;font-weight:700">${t.title}</h3>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px">
+        <span class="task-badge badge-${t.type || 'social'}">${t.type || 'social'}</span>
+        ${t.is_multi_reward ? '<span class="task-multi-badge">Multi Reward</span>' : ''}
+      </div>
+      <div style="color:var(--success);font-weight:800;font-size:28px;margin:8px 0">₹${t.reward}</div>
+      <div style="font-size:12px;color:var(--text-secondary);display:flex;justify-content:center;gap:16px">
+        <span>⏱ ${t.duration || '15 min'}</span>
+        <span>👥 ${t.completions || 0} users</span>
+      </div>
     </div>
-    ${t.video_url ? `<button class="btn btn-outline btn-block" onclick="openLink('${t.video_url}')" style="margin-bottom:8px">▶ Watch Tutorial</button>` : ''}
     ${stepsHtml}
+    <div style="display:flex;gap:8px;margin-top:12px">
+      ${t.video_url ? `<button class="btn btn-outline" style="flex:1;font-size:13px" onclick="openLink('${t.video_url}')">▶ Offer Video</button>` : ''}
+      ${t.offer_url ? `<button class="btn btn-outline" style="flex:1;font-size:13px" onclick="openLink('${t.offer_url}')">🔗 Open Offer</button>` : ''}
+    </div>
     <div style="margin-top:12px">
-      ${t.ref_enabled ? `<div style="display:flex;gap:8px;margin-bottom:8px"><input class="form-input" id="refLinkInput${taskId}" value="${t.ref_link||API_BASE+'/ref/'+USER.id+'/'+taskId}" readonly style="flex:1;font-size:12px"><button class="btn btn-sm btn-outline" onclick="copyRef(${taskId})">📋 Copy</button></div>` : ''}
-      <button class="btn btn-primary btn-block" onclick="startTask(${taskId})">🚀 Start Task</button>
+      ${t.ref_enabled ? `
+        <div style="margin-bottom:10px">
+          <label style="font-size:12px;color:var(--text-secondary);font-weight:600;display:block;margin-bottom:4px">Your Referral Link:</label>
+          <div style="display:flex;gap:6px">
+            <input class="form-input" id="refLinkInput${taskId}" value="${t.ref_link || ''}" readonly style="flex:1;font-size:11px;padding:8px 10px">
+            <button class="btn btn-sm btn-outline" onclick="copyRef(${taskId})" style="white-space:nowrap">📋 Copy</button>
+          </div>
+        </div>
+      ` : ''}
+      ${isDone
+        ? '<div style="text-align:center;padding:12px;background:rgba(0,229,160,0.1);border-radius:10px;color:var(--success);font-weight:700">✅ Task Completed</div>'
+        : `<button class="btn btn-primary btn-block" onclick="startTask(${taskId})" style="font-size:15px;padding:14px">🚀 Start Task</button>`
+      }
     </div>
   `;
 }
