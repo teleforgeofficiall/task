@@ -254,36 +254,40 @@ body {
 .profile-header h2 { font-size: 20px; }
 .profile-header .joined { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 /* Verification Screen */
-.verify-screen { background: #0d1117; min-height: 100vh; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; position: fixed; inset: 0; z-index: 999; }
+.verify-screen { background: var(--card); min-height: 100vh; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; position: fixed; inset: 0; z-index: 999; }
 .verify-screen.active { display: flex; }
-.verify-card { background: #161b22; border: 1px solid #30363d; border-radius: 20px; padding: 32px 24px; width: 100%; max-width: 380px; text-align: center; }
-.verify-user { display: flex; align-items: center; gap: 12px; padding: 16px; background: #0d1117; border-radius: 14px; border: 1px solid #30363d; margin-bottom: 24px; }
-.verify-user img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--success); object-fit: cover; }
+.verify-card { background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: 20px; padding: 32px 24px; width: 100%; max-width: 380px; text-align: center; }
+.verify-user { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg); border-radius: 14px; border: 1px solid var(--border); margin-bottom: 24px; }
+.verify-user img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; }
 .verify-user .vu-info { flex: 1; text-align: left; }
-.verify-user .vu-name { font-weight: 700; font-size: 15px; color: #e6edf3; }
-.verify-user .vu-id { font-size: 11px; color: #8b949e; }
+.verify-user .vu-name { font-weight: 700; font-size: 15px; color: var(--text); }
+.verify-user .vu-id { font-size: 11px; color: var(--text-secondary); }
 .verify-badge { padding: 5px 14px; border-radius: 20px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
-.verify-badge.scanning { background: rgba(123,94,248,0.2); color: var(--primary-light); border: 1px solid rgba(123,94,248,0.3); }
-.verify-badge.verified { background: rgba(0,229,160,0.15); color: var(--success); border: 1px solid rgba(0,229,160,0.3); }
+.verify-badge.scanning { background: rgba(123,94,248,0.12); color: var(--primary); border: 1px solid rgba(123,94,248,0.25); }
+.verify-badge.verified { background: rgba(0,229,160,0.12); color: var(--success); border: 1px solid rgba(0,229,160,0.25); }
+.verify-badge.failed { background: rgba(255,79,94,0.12); color: var(--danger); border: 1px solid rgba(255,79,94,0.25); }
 .verify-scanner { width: 140px; height: 140px; margin: 0 auto 24px; position: relative; }
 .verify-scanner .ring { position: absolute; inset: 0; border-radius: 50%; border: 3px solid transparent; border-top-color: var(--success); border-right-color: var(--primary); animation: verifySpin 1.5s linear infinite; }
 .verify-scanner .ring2 { position: absolute; inset: 12px; border-radius: 50%; border: 3px solid transparent; border-bottom-color: var(--primary-light); border-left-color: var(--success); animation: verifySpin 2s linear infinite reverse; }
-.verify-scanner .dot { position: absolute; width: 10px; height: 10px; background: var(--primary-light); border-radius: 50%; top: 0; left: 50%; transform: translateX(-50%); animation: dotMove 1.5s linear infinite; }
+.verify-scanner .dot { position: absolute; width: 10px; height: 10px; background: var(--primary); border-radius: 50%; top: 0; left: 50%; transform: translateX(-50%); animation: dotMove 1.5s linear infinite; }
 @keyframes verifySpin { to { transform: rotate(360deg); } }
 @keyframes dotMove { 0% { top: 0; left: 50%; } 25% { top: 50%; left: 100%; } 50% { top: 100%; left: 50%; } 75% { top: 50%; left: 0; } 100% { top: 0; left: 50%; } }
-.verify-title { color: var(--primary-light); font-size: 22px; font-weight: 800; margin-bottom: 8px; }
-.verify-sub { color: #8b949e; font-size: 14px; margin-bottom: 20px; }
-.verify-progress { width: 100%; height: 4px; background: #21262d; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+.verify-title { color: var(--primary); font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+.verify-sub { color: var(--text-secondary); font-size: 14px; margin-bottom: 20px; }
+.verify-progress { width: 100%; height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
 .verify-progress .bar { height: 100%; background: linear-gradient(90deg, var(--primary), var(--success)); border-radius: 4px; width: 0%; transition: width 0.3s; animation: progressAnim 3.5s ease-in-out forwards; }
 @keyframes progressAnim { 0% { width: 0%; } 30% { width: 40%; } 60% { width: 70%; } 90% { width: 95%; } 100% { width: 100%; } }
 .verify-check { width: 100px; height: 100px; margin: 0 auto 20px; border-radius: 50%; background: rgba(0,229,160,0.12); border: 3px solid var(--success); display: flex; align-items: center; justify-content: center; animation: checkPop 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+.verify-check.fail { border-color: var(--danger); background: rgba(255,79,94,0.12); }
+.verify-check.fail svg { stroke: var(--danger); }
 @keyframes checkPop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
 .verify-check svg { width: 48px; height: 48px; stroke: var(--success); fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .verify-ctitle { color: var(--success); font-size: 22px; font-weight: 800; margin-bottom: 8px; }
-.verify-csub { color: #8b949e; font-size: 14px; margin-bottom: 24px; }
+.verify-ctitle.fail { color: var(--danger); }
+.verify-csub { color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; }
 .verify-continue { width: 100%; padding: 16px; border: none; border-radius: 14px; background: linear-gradient(135deg, var(--success), #00c48c); color: #071a11; font-size: 16px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
 .verify-continue:active { transform: scale(0.97); }
-.verify-footer { color: #30363d; font-size: 11px; margin-top: 20px; }
+.verify-footer { color: var(--text-secondary); font-size: 11px; margin-top: 20px; }
 </style>
 </head>
 <body>
@@ -297,19 +301,16 @@ body {
   <div class="verify-footer">TaskHub &mdash; Secure Verification</div>
 </div>
 <script>
-(function(){
-  var p = new URLSearchParams(window.location.search);
-  if(p.has('user_id')&&p.has('bot')){
-    var uid=p.get('user_id');
-    var vs=document.getElementById('verifyScreen');
-    var ls=document.getElementById('loadingScreen');
-    var card=document.getElementById('verifyCard');
-    if(vs){vs.classList.add('active');vs.style.display='flex';}
-    if(ls){ls.classList.remove('active');ls.style.display='none';}
-    if(card){
-      card.innerHTML='<div class="verify-user" id="vuRow"><img id="vuPfp" src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%237b5ef8\'/%3E%3Ctext x=\'50\' y=\'68\' text-anchor=\'middle\' fill=\'%23fff\' font-size=\'44\'%3E?%3C/text%3E%3C/svg%3E" alt=""><div class="vu-info"><div class="vu-name" id="vuName">Loading...</div><div class="vu-id" id="vuId">ID: '+uid+'</div></div><span class="verify-badge scanning" id="vuBadge">SCANNING</span></div><div class="verify-scanner"><div class="ring"></div><div class="ring2"></div><div class="dot"></div></div><div class="verify-title">Device Verification</div><div class="verify-sub" id="verifySub">Completing authorization...</div><div class="verify-progress"><div class="bar" id="verifyBar"></div></div>';
-    }
-  }
+function getDeviceFingerprint(){var s=navigator.userAgent+'|'+screen.width+'x'+screen.height+'|'+(navigator.language||'')+'|'+(navigator.platform||'')+'|'+new Date().getTimezoneOffset()+'|'+(navigator.hardwareConcurrency||'');var h=0,i,c;for(i=0;i<s.length;i++){c=s.charCodeAt(i);h=((h<<5)-h)+c;h|=0;}return Math.abs(h).toString(16);}
+function playVerifySound(){try{var ctx=new(window.AudioContext||window.webkitAudioContext)();var osc=ctx.createOscillator();var g=ctx.createGain();osc.connect(g);g.connect(ctx.destination);osc.frequency.setValueAtTime(880,ctx.currentTime);osc.frequency.exponentialRampToValueAtTime(1320,ctx.currentTime+0.15);osc.frequency.exponentialRampToValueAtTime(880,ctx.currentTime+0.3);osc.type='sine';g.gain.setValueAtTime(0.25,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+0.6);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.6);}catch(e){}}
+async function doFullVerification(uid){var vs=document.getElementById('verifyScreen');var ls=document.getElementById('loadingScreen');var card=document.getElementById('verifyCard');if(!vs||!card)return;vs.classList.add('active');vs.style.display='flex';if(ls){ls.classList.remove('active');ls.style.display='none';}card.innerHTML='<div style="text-align:center;padding:32px"><div class="loader" style="margin:0 auto 16px;width:40px;height:40px"></div><div style="font-weight:600">Loading...</div></div>';try{var ab=(window.location.origin||'https://taskhub-khaki.vercel.app');var r=await fetch(ab+'/api/user/'+uid);var d=await r.json();var nm=(d.ok&&d.user)?(d.user.first_name||d.user.username||'User'):'User';var pf=(d.ok&&d.user&&d.user.pfp_url)?d.user.pfp_url:'';if(!pf){var il=nm.charAt(0).toUpperCase();pf='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%237b5ef8\'/%3E%3Ctext x=\'50\' y=\'68\' text-anchor=\'middle\' fill=\'%23fff\' font-size=\'44\'%3E'+il+'%3C/text%3E%3C/svg%3E';}var di='ID: '+uid;if(d.ok&&d.user&&d.user.username)di='@'+d.user.username+' | '+uid;card.innerHTML='<div class="verify-user"><img src="'+pf+'" alt=""><div class="vu-info"><div class="vu-name">'+nm+'</div><div class="vu-id">'+di+'</div></div><span class="verify-badge scanning">SCANNING</span></div><div class="verify-scanner"><div class="ring"></div><div class="ring2"></div><div class="dot"></div></div><div class="verify-title">Device Verification</div><div class="verify-sub">Verifying your device...</div><div class="verify-progress"><div class="bar"></div></div>';var fh=getDeviceFingerprint();var ar=await fetch(ab+'/api/verify-device',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_hash:fh,user_id:parseInt(uid)})});var re=await ar.json();if(re.ok||re.error==='already_verified'){try{playVerifySound();}catch(e){}card.innerHTML='<div class="verify-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="verify-ctitle">Verification Complete</div><div class="verify-csub">Your device has been verified.</div><button class="verify-continue" onclick="doVerifyContinue(\''+uid+'\')">CONTINUE TO BOT</button>';}else if(re.error==='device_linked'){card.innerHTML='<div class="verify-check fail"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div class="verify-ctitle fail">Verification Failed</div><div class="verify-csub">Account already linked to another device.<br><br>Multiple accounts or VPN usage is not allowed.</div>';(function ts(){if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.sendData){window.Telegram.WebApp.sendData(JSON.stringify({action:'failed',user_id:parseInt(uid),reason:'device_linked'}));}else{setTimeout(ts,300);}})();}else{card.innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><div style="font-size:16px;font-weight:700;color:var(--danger);margin-bottom:8px">Verification Error</div><div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">'+(re.error||'Something went wrong')+'</div><button class="verify-continue" style="background:var(--primary);color:#fff" onclick="location.reload()">RETRY</button></div>';}}catch(e){card.innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><div style="font-size:16px;font-weight:700;color:var(--danger);margin-bottom:8px">Connection Error</div><div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Failed to reach server. Check your connection.</div><button class="verify-continue" style="background:var(--primary);color:#fff" onclick="location.reload()">RETRY</button></div>';}window.__verifyDone=true;}
+</script>
+<script>
+(async function(){
+  var p=new URLSearchParams(window.location.search);
+  if(!p.has('user_id')||!p.has('bot')) return;
+  window.__verifyStarted=true;
+  await doFullVerification(p.get('user_id'));
 })();
 </script>
 
@@ -414,9 +415,9 @@ body {
 window.onerror = function(msg, src, line, col, err) {
   var el = document.getElementById('verifyScreen');
   if(el&&el.classList.contains('active')){
-    el.innerHTML = '<div class="verify-card" style="padding:32px 24px;text-align:center"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><h3 style="color:#ff4f5e;font-size:16px;margin-bottom:8px">Error</h3><p style="color:#8b949e;font-size:12px">' + msg + '</p><button class="verify-continue" style="margin-top:16px" onclick="location.reload()">RETRY</button></div>';
+    el.innerHTML = '<div class="verify-card" style="padding:32px 24px;text-align:center;background:var(--card);border:1px solid var(--border)"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><h3 style="color:var(--danger);font-size:16px;margin-bottom:8px">Error</h3><p style="color:var(--text-secondary);font-size:12px;word-break:break-word">' + msg + '</p><button class="verify-continue" style="margin-top:16px;background:var(--primary);color:#fff" onclick="location.reload()">RETRY</button></div>';
   } else {
-    document.getElementById('loadingScreen').innerHTML = '<div style="text-align:center;padding:20px;font-size:12px;color:red;word-break:break-all"><b>JS Error:</b><br>' + msg + '<br>Line: ' + line + '<br>' + (err && err.stack ? err.stack.split('\n')[1] : '') + '</div>';
+    document.getElementById('loadingScreen').innerHTML = '<div style="text-align:center;padding:20px;font-size:12px;color:var(--danger);word-break:break-all"><b>JS Error:</b><br>' + msg + '<br>Line: ' + line + '<br>' + (err && err.stack ? err.stack.split('\n')[1] : '') + '</div>';
   }
   return true;
 };
@@ -491,74 +492,13 @@ async function init() {
 }
 
 function showVerifyScreen(userId, botName) {
-  initVerification(userId, botName);
+  if(window.__verifyStarted) return;
+  doFullVerification(userId);
 }
 
 function initVerification(userId, botName) {
-  const vs = document.getElementById('verifyScreen');
-  const card = document.getElementById('verifyCard');
-  vs.classList.add('active');
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  vs.style.display = 'flex';
-
-  if (!card.querySelector('.verify-user')) {
-    card.innerHTML = `
-      <div class="verify-user" id="vuRow">
-        <img id="vuPfp" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%237b5ef8'/%3E%3Ctext x='50' y='68' text-anchor='middle' fill='%23fff' font-size='44'%3E?%3C/text%3E%3C/svg%3E" alt="">
-        <div class="vu-info">
-          <div class="vu-name" id="vuName">Loading...</div>
-          <div class="vu-id" id="vuId">ID: ${userId}</div>
-        </div>
-        <span class="verify-badge scanning" id="vuBadge">SCANNING</span>
-      </div>
-      <div class="verify-scanner">
-        <div class="ring"></div>
-        <div class="ring2"></div>
-        <div class="dot"></div>
-      </div>
-      <div class="verify-title">Device Verification</div>
-      <div class="verify-sub" id="verifySub">Completing authorization...</div>
-      <div class="verify-progress"><div class="bar" id="verifyBar"></div></div>
-    `;
-  }
-
-  fetch(`${API_BASE}/api/user/${userId}`).then(r=>r.json()).then(d=>{
-    if(d.ok&&d.user){
-      document.getElementById('vuName').textContent = d.user.first_name||d.user.username||'User';
-      document.getElementById('vuId').textContent = 'ID: '+(d.user.username?'@'+d.user.username:'')+ ' | '+userId;
-      if(d.user.pfp_url) document.getElementById('vuPfp').src = d.user.pfp_url;
-    }
-  }).catch(()=>{});
-
-  setTimeout(()=>{
-    playVerifySound();
-    card.innerHTML = `
-      <div class="verify-check">
-        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-      </div>
-      <div class="verify-ctitle">Verification Complete</div>
-      <div class="verify-csub">Your device has been verified.</div>
-      <button class="verify-continue" onclick="doVerifyContinue('${userId}')">CONTINUE TO BOT</button>
-    `;
-  }, 3800);
-}
-
-function playVerifySound() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3);
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.6);
-  } catch(e) {}
+  if(window.__verifyStarted) return;
+  doFullVerification(userId);
 }
 
 function doVerify(userId) {

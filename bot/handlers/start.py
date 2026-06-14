@@ -259,23 +259,58 @@ async def web_app_verified_handler(update: Update, context: ContextTypes.DEFAULT
         payload = json.loads(data.data)
     except (json.JSONDecodeError, TypeError):
         return
-    if payload.get("action") != "verified":
-        return
 
     repository = Repository(await get_db())
-    await repository.update_user_fields(update.effective_user.id, device_verified=True)
+    action = payload.get("action")
 
-    verify_msg_id = context.user_data.pop("verify_msg_id", None)
-    if verify_msg_id:
-        try:
-            await context.bot.delete_message(
-                chat_id=update.effective_user.id,
-                message_id=verify_msg_id
+    if action == "verified":
+        await repository.update_user_fields(update.effective_user.id, device_verified=True)
+
+        verify_msg_id = context.user_data.pop("verify_msg_id", None)
+        if verify_msg_id:
+            try:
+                await context.bot.delete_message(
+                    chat_id=update.effective_user.id,
+                    message_id=verify_msg_id
+                )
+            except Exception:
+                pass
+
+        await send_congrats(update, context, repository)
+
+    elif action == "failed":
+        warning_text = (
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "⚠️ <b>Security Alert</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Your device could not be verified.\n\n"
+            "Multiple accounts or VPN usage is not allowed. "
+            "Each user is only allowed one account.\n\n"
+            "If you believe this is an error, please contact support."
+        )
+        verify_msg_id = context.user_data.pop("verify_msg_id", None)
+        if verify_msg_id:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=update.effective_user.id,
+                    message_id=verify_msg_id,
+                    text=warning_text,
+                    parse_mode="HTML"
+                )
+            except Exception:
+                await edit_or_reply(
+                    update=update,
+                    context=context,
+                    text=warning_text,
+                    parse_mode="HTML"
+                )
+        else:
+            await edit_or_reply(
+                update=update,
+                context=context,
+                text=warning_text,
+                parse_mode="HTML"
             )
-        except Exception:
-            pass
-
-    await send_congrats(update, context, repository)
 
 
 def register_handlers(application) -> None:
