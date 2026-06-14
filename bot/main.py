@@ -54,15 +54,25 @@ async def global_error_handler(update: object, context: object) -> None:
 ptb_app.add_error_handler(global_error_handler)
 
 # ─── Maintenance Mode ─────────────────────────────────────────────────────
-MAINTENANCE_USER_ID = 6913614771
-# Only this user can use the bot; everyone else gets a maintenance message.
+# Toggle ON/OFF from admin panel setting "maintenance_mode".
+# When ON → ALL users are blocked with maintenance message.
+# When OFF → normal operation (middleware passes through).
 
 async def maintenance_middleware(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Block non-whitelisted users with a maintenance message."""
+    """Block all users when maintenance_mode is ON."""
     if not update.effective_user:
         return
-    if update.effective_user.id == MAINTENANCE_USER_ID:
-        return  # Allow this user through
+
+    from bot.database import get_db, Repository
+    try:
+        db = await get_db()
+        repo = Repository(db)
+        maintenance_on = await repo.get_setting("maintenance_mode", False)
+    except Exception:
+        return  # If DB fails, allow through (don't break the bot)
+
+    if not maintenance_on:
+        return  # Maintenance OFF — allow all
 
     text = (
         "━━━━━━━━━━━━━━━━━━━━━━\n"

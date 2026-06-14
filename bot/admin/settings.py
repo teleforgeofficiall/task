@@ -27,6 +27,7 @@ async def admin_settings_menu_handler(update: Update, context: ContextTypes.DEFA
 
     repository = Repository(await get_db())
     refer_paused = await repository.get_setting("refer_paused", False)
+    maintenance_on = await repository.get_setting("maintenance_mode", False)
     min_w = await repository.get_setting("min_withdraw", 10.0)
     max_w = await repository.get_setting("max_withdraw", 10000.0)
     bonus_val = await repository.get_setting("daily_bonus", 0.5)
@@ -45,7 +46,7 @@ async def admin_settings_menu_handler(update: Update, context: ContextTypes.DEFA
     try:
         await query.edit_message_text(
             text=text,
-            reply_markup=settings_menu(refer_paused=refer_paused),
+            reply_markup=settings_menu(refer_paused=refer_paused, maintenance_on=maintenance_on),
             parse_mode="HTML"
         )
     except BadRequest as e:
@@ -69,6 +70,23 @@ async def admin_settings_toggle_refer(update: Update, context: ContextTypes.DEFA
     await query.answer(f"Referral program is now {status}!")
 
     # Refresh
+    await admin_settings_menu_handler(update, context)
+
+
+async def admin_settings_toggle_maintenance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Toggle maintenance mode ON/OFF."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    repository = Repository(await get_db())
+    current = await repository.get_setting("maintenance_mode", False)
+    new_val = not current
+    await repository.update_setting("maintenance_mode", new_val)
+
+    status = "ON" if new_val else "OFF"
+    await query.answer(f"Maintenance mode is now {status}!")
+
     await admin_settings_menu_handler(update, context)
 
 
@@ -223,6 +241,7 @@ def register_handlers(application) -> None:
     """Register settings admin handlers."""
     application.add_handler(CallbackQueryHandler(admin_settings_menu_handler, pattern="^admin:settings_menu$"))
     application.add_handler(CallbackQueryHandler(admin_settings_toggle_refer, pattern="^admin:set_toggle_refer$"))
+    application.add_handler(CallbackQueryHandler(admin_settings_toggle_maintenance, pattern="^admin:set_toggle_maintenance$"))
     application.add_handler(CallbackQueryHandler(admin_messages_menu_handler, pattern="^admin:set_messages$"))
     application.add_handler(CallbackQueryHandler(admin_msg_edit_start, pattern="^admin:msg_edit:[a-z_]+$"))
     application.add_handler(CallbackQueryHandler(admin_reset_data_start, pattern="^admin:reset_data$"))

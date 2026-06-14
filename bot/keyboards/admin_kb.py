@@ -270,11 +270,15 @@ def broadcast_cancel_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
-def settings_menu(require_contact: bool = True, refer_paused: bool = False) -> InlineKeyboardMarkup:
+def settings_menu(require_contact: bool = True, refer_paused: bool = False, maintenance_on: bool = False) -> InlineKeyboardMarkup:
     """General settings dashboard."""
     referral_toggle = "🔴 Referrals Paused" if refer_paused else "🟢 Referrals Active"
+    maintenance_toggle = "🔧 Maintenance ON" if maintenance_on else "🔧 Maintenance OFF"
     
     keyboard = [
+        [
+            InlineKeyboardButton(maintenance_toggle, callback_data="admin:set_toggle_maintenance"),
+        ],
         [
             InlineKeyboardButton(referral_toggle, callback_data="admin:set_toggle_refer"),
         ],
