@@ -376,6 +376,19 @@ let NAV_ITEMS = [];
 TG?.ready();
 TG?.expand();
 
+// DIAGNOSTIC: test API directly
+(async function() {
+  try {
+    const r = await fetch(API_BASE + '/api/health');
+    const d = await r.json();
+    const el = document.getElementById('loadingStatus');
+    if (el) el.textContent = 'API: ' + d.status;
+  } catch(e) {
+    const el = document.getElementById('loadingStatus');
+    if (el) el.textContent = 'API FAIL: ' + e.message;
+  }
+})();
+
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
 
 async function api(path, opts = {}) {
