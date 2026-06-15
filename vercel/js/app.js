@@ -104,16 +104,18 @@ async function checkChannels() {
 }
 
 async function claimWelcomeBonus() {
+  const btn = document.querySelector('#bonusScreen .btn-success');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Claiming...'; }
   const data = await api('/api/app/claim-bonus', {
     method: 'POST',
     body: JSON.stringify({ user_id: USER.id, type: 'welcome' })
   });
   if (data.ok) {
     toast('🎁 Welcome bonus claimed! ₹' + data.amount);
-    setTimeout(() => init(), 1000);
   } else {
     toast(data.error || 'Failed to claim');
   }
+  setTimeout(() => init(), 1000);
 }
 
 function enterApp(data) {
