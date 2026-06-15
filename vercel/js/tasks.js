@@ -267,13 +267,29 @@ async function loadAdvertise() {
     api('/api/app/promoted?' + new URLSearchParams({ user_id: USER.id }).toString())
   ]);
 
-  const adGoal = earnData.ad_goal || { current: 0, target: 20, reward: 1, reset_in: '—', completed: false };
+  const adGoal = earnData.ad_goal || { current: 0, target: 20, reward: 1, reset_in: '24h', completed: false, no_ads: true };
+  const hasAds = earnData.has_ads || false;
   const ads = earnData.ads || [];
   const pct = Math.min(100, (adGoal.current / adGoal.target) * 100);
   const items = promoData.items || [];
   const isCompleted = adGoal.completed;
 
-  const adsHtml = ads.length > 0 ? ads.map(a => `
+  const perAd = adGoal.target > 0 ? (adGoal.reward / adGoal.target).toFixed(2) : '0.05';
+
+  let goalBody = '';
+  if (isCompleted) {
+    goalBody = `<div style="text-align:center;padding:16px;font-size:14px;font-weight:700;color:#00e5a0">✅ Target complete! Come back in ${adGoal.reset_in}</div>
+    <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px">Resets at midnight</div>`;
+  } else if (!hasAds) {
+    goalBody = `<div style="text-align:center;padding:16px;font-size:14px;font-weight:700;color:rgba(255,255,255,0.6)">No ads found</div>`;
+  } else {
+    goalBody = `<div style="text-align:center;margin-bottom:12px;font-size:12px;color:rgba(255,255,255,0.5)">
+      Watch ${adGoal.target} ads at ₹${perAd} each to earn ₹${adGoal.reward}
+    </div>
+    <button class="btn-watch-ad" onclick="watchAd('goal')">▶ WATCH AD TO EARN</button>`;
+  }
+
+  const adsHtml = hasAds ? ads.map(a => `
     <div class="ad-card">
       <div class="ad-icon" style="background:linear-gradient(135deg,${a.color1||'#ff6b6b'},${a.color2||'#ee5a24'})">${a.icon||'📺'}</div>
       <div class="ad-info">
@@ -283,8 +299,6 @@ async function loadAdvertise() {
       <button class="btn btn-sm btn-primary" onclick="watchAd(${a.id})">▶ Watch</button>
     </div>
   `).join('') : '';
-
-  const perAd = adGoal.target > 0 ? (adGoal.reward / adGoal.target).toFixed(2) : '0.05';
 
   el.innerHTML = `
     <div class="adgoal-card">
@@ -310,13 +324,7 @@ async function loadAdvertise() {
           </div>
         </div>
       </div>
-      ${isCompleted
-        ? '<div style="text-align:center;padding:16px;font-size:14px;font-weight:700;color:#00e5a0">✅ Today\'s target complete! Check your balance.</div>'
-        : `<div style="text-align:center;margin-bottom:12px;font-size:12px;color:rgba(255,255,255,0.5)">
-            Watch ${adGoal.target} ads at ₹${perAd} each to earn ₹${adGoal.reward}
-          </div>
-          <button class="btn-watch-ad" onclick="watchAd('goal')">▶ WATCH AD TO EARN</button>`
-      }
+      ${goalBody}
     </div>
     ${adsHtml ? `<h3 class="section-title" style="margin-top:16px">📺 Available Ads</h3>${adsHtml}` : ''}
     ${items.length > 0 ? `

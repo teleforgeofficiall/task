@@ -763,35 +763,41 @@ async def app_spin(request: Request):
 async def app_earn(user_id: int):
     """Get earn/ads page data."""
     import json
-    from datetime import date
+    from datetime import date, datetime, timedelta
     from bot.database import get_session, Repository
     async with get_session() as session:
         repo = Repository(session)
         ads = await repo.get_setting("ad_campaigns", [])
-        ad_goal_raw = await repo.get_setting(f"ad_goal:{user_id}", "{}")
         ad_goal_target = int(await repo.get_setting("ad_goal_target", 20))
         ad_goal_reward = float(await repo.get_setting("ad_goal_reward", 1))
-        try:
-            goal_data = json.loads(ad_goal_raw) if isinstance(ad_goal_raw, str) else {}
-        except (json.JSONDecodeError, TypeError):
+        goal_data = await repo.get_setting(f"ad_goal:{user_id}", {})
+        if not isinstance(goal_data, dict):
             goal_data = {}
+        today = str(date.today())
         goal_date = goal_data.get("date", "")
         goal_count = int(goal_data.get("count", 0))
-        today = str(date.today())
         if goal_date != today:
             goal_count = 0
             goal_data = {"date": today, "count": 0}
             await repo.update_setting(f"ad_goal:{user_id}", json.dumps(goal_data))
         capped = min(goal_count, ad_goal_target)
+        now = datetime.now()
+        reset_at = datetime.strptime(today, "%Y-%m-%d") + timedelta(days=1)
+        reset_seconds = int((reset_at - now).total_seconds())
+        reset_hrs = max(0, reset_seconds // 3600)
+        reset_min = max(0, (reset_seconds % 3600) // 60)
+        reset_str = f"{reset_hrs}h {reset_min}m" if reset_hrs > 0 else f"{reset_min}m"
         return {
             "ok": True,
             "ads": ads if isinstance(ads, list) else [],
+            "has_ads": len(ads) > 0,
             "ad_goal": {
                 "current": capped,
                 "target": ad_goal_target,
                 "reward": ad_goal_reward,
-                "reset_in": "24h",
+                "reset_in": reset_str,
                 "completed": goal_count >= ad_goal_target,
+                "no_ads": len(ads) == 0,
             }
         }
 
@@ -800,7 +806,7 @@ async def app_earn(user_id: int):
 async def app_watch_ad(request: Request):
     """Watch an ad and earn."""
     import json
-    from datetime import date
+    from datetime import date, datetime, timedelta
     from bot.database import get_session, Repository
     try:
         data = await request.json()
@@ -813,20 +819,28 @@ async def app_watch_ad(request: Request):
         repo = Repository(session)
         ad_goal_target = int(await repo.get_setting("ad_goal_target", 20))
         ad_goal_reward = float(await repo.get_setting("ad_goal_reward", 1))
-        ad_goal_raw = await repo.get_setting(f"ad_goal:{user_id}", "{}")
-        try:
-            goal_data = json.loads(ad_goal_raw) if isinstance(ad_goal_raw, str) else {}
-        except (json.JSONDecodeError, TypeError):
+        goal_data = await repo.get_setting(f"ad_goal:{user_id}", {})
+        if not isinstance(goal_data, dict):
             goal_data = {}
+        today = str(date.today())
         goal_date = goal_data.get("date", "")
         goal_count = int(goal_data.get("count", 0))
-        today = str(date.today())
         if goal_date != today:
             goal_count = 0
             goal_data = {"date": today, "count": 0}
         if goal_count >= ad_goal_target:
             user = await repo.get_user(user_id)
-            return {"ok": True, "amount": 0, "balance": float(user.balance or 0), "completed": True}
+            now = datetime.now()
+            reset_at = datetime.strptime(today, "%Y-%m-%d") + timedelta(days=1)
+            reset_seconds = int((reset_at - now).total_seconds())
+            reset_hrs = max(0, reset_seconds // 3600)
+            reset_min = max(0, (reset_seconds % 3600) // 60)
+            reset_str = f"{reset_hrs}h {reset_min}m" if reset_hrs > 0 else f"{reset_min}m"
+            return {"ok": True, "amount": 0, "balance": float(user.balance or 0),
+                    "completed": True, "message": f"Target complete! Come back in {reset_str}"}
+        ads = await repo.get_setting("ad_campaigns", [])
+        if not isinstance(ads, list) or len(ads) == 0:
+            return {"ok": False, "error": "No ads available"}
         per_ad = round(ad_goal_reward / ad_goal_target, 4) if ad_goal_target > 0 else 0.05
         await repo.credit_balance(user_id, per_ad, "ad_watch", "Watched ad")
         goal_count += 1
