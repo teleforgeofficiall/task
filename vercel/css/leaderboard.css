@@ -34,9 +34,9 @@
 }
 
 .podium-crown {
-  position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
-  font-size: 28px; filter: drop-shadow(0 2px 8px rgba(255, 215, 0, 0.5));
-  animation: crownGlow 2s ease-in-out infinite;
+  position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+  font-size: 32px; filter: drop-shadow(0 2px 8px rgba(255, 215, 0, 0.5));
+  animation: crownFloat 2s ease-in-out infinite, crownGlow 2s ease-in-out infinite;
 }
 
 .podium-pfp {
