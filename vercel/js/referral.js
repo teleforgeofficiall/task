@@ -14,7 +14,7 @@ async function loadReferral() {
 
   // Extract bot username from initData or use fallback
   BOT_USERNAME = refData.bot_username || TG?.initDataUnsafe?.bot_username || 'taskhubpocketbot';
-  const referralLink = `https://t.me/${BOT_USERNAME}?startapp=${USER.id}`;
+  const referralLink = `https://t.me/${BOT_USERNAME}?start=${USER.id}`;
 
   el.innerHTML = `
     <!-- Hero Card with Link -->
@@ -132,8 +132,7 @@ function copyReferralLink(link) {
 }
 
 function shareReferralLink(link) {
-  const text = `🚀 Join me on TaskHub and start earning! Complete tasks and get rewards.\n\n${link}`;
-  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('🚀 Join me on TaskHub and start earning! Complete tasks and get rewards.')}`;
   if (TG?.openTelegramLink) {
     TG.openTelegramLink(shareUrl);
   } else if (TG?.openLink) {

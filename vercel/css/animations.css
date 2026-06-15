@@ -34,13 +34,13 @@
 /* Crown Float */
 @keyframes crownFloat {
   0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(-6px); }
+  50% { transform: translateX(-50%) translateY(-5px); }
 }
 
 /* Crown Glow */
 @keyframes crownGlow {
-  0%, 100% { filter: drop-shadow(0 2px 8px rgba(255, 215, 0, 0.5)); }
-  50% { filter: drop-shadow(0 2px 16px rgba(255, 215, 0, 0.8)); }
+  0%, 100% { filter: drop-shadow(0 2px 8px rgba(255, 215, 0, 0.4)); }
+  50% { filter: drop-shadow(0 2px 14px rgba(255, 215, 0, 0.7)); }
 }
 
 /* Counter - counting animation */
