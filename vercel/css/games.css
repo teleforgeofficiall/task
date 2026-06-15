@@ -1,0 +1,61 @@
+.game-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+
+.game-card {
+  background: var(--card); border-radius: var(--radius); padding: 28px 16px;
+  text-align: center; border: 1px solid var(--border); cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.game-card:active { transform: scale(0.96); }
+
+.game-card .game-icon { font-size: 40px; margin-bottom: 10px; }
+.game-card h4 { font-size: 14px; font-weight: 700; }
+.game-card p { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+
+.game-card.coming-soon { position: relative; }
+.game-card.coming-soon::after {
+  content: 'Coming Soon'; position: absolute; top: 8px; right: 8px;
+  padding: 2px 8px; border-radius: 6px; font-size: 9px; font-weight: 700;
+  background: var(--warning-gradient); color: #1a1a2e;
+}
+
+.admin-menu { display: flex; flex-direction: column; gap: 8px; }
+
+.admin-item {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  background: var(--card); border-radius: var(--radius-sm); border: 1px solid var(--border);
+  cursor: pointer; transition: transform 0.15s;
+}
+.admin-item:active { transform: scale(0.98); }
+.admin-item svg { width: 24px; height: 24px; stroke: var(--primary); flex-shrink: 0; }
+.admin-item .info { flex: 1; }
+.admin-item .info h4 { font-size: 14px; }
+.admin-item .info p { font-size: 11px; color: var(--text-secondary); }
+.admin-item .arrow { color: var(--text-secondary); font-size: 18px; }
+
+.ad-card {
+  background: var(--card); border-radius: var(--radius); padding: 14px 16px;
+  border: 1px solid var(--border); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 12px;
+}
+.ad-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; flex-shrink: 0; }
+.ad-info { flex: 1; }
+.ad-info h4 { font-size: 13px; }
+.ad-info p { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+.adgoal-card {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border-radius: 16px; padding: 24px 20px; margin-bottom: 16px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.adgoal-card .btn-watch-ad {
+  display: block; width: 100%; padding: 14px; border-radius: 12px; font-size: 14px; font-weight: 800;
+  background: var(--success-gradient); color: #071a11; border: none; cursor: pointer;
+  transition: transform 0.15s; text-align: center;
+}
+.adgoal-card .btn-watch-ad:active { transform: scale(0.98); }
+
+.adgoal-card .goal-header {
+  display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 16px;
+}

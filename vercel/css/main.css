@@ -1,0 +1,115 @@
+:root {
+  --primary: #7b5ef8;
+  --primary-light: #a78bfa;
+  --primary-dark: #5a3fd6;
+  --primary-gradient: linear-gradient(135deg, #7b5ef8, #a78bfa);
+  --bg: #f8f7ff;
+  --card: #ffffff;
+  --text: #1a1a2e;
+  --text-secondary: #6b6b80;
+  --border: rgba(123,94,248,0.12);
+  --shadow: 0 2px 16px rgba(123,94,248,0.08);
+  --shadow-lg: 0 8px 32px rgba(123,94,248,0.12);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-xs: 6px;
+  --success: #00e5a0;
+  --success-gradient: linear-gradient(135deg, #00e5a0, #34d399);
+  --warning: #ffab00;
+  --warning-gradient: linear-gradient(135deg, #ffab00, #fbbf24);
+  --danger: #ff4f5e;
+  --danger-gradient: linear-gradient(135deg, #ff4f5e, #f87171);
+  --gold: #FFD700;
+  --silver: #C0C0C0;
+  --bronze: #CD7F32;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.hidden { display: none !important; }
+
+.screen { display: none; }
+.screen.active { display: flex; flex-direction: column; min-height: 100vh; }
+
+#loadingScreen { align-items: center; justify-content: center; gap: 20px; min-height: 100vh; }
+
+.loader { width: 48px; height: 48px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+.loader-sm { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
+
+.app-header {
+  background: var(--card); padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50;
+}
+
+.app-header .pfp {
+  width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover;
+}
+
+.app-header .user-info { flex: 1; min-width: 0; }
+.app-header .user-name { font-weight: 700; font-size: 15px; }
+.app-header .user-id { font-size: 11px; color: var(--text-secondary); }
+
+.app-header .balance-badge {
+  background: var(--success-gradient); color: #071a11; padding: 6px 14px; border-radius: 20px;
+  font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap;
+  transition: transform 0.15s;
+}
+.app-header .balance-badge:active { transform: scale(0.95); }
+
+.bottom-nav {
+  display: flex; background: var(--card); border-top: 1px solid var(--border);
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  padding: 4px 0 env(safe-area-inset-bottom, 4px) 0;
+  box-shadow: 0 -2px 20px rgba(123,94,248,0.06);
+}
+
+.nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 0 4px 0; cursor: pointer; color: var(--text-secondary); font-size: 10px; font-weight: 600;
+  transition: color 0.2s; border: none; background: none;
+}
+
+.nav-item.active { color: var(--primary); }
+.nav-item svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.nav-item.active svg { fill: rgba(123,94,248,0.2); stroke: var(--primary); }
+
+.tab-content { flex: 1; padding: 12px 16px 80px 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.tab-page { display: none; }
+.tab-page.active { display: block; }
+
+.contact-float {
+  position: fixed; bottom: 76px; right: 16px; z-index: 101;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--danger-gradient); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(255,79,94,0.4); border: none; cursor: pointer;
+  transition: transform 0.2s;
+}
+.contact-float:active { transform: scale(0.92); }
+.contact-float svg { width: 24px; height: 24px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.section-title {
+  font-size: 15px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+}
+
+.card {
+  background: var(--card); border-radius: var(--radius); padding: 16px;
+  box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 12px;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg) 25%, #e8e8f0 50%, var(--bg) 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}

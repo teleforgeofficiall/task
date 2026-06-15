@@ -356,7 +356,7 @@ async def verify_page(user_id: int):
         bot_username = bot_user.username or ""
     except Exception:
         pass
-    html_path = os.path.join(os.path.dirname(__file__), "..", "vercel", "verify.html")
+    html_path = os.path.join(os.path.dirname(__file__), "..", "vercel", "device.html")
     if os.path.exists(html_path):
         with open(html_path, "r", encoding="utf-8") as f:
             html = f.read()
@@ -394,7 +394,7 @@ async def webhook_handler(request: Request):
 # =========================================================================
 
 @app.get("/api/app/init")
-async def app_init(user_id: int, init_data: str = "", hash: str = ""):
+async def app_init(user_id: int, init_data: str = "", hash: str = "", startapp: str = ""):
     """Initialize the Mini App - check user, channels, welcome bonus."""
     try:
         from bot.database import get_session, Repository
@@ -403,7 +403,17 @@ async def app_init(user_id: int, init_data: str = "", hash: str = ""):
             repo = Repository(session)
             user = await repo.get_user(user_id)
             if not user:
-                user = await repo.create_user(user_id, "User", "User")
+                referrer_id = None
+                if startapp:
+                    try:
+                        sid = int(startapp)
+                        if sid != user_id:
+                            ref_user = await repo.get_user(sid)
+                            if ref_user and not ref_user.banned:
+                                referrer_id = sid
+                    except (ValueError, TypeError):
+                        pass
+                user = await repo.create_user(user_id, "User", "User", referrer=referrer_id)
             from bot.admin.panel import get_admin_ids
             is_admin = user_id in get_admin_ids()
             channels_unjoined = []
@@ -417,9 +427,7 @@ async def app_init(user_id: int, init_data: str = "", hash: str = ""):
                     logger.warning("app_init: get_unjoined_channels timed out for user %s", user_id)
                 except Exception as exc:
                     logger.warning("app_init: get_unjoined_channels failed: %s", exc)
-            welcome_bonus_claimed = user.referral_earnings is not None or (await repo.get_setting("welcome_bonus_claimed_" + str(user_id), False))
-            if not welcome_bonus_claimed:
-                welcome_bonus_claimed = False
+            welcome_bonus_claimed = await repo.get_setting("welcome_bonus_claimed_" + str(user_id), False)
             try:
                 pfp = ""
                 if not settings.DISABLE_TELEGRAM_NETWORK:
@@ -438,7 +446,7 @@ async def app_init(user_id: int, init_data: str = "", hash: str = ""):
                     "username": user.username,
                     "balance": float(user.balance or 0),
                     "pfp": pfp,
-                    "upi": "",
+                    "upi": (user.user_meta or {}).get("upi", ""),
                     "banned": user.banned,
                 },
                 "is_admin": is_admin,
@@ -521,6 +529,9 @@ async def app_claim_bonus(request: Request):
         if not user:
             return {"ok": False, "error": "User not found"}
         amount = float(await repo.get_setting("welcome_bonus_amount", 5))
+        already_claimed = await repo.get_setting("welcome_bonus_claimed_" + str(user_id), False)
+        if already_claimed:
+            return {"ok": False, "error": "Welcome bonus already claimed"}
         await repo.credit_balance(user_id, amount, "welcome_bonus", "Welcome bonus via Mini App")
         await repo.update_setting("welcome_bonus_claimed_" + str(user_id), True)
         return {"ok": True, "amount": amount}
@@ -880,9 +891,11 @@ async def app_refer(user_id: int):
                     "name": r.first_name or "User",
                     "date": str(getattr(r, 'joined_at', ''))[:10] if hasattr(r, 'joined_at') else "",
                     "earned": earned,
+                    "active": is_active,
                 })
         return {
             "ok": True,
+            "bot_username": settings.BOT_USERNAME,
             "referral": {
                 "code": code,
                 "total": len(referral_ids),

@@ -1,0 +1,120 @@
+/* Spin */
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Pulse */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* Fade In Up - page enter */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Fade In */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Scale In - podium items */
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Shimmer - skeleton loading */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Crown Glow */
+@keyframes crownGlow {
+  0%, 100% { filter: drop-shadow(0 2px 8px rgba(255, 215, 0, 0.5)); }
+  50% { filter: drop-shadow(0 2px 16px rgba(255, 215, 0, 0.8)); }
+}
+
+/* Counter - counting animation */
+@keyframes countUp {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
+}
+
+/* Dot Pulse - loading dots */
+@keyframes dotPulse {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* Slide In Right - for notifications */
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Gradient Shift - for hero cards */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Animation utility classes */
+.animate-in {
+  animation: fadeInUp 0.4s ease forwards;
+  opacity: 0;
+}
+
+.animate-in.scale { animation: scaleIn 0.4s ease forwards; }
+
+.animate-in.fade { animation: fadeIn 0.3s ease forwards; }
+
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.10s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.20s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.30s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.40s; }
+.stagger-9 { animation-delay: 0.45s; }
+.stagger-10 { animation-delay: 0.50s; }
+
+/* Tab page transition */
+.tab-page { animation: fadeIn 0.2s ease; }
+
+/* Modal animation */
+.modal-overlay.open .modal-content {
+  transform: translateY(0);
+}
+
+/* Hover effects */
+.hover-lift {
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.hover-lift:active {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(123,94,248,0.12);
+}
+
+/* Button press */
+.btn-press:active {
+  transform: scale(0.95) !important;
+}
+
+/* Premium promoted scroll animation */
+@keyframes promotedScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
