@@ -430,11 +430,17 @@ async def app_init(user_id: int, init_data: str = "", hash: str = "", startapp: 
             welcome_bonus_claimed = await repo.get_setting("welcome_bonus_claimed_" + str(user_id), False)
             try:
                 pfp = ""
-                if not settings.DISABLE_TELEGRAM_NETWORK:
+                meta = dict(user.user_meta or {})
+                cached_pfp = meta.get("pfp_url", "")
+                if cached_pfp:
+                    pfp = cached_pfp
+                elif not settings.DISABLE_TELEGRAM_NETWORK:
                     photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
                     if photos.photos:
                         f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
                         pfp = f.file_path or ""
+                        meta["pfp_url"] = pfp
+                        await repo.update_user_fields(user_id, user_meta=meta)
             except Exception as exc:
                 logger.debug("app_init: profile photo failed: %s", exc)
                 pfp = ""
@@ -446,7 +452,7 @@ async def app_init(user_id: int, init_data: str = "", hash: str = "", startapp: 
                     "username": user.username,
                     "balance": float(user.balance or 0),
                     "pfp": pfp,
-                    "upi": (user.user_meta or {}).get("upi", ""),
+                    "upi": meta.get("upi", ""),
                     "banned": user.banned,
                 },
                 "is_admin": is_admin,
@@ -756,21 +762,36 @@ async def app_spin(request: Request):
 @app.get("/api/app/earn")
 async def app_earn(user_id: int):
     """Get earn/ads page data."""
+    import json
+    from datetime import date
     from bot.database import get_session, Repository
     async with get_session() as session:
         repo = Repository(session)
         ads = await repo.get_setting("ad_campaigns", [])
-        ad_goal_current = await repo.get_setting(f"ad_goal:{user_id}", 0)
-        ad_goal_target = await repo.get_setting("ad_goal_target", 20)
-        ad_goal_reward = await repo.get_setting("ad_goal_reward", 1)
+        ad_goal_raw = await repo.get_setting(f"ad_goal:{user_id}", "{}")
+        ad_goal_target = int(await repo.get_setting("ad_goal_target", 20))
+        ad_goal_reward = float(await repo.get_setting("ad_goal_reward", 1))
+        try:
+            goal_data = json.loads(ad_goal_raw) if isinstance(ad_goal_raw, str) else {}
+        except (json.JSONDecodeError, TypeError):
+            goal_data = {}
+        goal_date = goal_data.get("date", "")
+        goal_count = int(goal_data.get("count", 0))
+        today = str(date.today())
+        if goal_date != today:
+            goal_count = 0
+            goal_data = {"date": today, "count": 0}
+            await repo.update_setting(f"ad_goal:{user_id}", json.dumps(goal_data))
+        capped = min(goal_count, ad_goal_target)
         return {
             "ok": True,
             "ads": ads if isinstance(ads, list) else [],
             "ad_goal": {
-                "current": int(ad_goal_current),
-                "target": int(ad_goal_target),
-                "reward": float(ad_goal_reward),
+                "current": capped,
+                "target": ad_goal_target,
+                "reward": ad_goal_reward,
                 "reset_in": "24h",
+                "completed": goal_count >= ad_goal_target,
             }
         }
 
@@ -778,7 +799,8 @@ async def app_earn(user_id: int):
 @app.post("/api/app/ad/watch")
 async def app_watch_ad(request: Request):
     """Watch an ad and earn."""
-    import random
+    import json
+    from datetime import date
     from bot.database import get_session, Repository
     try:
         data = await request.json()
@@ -789,12 +811,30 @@ async def app_watch_ad(request: Request):
         return {"ok": False, "error": "Missing user_id"}
     async with get_session() as session:
         repo = Repository(session)
-        amount = round(random.uniform(0.05, 0.15), 2)
-        await repo.credit_balance(user_id, amount, "ad_watch", "Watched ad")
-        ad_count = int(await repo.get_setting(f"ad_goal:{user_id}", 0))
-        await repo.update_setting(f"ad_goal:{user_id}", ad_count + 1)
+        ad_goal_target = int(await repo.get_setting("ad_goal_target", 20))
+        ad_goal_reward = float(await repo.get_setting("ad_goal_reward", 1))
+        ad_goal_raw = await repo.get_setting(f"ad_goal:{user_id}", "{}")
+        try:
+            goal_data = json.loads(ad_goal_raw) if isinstance(ad_goal_raw, str) else {}
+        except (json.JSONDecodeError, TypeError):
+            goal_data = {}
+        goal_date = goal_data.get("date", "")
+        goal_count = int(goal_data.get("count", 0))
+        today = str(date.today())
+        if goal_date != today:
+            goal_count = 0
+            goal_data = {"date": today, "count": 0}
+        if goal_count >= ad_goal_target:
+            user = await repo.get_user(user_id)
+            return {"ok": True, "amount": 0, "balance": float(user.balance or 0), "completed": True}
+        per_ad = round(ad_goal_reward / ad_goal_target, 4) if ad_goal_target > 0 else 0.05
+        await repo.credit_balance(user_id, per_ad, "ad_watch", "Watched ad")
+        goal_count += 1
+        goal_data["count"] = goal_count
+        await repo.update_setting(f"ad_goal:{user_id}", json.dumps(goal_data))
         user = await repo.get_user(user_id)
-        return {"ok": True, "amount": amount, "balance": float(user.balance or 0)}
+        completed = goal_count >= ad_goal_target
+        return {"ok": True, "amount": per_ad, "balance": float(user.balance or 0), "completed": completed}
 
 
 @app.get("/api/app/wallet")
@@ -936,10 +976,23 @@ async def app_leaderboard(user_id: int = 0):
         top_users = result.scalars().all()
         leaders = []
         for i, u in enumerate(top_users):
+            meta = dict(u.user_meta or {})
+            pfp = meta.get("pfp_url", "")
+            if not pfp and not settings.DISABLE_TELEGRAM_NETWORK:
+                try:
+                    photos = await ptb_app.bot.get_user_profile_photos(u.user_id, limit=1)
+                    if photos.photos:
+                        f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
+                        pfp = f.file_path or ""
+                        meta["pfp_url"] = pfp
+                        await repo.update_user_fields(u.user_id, user_meta=meta)
+                except Exception:
+                    pass
             leaders.append({
                 "rank": i + 1,
                 "name": u.first_name or "User",
                 "user_id": u.user_id,
+                "pfp": pfp,
                 "earnings": float(u.lifetime_earnings or 0),
                 "tasks": len(u.completed_tasks or []),
             })

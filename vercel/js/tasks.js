@@ -267,10 +267,11 @@ async function loadAdvertise() {
     api('/api/app/promoted?' + new URLSearchParams({ user_id: USER.id }).toString())
   ]);
 
-  const adGoal = earnData.ad_goal || { current: 0, target: 20, reward: 1, reset_in: '—' };
+  const adGoal = earnData.ad_goal || { current: 0, target: 20, reward: 1, reset_in: '—', completed: false };
   const ads = earnData.ads || [];
   const pct = Math.min(100, (adGoal.current / adGoal.target) * 100);
   const items = promoData.items || [];
+  const isCompleted = adGoal.completed;
 
   const adsHtml = ads.length > 0 ? ads.map(a => `
     <div class="ad-card">
@@ -282,6 +283,8 @@ async function loadAdvertise() {
       <button class="btn btn-sm btn-primary" onclick="watchAd(${a.id})">▶ Watch</button>
     </div>
   `).join('') : '';
+
+  const perAd = adGoal.target > 0 ? (adGoal.reward / adGoal.target).toFixed(2) : '0.05';
 
   el.innerHTML = `
     <div class="adgoal-card">
@@ -302,15 +305,18 @@ async function loadAdvertise() {
           <h3 style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">Daily Ad Goal</h3>
           <div style="font-size:12px;color:rgba(255,255,255,0.6);line-height:1.8">
             <div>🎯 Target: <b style="color:#fff">${adGoal.target} Ads</b></div>
-            <div>💰 Reward: <b style="color:#00e5a0">₹${adGoal.reward}</b></div>
+            <div>💰 Per Ad: <b style="color:#00e5a0">₹${perAd}</b></div>
             <div>🔄 Resets: <b style="color:#fff">${adGoal.reset_in}</b></div>
           </div>
         </div>
       </div>
-      <div style="text-align:center;margin-bottom:12px;font-size:12px;color:rgba(255,255,255,0.5)">
-        Complete your daily target to unlock a reward of ₹${adGoal.reward}
-      </div>
-      <button class="btn-watch-ad" onclick="watchAd('goal')">▶ WATCH AD TO EARN</button>
+      ${isCompleted
+        ? '<div style="text-align:center;padding:16px;font-size:14px;font-weight:700;color:#00e5a0">✅ Today\'s target complete! Check your balance.</div>'
+        : `<div style="text-align:center;margin-bottom:12px;font-size:12px;color:rgba(255,255,255,0.5)">
+            Watch ${adGoal.target} ads at ₹${perAd} each to earn ₹${adGoal.reward}
+          </div>
+          <button class="btn-watch-ad" onclick="watchAd('goal')">▶ WATCH AD TO EARN</button>`
+      }
     </div>
     ${adsHtml ? `<h3 class="section-title" style="margin-top:16px">📺 Available Ads</h3>${adsHtml}` : ''}
     ${items.length > 0 ? `

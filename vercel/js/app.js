@@ -23,6 +23,8 @@ async function init() {
   if (_initDone) return;
   _initDone = true;
   clearTimeout(_init5sTimer);
+  const MIN_LOAD = 1500;
+  const loadStart = Date.now();
 
   setLoadingStatus('Checking Telegram...');
   const initData = TG?.initData || '';
@@ -53,18 +55,22 @@ async function init() {
   }
   CURRENT_USER = data.user;
 
+  const elapsed = Date.now() - loadStart;
+  const remaining = Math.max(0, MIN_LOAD - elapsed);
+
   if (data.channels_unjoined?.length > 0) {
-    switchScreen('channelScreen');
-    renderChannels(data.channels_unjoined);
+    setTimeout(() => { switchScreen('channelScreen'); renderChannels(data.channels_unjoined); }, remaining);
     return;
   }
   if (!data.welcome_bonus_claimed) {
-    switchScreen('bonusScreen');
-    document.getElementById('bonusAmount').textContent = '₹' + (data.welcome_bonus || 5);
+    setTimeout(() => {
+      switchScreen('bonusScreen');
+      document.getElementById('bonusAmount').textContent = '₹' + (data.welcome_bonus || 5);
+    }, remaining);
     return;
   }
 
-  enterApp(data);
+  setTimeout(() => enterApp(data), remaining);
 }
 
 function renderChannels(channels) {

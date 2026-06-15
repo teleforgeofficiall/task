@@ -133,12 +133,12 @@ function copyReferralLink(link) {
 
 function shareReferralLink(link) {
   const text = `🚀 Join me on TaskHub and start earning! Complete tasks and get rewards.\n\n${link}`;
-  if (TG?.shareMessage) {
-    TG.shareMessage(link);
-  } else if (navigator.share) {
-    navigator.share({ title: 'TaskHub', text: text }).catch(() => {});
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+  if (TG?.openTelegramLink) {
+    TG.openTelegramLink(shareUrl);
+  } else if (TG?.openLink) {
+    TG.openLink(shareUrl);
   } else {
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Join me on TaskHub! 🚀')}`;
-    openLink(shareUrl);
+    window.open(shareUrl, '_blank');
   }
 }
