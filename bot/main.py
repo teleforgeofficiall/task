@@ -8,6 +8,7 @@ import asyncio
 import logging
 import os
 import sys
+import time
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -23,6 +24,7 @@ from bot.middlewares.rate_limiter import setup_rate_limiter
 from bot.handlers import register_user_handlers
 from bot.admin import register_admin_handlers
 from bot.callbacks.router import register_router
+from bot.api.admin import router as admin_router
 
 from config.settings import settings
 
@@ -187,6 +189,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(admin_router)
 
 @app.get("/")
 async def root():
@@ -869,7 +873,7 @@ async def app_wallet(user_id: int):
                 "withdrawn": float(meta.get("total_withdrawn", 0)),
                 "upi": meta.get("upi", ""),
             },
-            "transactions": [],
+            "transactions": await repo.get_user_transactions(user_id, 20),
             "min_withdraw": float(await repo.get_setting("min_withdraw_upi", 10)),
         }
 
@@ -970,6 +974,50 @@ async def app_promoted(user_id: int = 0):
         if not isinstance(items, list):
             items = []
         return {"ok": True, "items": items}
+
+
+@app.post("/api/app/promote/submit")
+async def app_submit_promotion(request: Request):
+    """User submits a promotion request."""
+    from bot.database import get_session, Repository
+    import random
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON"}
+    user_id = data.get("user_id")
+    sub_type = data.get("type", "promoted")  # task, promoted, ad
+    title = data.get("title", "")
+    description = data.get("description", "")
+    details = data.get("details", "")
+    url = data.get("url", "")
+    image = data.get("image", "")
+    reward = float(data.get("reward", 0))
+    if not user_id:
+        return {"ok": False, "error": "Missing user_id"}
+    if not title:
+        return {"ok": False, "error": "Title is required"}
+    async with get_session() as session:
+        repo = Repository(session)
+        submissions = await repo.get_setting("pending_user_submissions", [])
+        if not isinstance(submissions, list):
+            submissions = []
+        new_id = max([s.get("id", 0) for s in submissions], default=0) + 1
+        submissions.append({
+            "id": new_id,
+            "user_id": user_id,
+            "type": sub_type,
+            "title": title,
+            "description": description,
+            "details": details,
+            "url": url,
+            "image": image,
+            "reward": reward,
+            "status": "pending",
+            "date": datetime.now().isoformat(),
+        })
+        await repo.update_setting("pending_user_submissions", submissions)
+    return {"ok": True, "message": "Submission received! Admin will review it."}
 
 
 @app.get("/api/app/leaderboard")

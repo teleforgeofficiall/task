@@ -31,6 +31,21 @@ class TaskModel(BaseModel):
     channel_url: Optional[str] = None
     channel_title: Optional[str] = None
 
+    # MiniApp UI fields
+    video_url: Optional[str] = None
+    steps: Optional[list] = None
+    color: Optional[str] = None
+    color2: Optional[str] = None
+    duration_text: Optional[str] = None
+    is_multi_reward: bool = False
+    offer_url: Optional[str] = None
+
+    # Affiliate/payout fields
+    referrer_reward: float = 0.0
+    completer_reward: float = 0.0
+    max_completers: int = 0
+    current_completers: int = 0
+
     class Config:
         populate_by_name = True
 

@@ -11,7 +11,7 @@ from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, fil
 
 from bot.database import get_db, Repository
 from bot.admin.panel import is_admin
-from bot.keyboards.admin_kb import custom_cmds_keyboard
+from bot.keyboards.admin_kb import custom_cmds_keyboard, back_to_admin
 from bot.utils import escape_html
 
 logger = logging.getLogger(__name__)

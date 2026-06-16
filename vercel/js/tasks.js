@@ -251,10 +251,41 @@ async function loadPromoted() {
 }
 
 function showPromoteModal() {
-  showModal('Promote Here',
-    '<div style="text-align:center;padding:16px">' +
-    '<p style="color:var(--text-secondary);margin-bottom:12px">Want to promote your brand or service? Contact our admin to get featured.</p>' +
-    '<button class="btn btn-primary" onclick="closeModal()">Contact Admin</button></div>');
+  showModal('✨ Promote Here', `
+    <div class="admin-form">
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Submit your promotion request. Admin will review and approve it.</p>
+      <div class="form-group"><label>Type</label>
+        <select id="promo_type">
+          <option value="promoted">Promoted Item</option>
+          <option value="task">Task/Offer</option>
+          <option value="ad">Ad Campaign</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Title</label><input id="promo_title" placeholder="Your brand/task name"></div>
+      <div class="form-group"><label>Description</label><textarea id="promo_desc" placeholder="Describe what you want to promote"></textarea></div>
+      <div class="form-group"><label>Details / Steps</label><textarea id="promo_details" placeholder="Task steps, requirements, or additional info"></textarea></div>
+      <div class="form-group"><label>Image URL (optional)</label><input id="promo_image" placeholder="https://..."></div>
+      <div class="form-group"><label>Link URL (optional)</label><input id="promo_url" placeholder="https://..."></div>
+      <div class="form-group"><label>Reward (₹, optional for task)</label><input id="promo_reward" type="number" step="0.01" value="0"></div>
+      <button class="btn btn-primary btn-block" onclick="submitPromotion()">📤 Submit for Review</button>
+    </div>
+  `);
+}
+
+async function submitPromotion() {
+  const body = {
+    type: document.getElementById('promo_type')?.value || 'promoted',
+    title: document.getElementById('promo_title')?.value || '',
+    description: document.getElementById('promo_desc')?.value || '',
+    details: document.getElementById('promo_details')?.value || '',
+    image: document.getElementById('promo_image')?.value || '',
+    url: document.getElementById('promo_url')?.value || '',
+    reward: parseFloat(document.getElementById('promo_reward')?.value || 0),
+  };
+  if (!body.title) { toast('Title is required'); return; }
+  const data = await api('/api/app/promote/submit', { method: 'POST', body: JSON.stringify({ ...body, user_id: USER.id }) });
+  if (data.ok) { toast('✅ Submitted! Admin will review.'); closeModal(); }
+  else { toast(data.error || 'Failed to submit'); }
 }
 
 async function loadAdvertise() {
@@ -343,6 +374,10 @@ async function loadAdvertise() {
         </div>
       `).join('')}
     ` : ''}
+    <div style="text-align:center;padding:16px;margin-top:8px">
+      <button class="btn btn-outline btn-block" onclick="showPromoteModal()">📢 Promote Your Brand Here</button>
+      <p style="font-size:10px;color:var(--text-secondary);margin-top:6px">Submit your ad, task, or promotion for admin review</p>
+    </div>
   `;
 }
 
