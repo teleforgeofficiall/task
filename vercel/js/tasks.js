@@ -250,10 +250,24 @@ async function loadPromoted() {
   `).join('');
 }
 
+let promoStep = 1;
+let promoData = {};
+
 function showPromoteModal() {
-  showModal('✨ Promote Here', `
+  promoStep = 1;
+  promoData = {};
+  renderPromoStep1();
+}
+
+function renderPromoStep1() {
+  promoStep = 1;
+  showModal('✨ Promote Here — Step 1/3', `
     <div class="admin-form">
-      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Submit your promotion request. Admin will review and approve it.</p>
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
+        <div style="width:32px;height:4px;border-radius:2px;background:var(--primary)"></div>
+        <div style="width:32px;height:4px;border-radius:2px;background:var(--border)"></div>
+        <div style="width:32px;height:4px;border-radius:2px;background:var(--border)"></div>
+      </div>
       <div class="form-group"><label>Type</label>
         <select id="promo_type">
           <option value="promoted">Promoted Item</option>
@@ -262,30 +276,175 @@ function showPromoteModal() {
         </select>
       </div>
       <div class="form-group"><label>Title</label><input id="promo_title" placeholder="Your brand/task name"></div>
-      <div class="form-group"><label>Description</label><textarea id="promo_desc" placeholder="Describe what you want to promote"></textarea></div>
-      <div class="form-group"><label>Details / Steps</label><textarea id="promo_details" placeholder="Task steps, requirements, or additional info"></textarea></div>
-      <div class="form-group"><label>Image URL (optional)</label><input id="promo_image" placeholder="https://..."></div>
-      <div class="form-group"><label>Link URL (optional)</label><input id="promo_url" placeholder="https://..."></div>
-      <div class="form-group"><label>Reward (₹, optional for task)</label><input id="promo_reward" type="number" step="0.01" value="0"></div>
-      <button class="btn btn-primary btn-block" onclick="submitPromotion()">📤 Submit for Review</button>
+      <div class="form-group"><label>Description</label><textarea id="promo_desc" placeholder="Describe what you want to promote" rows="3"></textarea></div>
+      <div class="form-group"><label>Accent Color</label><input id="promo_color" type="color" value="#7b5ef8" style="height:44px;padding:4px"></div>
+      <div class="form-group"><label>Image URL</label><input id="promo_image" placeholder="https://..."></div>
+      <div class="form-group"><label>Link URL</label><input id="promo_url" placeholder="https://..."></div>
+      <div class="form-group"><label>Details / Steps</label><textarea id="promo_details" placeholder="Task steps, requirements, or additional info" rows="3"></textarea></div>
+      <div id="promoPreview" style="margin:12px 0;padding:14px;border-radius:10px;border:1px solid var(--border);text-align:center">
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">👁 Preview</div>
+        <div id="promoPreviewCard" style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--card);border-radius:8px;border:1px solid var(--border)">
+          <div id="promoPreviewIcon" style="width:40px;height:40px;border-radius:8px;background:#7b5ef8;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0">📢</div>
+          <div style="flex:1;text-align:left">
+            <div id="promoPreviewTitle" style="font-weight:600;font-size:13px">Your Title</div>
+            <div id="promoPreviewDesc" style="font-size:11px;color:var(--text-secondary);margin-top:2px">Description will appear here</div>
+          </div>
+          <button class="btn btn-sm btn-primary" style="flex-shrink:0;font-size:10px">OPEN</button>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="promoGoStep2()">Next → Payment</button>
     </div>
   `);
+  document.getElementById('promo_title')?.addEventListener('input', updatePromoPreview);
+  document.getElementById('promo_desc')?.addEventListener('input', updatePromoPreview);
+  document.getElementById('promo_color')?.addEventListener('input', updatePromoPreview);
+  document.getElementById('promo_image')?.addEventListener('input', updatePromoPreview);
 }
 
-async function submitPromotion() {
-  const body = {
+function updatePromoPreview() {
+  const title = document.getElementById('promo_title')?.value || 'Your Title';
+  const desc = document.getElementById('promo_desc')?.value || 'Description will appear here';
+  const color = document.getElementById('promo_color')?.value || '#7b5ef8';
+  const img = document.getElementById('promo_image')?.value || '';
+  const titleEl = document.getElementById('promoPreviewTitle');
+  const descEl = document.getElementById('promoPreviewDesc');
+  const iconEl = document.getElementById('promoPreviewIcon');
+  if (titleEl) titleEl.textContent = title.slice(0, 30);
+  if (descEl) descEl.textContent = desc.slice(0, 50);
+  if (iconEl) {
+    iconEl.style.background = color;
+    if (img && img.length > 5) iconEl.innerHTML = '<img src="' + img + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px">';
+    else iconEl.textContent = '📢';
+  }
+}
+
+async function promoGoStep2() {
+  const title = document.getElementById('promo_title')?.value?.trim();
+  if (!title) { toast('Title is required'); return; }
+  promoData = {
     type: document.getElementById('promo_type')?.value || 'promoted',
-    title: document.getElementById('promo_title')?.value || '',
+    title,
     description: document.getElementById('promo_desc')?.value || '',
     details: document.getElementById('promo_details')?.value || '',
     image: document.getElementById('promo_image')?.value || '',
     url: document.getElementById('promo_url')?.value || '',
-    reward: parseFloat(document.getElementById('promo_reward')?.value || 0),
+    color: document.getElementById('promo_color')?.value || '#7b5ef8',
+    reward: 0,
   };
-  if (!body.title) { toast('Title is required'); return; }
+
+  const cfg = await api('/api/app/promo-config?' + new URLSearchParams({ user_id: USER.id }).toString());
+  const price = cfg?.promo_price || 50;
+  const qr = cfg?.promo_qr_image || '';
+
+  promoStep = 2;
+  const modalBody = document.getElementById('modalBody');
+  if (!modalBody) return;
+  modalBody.innerHTML = `
+    <div class="admin-form">
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
+        <div style="width:32px;height:4px;border-radius:2px;background:var(--success)"></div>
+        <div style="width:32px;height:4px;border-radius:2px;background:var(--primary)"></div>
+        <div style="width:32px;height:4px;border-radius:2px;background:var(--border)"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg);border-radius:10px;margin-bottom:12px;border:1px solid var(--border)">
+        <div style="width:40px;height:40px;border-radius:8px;background:${promoData.color};display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0">📢</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:13px">${promoData.title.slice(0,30)}</div>
+          <div style="font-size:11px;color:var(--text-secondary)">${promoData.description.slice(0,50) || 'No description'}</div>
+        </div>
+      </div>
+      <div style="text-align:center;padding:16px;background:linear-gradient(135deg,#7b5ef8,#a78bfa);border-radius:12px;color:#fff;margin-bottom:12px">
+        <div style="font-size:12px;opacity:0.8">Promotion Price</div>
+        <div style="font-size:36px;font-weight:800">₹${price}</div>
+        <div style="font-size:11px;opacity:0.7">One-time payment for featured promotion</div>
+      </div>
+      ${qr ? `<div style="text-align:center;margin-bottom:12px">
+        <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">📱 Scan QR to pay</p>
+        <img src="${qr}" style="width:180px;height:180px;border-radius:10px;border:1px solid var(--border);object-fit:contain">
+      </div>` : `<div style="text-align:center;padding:16px;background:var(--bg);border-radius:10px;margin-bottom:12px;border:1px solid var(--border)">
+        <div style="font-size:32px;margin-bottom:4px">📱</div>
+        <div style="font-size:12px;color:var(--text-secondary)">QR code not set yet. Contact admin to pay.</div>
+      </div>`}
+      <p style="font-size:11px;color:var(--text-secondary);text-align:center">Need help? <a href="https://t.me/X_kanha_007" target="_blank" style="color:var(--primary)">Contact Admin</a></p>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-outline" style="flex:1" onclick="renderPromoStep1()">← Back</button>
+        <button class="btn btn-success" style="flex:1" onclick="promoGoStep3()">✅ I've Paid</button>
+      </div>
+    </div>
+  `;
+}
+
+function promoGoStep3() {
+  promoStep = 3;
+  const modalBody = document.getElementById('modalBody');
+  if (!modalBody) return;
+  modalBody.innerHTML = `
+    <div class="admin-form">
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
+        <div style="width:32px;height:4px;border-radius:2px;background:var(--success)"></div>
+        <div style="width:32px;height:4px;border-radius:2px;background:var(--success)"></div>
+        <div style="width:32px;height:4px;border-radius:2px;background:var(--primary)"></div>
+      </div>
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:40px;margin-bottom:8px">📸</div>
+        <h3 style="font-size:16px;font-weight:700">Submit Payment Proof</h3>
+        <p style="font-size:12px;color:var(--text-secondary)">Upload your payment screenshot and transaction ID</p>
+      </div>
+      <div class="form-group"><label>Screenshot / Payment Proof</label>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="promoProofImage" placeholder="Paste image URL or payment link" style="flex:1">
+          <button class="btn btn-sm btn-outline" onclick="document.getElementById('promoProofFile').click()" style="white-space:nowrap">📁 Upload</button>
+        </div>
+        <input type="file" id="promoProofFile" accept="image/*" style="display:none" onchange="handlePromoProofFile(event)">
+        <div id="promoProofFileName" style="font-size:11px;color:var(--text-secondary);margin-top:4px"></div>
+      </div>
+      <div class="form-group"><label>Transaction ID / Reference</label><input class="form-input" id="promoTxnId" placeholder="Enter transaction ID from payment app"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-outline" style="flex:1" onclick="promoGoStep2()">← Back</button>
+        <button class="btn btn-primary btn-block" style="flex:1" onclick="submitPromotion()">📤 Submit</button>
+      </div>
+    </div>
+  `;
+}
+
+function handlePromoProofFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const el = document.getElementById('promoProofFileName');
+  if (el) el.textContent = '📎 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const input = document.getElementById('promoProofImage');
+    if (input) input.value = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitPromotion() {
+  const proofImage = document.getElementById('promoProofImage')?.value || '';
+  const txnId = document.getElementById('promoTxnId')?.value || '';
+  if (!proofImage && !txnId) { toast('Please provide payment screenshot or transaction ID'); return; }
+
+  const body = { ...promoData, payment_proof: proofImage, transaction_id: txnId };
   const data = await api('/api/app/promote/submit', { method: 'POST', body: JSON.stringify({ ...body, user_id: USER.id }) });
-  if (data.ok) { toast('✅ Submitted! Admin will review.'); closeModal(); }
-  else { toast(data.error || 'Failed to submit'); }
+  if (data.ok) {
+    showModal('✨ Submitted!', `
+      <div style="text-align:center;padding:20px">
+        <div style="font-size:48px;margin-bottom:12px">✅</div>
+        <h3 style="font-weight:700;margin-bottom:8px">Request Sent to Admin!</h3>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Your promotion request has been submitted. Admin will review it and once approved, your ad will appear in the Promoted section.</p>
+        <div style="padding:12px;background:var(--bg);border-radius:10px;border:1px solid var(--border);margin-bottom:16px">
+          <div style="font-size:11px;color:var(--text-secondary)">Need help? Contact admin directly:</div>
+          <a href="https://t.me/X_kanha_007" target="_blank" style="color:var(--primary);font-weight:600;font-size:14px;text-decoration:none">@X_kanha_007</a>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="closeModal()">Done</button>
+      </div>
+    `);
+    loadTasks();
+    loadPromoted();
+  } else {
+    toast(data.error || 'Failed to submit');
+  }
 }
 
 async function loadAdvertise() {

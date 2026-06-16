@@ -60,10 +60,12 @@ function showAdminLoading() {
 async function adminApi(path, method, body) {
   try {
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    if (body) opts.body = JSON.stringify({ ...body, user_id: TG_USER_ID });
-    else if (method === 'GET') path += (path.includes('?') ? '&' : '?') + 'user_id=' + TG_USER_ID;
+    if (body) opts.body = JSON.stringify({ ...body, user_id: USER.id });
+    else if (method === 'GET') path += (path.includes('?') ? '&' : '?') + 'user_id=' + USER.id;
     const res = await fetch('/api/admin' + path, opts);
-    return await res.json();
+    const text = await res.text();
+    try { return JSON.parse(text); }
+    catch(e) { return { ok: false, error: 'Invalid JSON: ' + text.slice(0,50) }; }
   } catch (e) {
     return { ok: false, error: e.message };
   }
@@ -467,19 +469,52 @@ async function adminSubmissions() {
   const list = document.getElementById('adminSubList');
   const pending = (data.submissions || []).filter(s => s.status === 'pending');
   if (!pending.length) { list.innerHTML = '<div class="empty-state">No pending submissions</div>'; return; }
-  list.innerHTML = pending.map(s => `
-    <div class="admin-list-item">
+  list.innerHTML = pending.map(s => {
+    const hasPayment = s.payment_proof || s.transaction_id;
+    return `
+    <div class="admin-list-item" onclick="adminViewSubmission(${s.id})" style="cursor:pointer">
       <div class="info">
         <div class="title">${s.title || 'Untitled'} <span class="badge badge-pending">${s.type}</span></div>
         <div class="subtitle">User: ${s.user_id} · ${s.date?.slice(0,10) || ''}${s.reward ? ' · ₹' + s.reward : ''}</div>
         ${s.description ? `<div class="subtitle" style="margin-top:4px;font-size:11px">${s.description.slice(0,100)}</div>` : ''}
+        ${hasPayment ? `<div class="subtitle" style="margin-top:4px;font-size:10px;color:var(--success)">💳 Payment proof attached</div>` : ''}
       </div>
       <div style="display:flex;gap:4px">
         <button class="btn btn-sm btn-success" onclick="event.stopPropagation();adminApproveSubmission(${s.id})">✅</button>
         <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();adminRejectSubmission(${s.id})">❌</button>
       </div>
     </div>
-  `).join('');
+  `}).join('');
+}
+
+function adminViewSubmission(sid) {
+  adminApi('/user-submissions', 'GET').then(data => {
+    const s = (data.submissions || []).find(x => x.id === sid);
+    if (!s) { toast('Submission not found'); return; }
+    const hasPayment = s.payment_proof || s.transaction_id;
+    showModal('Submission #' + sid, `
+      <div class="admin-form" style="text-align:left">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border-radius:8px;margin-bottom:12px">
+          <div style="width:40px;height:40px;border-radius:8px;background:${s.color || '#7b5ef8'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px">📢</div>
+          <div><div style="font-weight:600">${s.title}</div><div style="font-size:11px;color:var(--text-secondary)">${s.type} · ${s.date?.slice(0,10) || ''}</div></div>
+        </div>
+        <div class="form-group"><label>User ID</label><input value="${s.user_id}" readonly></div>
+        ${s.description ? '<div class="form-group"><label>Description</label><textarea readonly rows="3">' + s.description + '</textarea></div>' : ''}
+        ${s.details ? '<div class="form-group"><label>Details</label><textarea readonly rows="3">' + s.details + '</textarea></div>' : ''}
+        ${s.url ? '<div class="form-group"><label>Link</label><input value="' + s.url + '" readonly></div>' : ''}
+        ${s.image ? '<div class="form-group"><label>Image</label><img src="' + s.image + '" style="max-width:100%;max-height:150px;border-radius:6px"></div>' : ''}
+        ${s.reward ? '<div class="form-group"><label>Reward</label><input value="₹' + s.reward + '" readonly></div>' : ''}
+        ${hasPayment ? '<div style="margin:12px 0;padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)"><div style="font-weight:600;font-size:13px;margin-bottom:8px">💳 Payment Details</div>' : ''}
+        ${s.transaction_id ? '<div class="form-group"><label>Transaction ID</label><input value="' + s.transaction_id + '" readonly></div>' : ''}
+        ${s.payment_proof ? '<div class="form-group"><label>Payment Screenshot</label>' + (s.payment_proof.startsWith('data:') || s.payment_proof.startsWith('http') ? '<img src="' + s.payment_proof + '" style="max-width:100%;max-height:250px;border-radius:6px;border:1px solid var(--border)">' : '<input value="' + s.payment_proof + '" readonly>') + '</div>' : ''}
+        ${hasPayment ? '</div>' : ''}
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-success" style="flex:1" onclick="closeModal();adminApproveSubmission(${sid})">✅ Approve</button>
+          <button class="btn btn-danger" style="flex:1" onclick="closeModal();adminRejectSubmission(${sid})">❌ Reject</button>
+        </div>
+      </div>
+    `);
+  });
 }
 
 async function adminApproveSubmission(sid) {
@@ -520,6 +555,7 @@ async function adminSettings() {
     { key: 'referral_fixed_reward', label: 'Referral Fixed Reward (₹)', type: 'float' },
     { key: 'referral_min_reward', label: 'Referral Min Reward (₹)', type: 'float' },
     { key: 'referral_max_reward', label: 'Referral Max Reward (₹)', type: 'float' },
+    { key: 'promo_price', label: 'Promo Price (₹)', type: 'float' },
   ];
   list.innerHTML = settingsToShow.map(st => {
     const val = s[st.key];
@@ -533,6 +569,22 @@ async function adminSettings() {
       </div>
     `;
   }).join('');
+  list.innerHTML += `
+    <div class="setting-item" style="margin-top:12px;flex-direction:column;align-items:stretch;gap:8px">
+      <div class="label" style="font-size:14px">📱 Promo QR Code</div>
+      ${s.promo_qr_image ? `<img src="${s.promo_qr_image}" style="width:120px;height:120px;border-radius:8px;border:1px solid var(--border);object-fit:contain;margin:4px 0">` : '<div style="font-size:12px;color:var(--text-secondary);padding:8px 0">No QR code set</div>'}
+      <input id="promoQrInput" placeholder="Paste QR image URL" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px" value="${s.promo_qr_image || ''}">
+      <button class="btn btn-sm btn-primary" onclick="adminSavePromoQr()">Save QR Code</button>
+    </div>
+  `;
+}
+
+function adminSavePromoQr() {
+  const val = document.getElementById('promoQrInput')?.value || '';
+  adminApi('/promo-config', 'PUT', { promo_qr_image: val }).then(d => {
+    if (d.ok) { toast('QR code updated!'); adminSettings(); }
+    else { toast('Failed'); }
+  });
 }
 
 function adminEditSetting(key, label, type, currentVal) {

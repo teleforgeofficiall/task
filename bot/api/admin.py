@@ -464,7 +464,8 @@ async def admin_update_settings(request: Request):
                 await repo.update_setting(key, bool(value))
             elif key in ("welcome_bonus_amount", "min_withdraw_upi", "max_withdraw_upi",
                          "daily_withdraw_limit", "ad_goal_target", "ad_goal_reward",
-                         "referral_fixed_reward", "referral_min_reward", "referral_max_reward"):
+                         "referral_fixed_reward", "referral_min_reward", "referral_max_reward",
+                         "promo_price"):
                 await repo.update_setting(key, float(value))
             else:
                 await repo.update_setting(key, value)
@@ -624,12 +625,16 @@ async def admin_approve_submission(request: Request, sub_id: int):
                 if not isinstance(items, list):
                     items = []
                 new_id = max([i.get("id", 0) for i in items], default=0) + 1
+                _c = s.get("color", "#7b5ef8")
                 items.append({
                     "id": new_id,
                     "title": s.get("title", ""),
                     "description": s.get("description", ""),
                     "image": s.get("image", ""),
                     "url": s.get("url", ""),
+                    "color": _c,
+                    "color1": _c,
+                    "color2": _c,
                     "badge": "User Submission",
                     "active": True,
                 })
@@ -667,6 +672,31 @@ async def admin_reject_submission(request: Request, sub_id: int):
                 s["reviewed_by"] = admin_id
                 s["reject_reason"] = data.get("reason", "")
         await repo.update_setting("pending_user_submissions", submissions)
+    return {"ok": True}
+
+
+# ─── Promo Config (price + QR) ────────────────────────────────────────────
+
+@router.get("/promo-config")
+async def admin_promo_config(request: Request):
+    admin_id = await require_admin(request)
+    async with get_session() as session:
+        repo = Repository(session)
+        price = await repo.get_setting("promo_price", 50)
+        qr = await repo.get_setting("promo_qr_image", "")
+    return {"ok": True, "promo_price": float(price), "promo_qr_image": qr}
+
+
+@router.put("/promo-config")
+async def admin_update_promo_config(request: Request):
+    admin_id = await require_admin(request)
+    data = await request.json()
+    async with get_session() as session:
+        repo = Repository(session)
+        if "promo_price" in data:
+            await repo.update_setting("promo_price", float(data["promo_price"]))
+        if "promo_qr_image" in data:
+            await repo.update_setting("promo_qr_image", data["promo_qr_image"])
     return {"ok": True}
 
 

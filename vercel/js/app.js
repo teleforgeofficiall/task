@@ -4,14 +4,14 @@ let NAV_ITEMS = [];
 let _initDone = false;
 let _leaderboardInterval = null;
 
-TG?.ready();
-TG?.expand();
+try { TG?.ready(); } catch(e) {}
+try { TG?.expand(); } catch(e) {}
 
 let _init5sTimer = setTimeout(() => {
   if (document.getElementById('loadingScreen')?.classList.contains('active')) {
     showError('Taking longer than expected...', 'Will retry automatically. Check your connection.');
   }
-}, 5000);
+}, 10000);
 
 function switchScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -112,10 +112,18 @@ async function claimWelcomeBonus() {
   });
   if (data.ok) {
     toast('🎁 Welcome bonus claimed! ₹' + data.amount);
+    if (CURRENT_USER) CURRENT_USER.balance = (CURRENT_USER.balance || 0) + data.amount;
+    setTimeout(() => {
+      const params = new URLSearchParams({ user_id: USER.id, init_data: TG?.initData || '', hash: '' });
+      api('/api/app/init?' + params.toString()).then(d => {
+        if (d.ok) enterApp(d);
+        else init();
+      });
+    }, 300);
   } else {
     toast(data.error || 'Failed to claim');
+    if (btn) { btn.disabled = false; btn.textContent = '🎁 Claim Bonus'; }
   }
-  setTimeout(() => init(), 1000);
 }
 
 function enterApp(data) {
