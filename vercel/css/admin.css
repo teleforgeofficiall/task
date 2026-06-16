@@ -26,7 +26,7 @@
 .admin-list-item:active { transform: scale(0.98); }
 .admin-list-item .info { flex: 1; }
 .admin-list-item .info .title { font-size: 13px; font-weight: 600; }
-.admin-list-item .info .subtitle { font-size: 11px; color: var(--text-secondary); }
+.admin-list-item .info .subtitle { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .admin-list-item .badge { font-size: 10px; padding: 3px 8px; border-radius: 20px; font-weight: 600; }
 .badge-pending { background: #fff3cd; color: #856404; }
 .badge-approved { background: #d4edda; color: #155724; }

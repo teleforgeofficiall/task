@@ -1006,7 +1006,7 @@ async def app_submit_promotion(request: Request):
         image = data.get("image", "")
         color = data.get("color", "#7b5ef8")
         reward = float(data.get("reward", 0))
-        payment_proof = data.get("payment_proof", "")
+        payment_proof = (data.get("payment_proof", "") or "")[:500000]
         transaction_id = data.get("transaction_id", "")
         if not user_id:
             return {"ok": False, "error": "Missing user_id"}

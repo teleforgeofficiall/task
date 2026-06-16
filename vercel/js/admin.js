@@ -60,8 +60,11 @@ function showAdminLoading() {
 async function adminApi(path, method, body) {
   try {
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    if (body) opts.body = JSON.stringify({ ...body, user_id: USER.id });
-    else if (method === 'GET') path += (path.includes('?') ? '&' : '?') + 'user_id=' + USER.id;
+    if (body) {
+      opts.body = JSON.stringify({ ...body, user_id: USER.id });
+    } else {
+      path += (path.includes('?') ? '&' : '?') + 'user_id=' + USER.id;
+    }
     const res = await fetch('/api/admin' + path, opts);
     const text = await res.text();
     try { return JSON.parse(text); }
@@ -368,24 +371,49 @@ async function adminPromoted() {
     <div class="admin-list-item">
       <div class="info">
         <div class="title">${i.title || 'Untitled'} ${i.active === false ? '<span class="badge badge-rejected">INACTIVE</span>' : ''}</div>
-        <div class="subtitle">${i.description?.slice(0, 50) || ''}${i.url ? ' · ' + i.url : ''}</div>
+        <div class="subtitle" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">${i.description?.slice(0, 50) || ''}${i.url ? ' · ' + i.url : ''}</div>
       </div>
+      <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();adminEditPromoted(${i.id})">✏️</button>
       <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();adminDeletePromoted(${i.id})">🗑️</button>
     </div>
   `).join('');
 }
 
+function adminUpdatePromoPreview() {
+  const title = document.getElementById('f_p_title')?.value || 'Untitled';
+  const desc = document.getElementById('f_p_desc')?.value || '';
+  const color = document.getElementById('f_p_color')?.value || '#7b5ef8';
+  const img = document.getElementById('f_p_image')?.value || '';
+  const badge = document.getElementById('f_p_badge')?.value || 'AD';
+  const prEl = document.getElementById('promoPreview');
+  if (!prEl) return;
+  prEl.innerHTML = `
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">👁 Preview</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--card);border-radius:8px;border:1px solid var(--border)">
+      <div style="width:40px;height:40px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0">${img ? '<img src="' + img + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px">' : '📢'}</div>
+      <div style="flex:1;text-align:left;min-width:0">
+        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${title}</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${desc || 'No description'}</div>
+      </div>
+      <div style="display:inline-flex;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:${color};color:#fff;flex-shrink:0">${badge || 'AD'}</div>
+    </div>
+  `;
+}
+
 function adminAddPromoted() {
   showModal('Admin › Add Promoted', `
     <div class="admin-form">
-      <div class="form-group"><label>Title</label><input id="f_p_title"></div>
-      <div class="form-group"><label>Description</label><textarea id="f_p_desc"></textarea></div>
-      <div class="form-group"><label>Image URL</label><input id="f_p_image" placeholder="https://..."></div>
-      <div class="form-group"><label>Link URL</label><input id="f_p_url" placeholder="https://..."></div>
-      <div class="form-group"><label>Badge Text</label><input id="f_p_badge" placeholder="AD, PROMO, etc."></div>
+      <div class="form-group"><label>Title</label><input id="f_p_title" oninput="adminUpdatePromoPreview()"></div>
+      <div class="form-group"><label>Description</label><textarea id="f_p_desc" oninput="adminUpdatePromoPreview()" rows="3"></textarea></div>
+      <div class="form-group"><label>Accent Color</label><input id="f_p_color" type="color" value="#7b5ef8" oninput="adminUpdatePromoPreview()" style="height:44px;padding:4px"></div>
+      <div class="form-group"><label>Image URL</label><input id="f_p_image" placeholder="https://..." oninput="adminUpdatePromoPreview()"></div>
+      <div class="form-group"><label>Link URL</label><input id="f_p_url" placeholder="https://..." style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      <div class="form-group"><label>Badge Text</label><input id="f_p_badge" placeholder="AD, PROMO, etc." oninput="adminUpdatePromoPreview()"></div>
+      <div id="promoPreview"></div>
       <button class="btn btn-primary btn-block" onclick="adminSavePromoted()">Add</button>
     </div>
   `);
+  adminUpdatePromoPreview();
 }
 
 async function adminSavePromoted() {
@@ -395,16 +423,80 @@ async function adminSavePromoted() {
     image: document.getElementById('f_p_image')?.value || '',
     url: document.getElementById('f_p_url')?.value || '',
     badge: document.getElementById('f_p_badge')?.value || '',
+    color: document.getElementById('f_p_color')?.value || '#7b5ef8',
   };
   const data = await adminApi('/promoted', 'POST', body);
   if (data.ok) { toast('Promoted item added!'); closeModal(); adminPromoted(); }
   else { toast('Failed'); }
 }
 
+async function adminEditPromoted(id) {
+  const data = await adminApi('/promoted', 'GET');
+  const item = data.items?.find(i => i.id === id);
+  if (!item) { toast('Item not found'); return; }
+  const color = item.color || '#7b5ef8';
+  showModal('Admin › Edit Promoted #' + id, `
+    <div class="admin-form">
+      <div class="form-group"><label>Title</label><input id="f_p_title" value="${escHtml(item.title || '')}" oninput="adminEditPreview(${id})"></div>
+      <div class="form-group"><label>Description</label><textarea id="f_p_desc" oninput="adminEditPreview(${id})" rows="3">${escHtml(item.description || '')}</textarea></div>
+      <div class="form-group"><label>Accent Color</label><input id="f_p_color" type="color" value="${color}" oninput="adminEditPreview(${id})" style="height:44px;padding:4px"></div>
+      <div class="form-group"><label>Image URL</label><input id="f_p_image" value="${escHtml(item.image || '')}" placeholder="https://..." oninput="adminEditPreview(${id})"></div>
+      <div class="form-group"><label>Link URL</label><input id="f_p_url" value="${escHtml(item.url || '')}" placeholder="https://..." style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      <div class="form-group"><label>Badge Text</label><input id="f_p_badge" value="${escHtml(item.badge || '')}" placeholder="AD, PROMO, etc." oninput="adminEditPreview(${id})"></div>
+      <div id="promoPreview"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="flex:1" onclick="adminUpdatePromoted(${id})">💾 Save</button>
+        <button class="btn btn-danger" style="flex:1" onclick="adminDeletePromoted(${id})">🗑️ Delete</button>
+      </div>
+    </div>
+  `);
+  adminEditPreview(id);
+}
+
+function adminEditPreview(id) {
+  const title = document.getElementById('f_p_title')?.value || 'Untitled';
+  const desc = document.getElementById('f_p_desc')?.value || '';
+  const color = document.getElementById('f_p_color')?.value || '#7b5ef8';
+  const img = document.getElementById('f_p_image')?.value || '';
+  const badge = document.getElementById('f_p_badge')?.value || 'AD';
+  const prEl = document.getElementById('promoPreview');
+  if (!prEl) return;
+  prEl.innerHTML = `
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">👁 Preview</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--card);border-radius:8px;border:1px solid var(--border)">
+      <div style="width:40px;height:40px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0">${img ? '<img src="' + img + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px">' : '📢'}</div>
+      <div style="flex:1;text-align:left;min-width:0">
+        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${title}</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${desc || 'No description'}</div>
+      </div>
+      <div style="display:inline-flex;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:${color};color:#fff;flex-shrink:0">${badge || 'AD'}</div>
+    </div>
+  `;
+}
+
+async function adminUpdatePromoted(id) {
+  const body = {
+    title: document.getElementById('f_p_title')?.value || '',
+    description: document.getElementById('f_p_desc')?.value || '',
+    image: document.getElementById('f_p_image')?.value || '',
+    url: document.getElementById('f_p_url')?.value || '',
+    badge: document.getElementById('f_p_badge')?.value || '',
+    color: document.getElementById('f_p_color')?.value || '#7b5ef8',
+  };
+  const data = await adminApi('/promoted/' + id, 'PUT', body);
+  if (data.ok) { toast('Promoted item updated!'); closeModal(); adminPromoted(); }
+  else { toast('Failed to update'); }
+}
+
 async function adminDeletePromoted(id) {
   if (!confirm('Delete promoted item #' + id + '?')) return;
   const data = await adminApi('/promoted/' + id, 'DELETE');
   if (data.ok) { toast('Deleted'); adminPromoted(); }
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ─── Ads ──────────────────────────────────────────────────────────────────

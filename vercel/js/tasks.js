@@ -197,6 +197,27 @@ function handleProofFile(event) {
   if (!file) return;
   const el = document.getElementById('proofFileName');
   if (el) el.textContent = '📎 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+  if (file.size > 500 * 1024) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      const maxDim = 800;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = (h / w) * maxDim; w = maxDim; }
+        else { w = (w / h) * maxDim; h = maxDim; }
+      }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.7);
+      const input = document.getElementById('proofImage');
+      if (input) input.value = compressed;
+      if (el) el.textContent += ' (compressed)';
+    };
+    img.src = URL.createObjectURL(file);
+    return;
+  }
   const reader = new FileReader();
   reader.onload = function(e) {
     const input = document.getElementById('proofImage');
@@ -217,7 +238,8 @@ async function submitProof(taskId) {
 
   const data = await api('/api/app/task/' + taskId + '/submit', {
     method: 'POST',
-    body: JSON.stringify({ user_id: USER.id, proof_image, txn_id, upi })
+    body: JSON.stringify({ user_id: USER.id, proof_image, txn_id, upi }),
+    timeout: 60000
   });
 
   if (data.ok) {
@@ -412,6 +434,27 @@ function handlePromoProofFile(event) {
   if (!file) return;
   const el = document.getElementById('promoProofFileName');
   if (el) el.textContent = '📎 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+  if (file.size > 500 * 1024) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      const maxDim = 800;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = (h / w) * maxDim; w = maxDim; }
+        else { w = (w / h) * maxDim; h = maxDim; }
+      }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.7);
+      const input = document.getElementById('promoProofImage');
+      if (input) input.value = compressed;
+      if (el) el.textContent += ' (compressed)';
+    };
+    img.src = URL.createObjectURL(file);
+    return;
+  }
   const reader = new FileReader();
   reader.onload = function(e) {
     const input = document.getElementById('promoProofImage');
@@ -426,7 +469,7 @@ async function submitPromotion() {
   if (!proofImage && !txnId) { toast('Please provide payment screenshot or transaction ID'); return; }
 
   const body = { ...promoData, payment_proof: proofImage, transaction_id: txnId };
-  const data = await api('/api/app/promote/submit', { method: 'POST', body: JSON.stringify({ ...body, user_id: USER.id }) });
+  const data = await api('/api/app/promote/submit', { method: 'POST', body: JSON.stringify({ ...body, user_id: USER.id }), timeout: 60000 });
   if (data.ok) {
     showModal('✨ Submitted!', `
       <div style="text-align:center;padding:20px">
