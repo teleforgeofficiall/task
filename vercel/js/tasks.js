@@ -259,17 +259,49 @@ async function loadPromoted() {
   const items = data.items || [];
   if (items.length === 0) { el.innerHTML = ''; return; }
 
-  el.innerHTML = items.map(p => `
-    <div class="promoted-card" onclick="openLink('${p.url||'#'}')">
-      <div class="promo-icon" style="background:linear-gradient(135deg,${p.color1||'#7b5ef8'},${p.color2||'#5a3fd6'})">${p.icon||'📢'}</div>
-      <div class="promo-info">
-        <span class="badge">${p.badge||'⭐ Official Partner'}</span>
-        <h4>${p.title}</h4>
-        <p>${p.description||''}</p>
-      </div>
-      <button class="promo-open" onclick="event.stopPropagation();openLink('${p.url||'#'}')">OPEN</button>
-    </div>
-  `).join('');
+  function renderCard(p) {
+    return `
+      <div class="promoted-card" onclick="openLink('${p.url||'#'}')">
+        <div class="promo-icon" style="background:linear-gradient(135deg,${p.color1||'#7b5ef8'},${p.color2||'#5a3fd6'})">${p.icon||'📢'}</div>
+        <div class="promo-info">
+          <span class="badge">${p.badge||'⭐ Official Partner'}</span>
+          <h4>${p.title}</h4>
+          <p>${p.description||''}</p>
+        </div>
+        <button class="promo-open" onclick="event.stopPropagation();openLink('${p.url||'#'}')">OPEN</button>
+      </div>`;
+  }
+
+  el.innerHTML = items.map(renderCard).join('') + items.map(renderCard).join('');
+
+  el.classList.add('auto-scroll');
+  el.style.setProperty('--scroll-duration', Math.max(15, items.length * 6) + 's');
+
+  let pauseTimeout = null;
+  function pauseScroll() {
+    el.classList.add('paused');
+    if (pauseTimeout) clearTimeout(pauseTimeout);
+  }
+  function resumeScroll() {
+    if (pauseTimeout) clearTimeout(pauseTimeout);
+    pauseTimeout = setTimeout(function() {
+      el.classList.remove('paused');
+    }, 2000);
+  }
+  el.addEventListener('mouseenter', pauseScroll);
+  el.addEventListener('mouseleave', resumeScroll);
+  el.addEventListener('touchstart', pauseScroll, { passive: true });
+  el.addEventListener('touchend', resumeScroll, { passive: true });
+
+  // Reset scroll position on manual drag so animation doesn't jump
+  el.addEventListener('scroll', function() {
+    if (el.classList.contains('paused')) return;
+    el.classList.add('paused');
+    if (pauseTimeout) clearTimeout(pauseTimeout);
+    pauseTimeout = setTimeout(function() {
+      el.classList.remove('paused');
+    }, 2000);
+  }, { passive: true });
 }
 
 let promoStep = 1;

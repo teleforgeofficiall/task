@@ -106,8 +106,21 @@
 .promoted-section { margin-bottom: 14px; }
 .promoted-section .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 
-.promoted-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 6px 0; scroll-snap-type: x mandatory; }
+.promoted-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 6px 0; }
 .promoted-scroll::-webkit-scrollbar { display: none; }
+
+/* Auto-scroll animation */
+.promoted-scroll.auto-scroll {
+  animation: scrollLeft var(--scroll-duration, 30s) linear infinite;
+  scroll-snap-type: none;
+}
+.promoted-scroll.auto-scroll.paused {
+  animation-play-state: paused;
+}
+@keyframes scrollLeft {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
 
 .promoted-card {
   min-width: 260px; background: var(--card); border-radius: 14px; padding: 14px;
