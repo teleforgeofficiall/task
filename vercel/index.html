@@ -158,7 +158,45 @@ window.onerror = function(msg, src, line, col, err) {
   return true;
 };
 </script>
-<script>window.TG = window.TG || window.Telegram?.WebApp;</script>
+<script>
+(function() {
+  var tg = window.Telegram?.WebApp;
+  if (tg) { window.TG = tg; return; }
+  function parseTgData() {
+    var p = new URLSearchParams(window.location.search);
+    var raw = p.get('tgWebAppData');
+    if (!raw) {
+      var h = window.location.hash;
+      if (h && h.indexOf('tgWebAppData') !== -1) {
+        raw = new URLSearchParams(h.substring(1)).get('tgWebAppData');
+      }
+    }
+    if (raw) {
+      try {
+        var dp = new URLSearchParams(raw);
+        var userStr = dp.get('user');
+        var user = userStr ? JSON.parse(userStr) : null;
+        return {
+          initData: raw,
+          initDataUnsafe: { user: user, query_id: dp.get('query_id'), auth_date: dp.get('auth_date'), hash: dp.get('hash') },
+          ready: function(){},
+          expand: function(){},
+          close: function(){},
+          openLink: function(url) { if (window.open) window.open(url, '_blank'); }
+        };
+      } catch(e) {}
+    }
+    return {
+      initData: '',
+      initDataUnsafe: {},
+      ready: function(){},
+      expand: function(){},
+      openLink: function(url) { if (window.open) window.open(url, '_blank'); }
+    };
+  }
+  window.TG = parseTgData();
+})();
+</script>
 <script src="js/api.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/app.js"></script>
