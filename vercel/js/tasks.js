@@ -8,6 +8,7 @@ async function loadTasks() {
 
   const countEl = document.getElementById('taskCount');
   const data = await api('/api/app/tasks?' + new URLSearchParams({ user_id: USER.id }).toString());
+  if (!data.ok) { el.innerHTML = '<div class="empty-state">Failed to load tasks</div>'; return; }
   let tasks = data.tasks || [];
 
   // Apply filter
@@ -258,6 +259,7 @@ async function loadPromoted() {
   const el = document.getElementById('promotedList');
   if (!el) return;
   const data = await api('/api/app/promoted?' + new URLSearchParams({ user_id: USER.id }).toString());
+  if (!data.ok) { el.innerHTML = ''; return; }
   const items = data.items || [];
   if (items.length === 0) { el.innerHTML = ''; return; }
 
@@ -290,8 +292,8 @@ async function loadPromoted() {
       if (el.scrollLeft >= el.scrollWidth / 2) {
         el.scrollLeft = 0;
       }
+      lastTime = time;
     }
-    lastTime = time;
     _promoRaf = requestAnimationFrame(tick);
   }
 
@@ -308,13 +310,20 @@ async function loadPromoted() {
     }, 2000);
   }
 
+  function onScroll() {
+    if (!paused) { doPause(); scheduleResume(); }
+  }
+
+  el.removeEventListener('mouseenter', doPause);
+  el.removeEventListener('mouseleave', scheduleResume);
+  el.removeEventListener('touchstart', doPause);
+  el.removeEventListener('touchend', scheduleResume);
+  el.removeEventListener('scroll', onScroll);
   el.addEventListener('mouseenter', doPause);
   el.addEventListener('mouseleave', scheduleResume);
   el.addEventListener('touchstart', doPause, { passive: true });
   el.addEventListener('touchend', scheduleResume, { passive: true });
-  el.addEventListener('scroll', function() {
-    if (!paused) { doPause(); scheduleResume(); }
-  }, { passive: true });
+  el.addEventListener('scroll', onScroll, { passive: true });
 
   _promoRaf = requestAnimationFrame(tick);
 }

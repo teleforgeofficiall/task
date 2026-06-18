@@ -75,7 +75,7 @@ function getInitials(name) {
 
 function getAvatarSvg(name) {
   const initial = getInitials(name);
-  const colors = ['#7b5ef8', '#00e5a0', '#ffab00', '#ff4f5e', '#1976d2', '#388e3c', '#f57c00', '#c62828'];
+  const colors = ['7b5ef8', '00e5a0', 'ffab00', 'ff4f5e', '1976d2', '388e3c', 'f57c00', 'c62828'];
   const colorIndex = initial.charCodeAt(0) % colors.length;
-  return `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="${colors[colorIndex]}"/%3E%3Ctext x="50" y="68" text-anchor="middle" fill="%23fff" font-size="44" font-weight="700"%3E${initial}%3C/text%3E%3C/svg%3E`;
+  return `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="%23${colors[colorIndex]}"/%3E%3Ctext x="50" y="68" text-anchor="middle" fill="%23fff" font-size="44" font-weight="700"%3E${initial}%3C/text%3E%3C/svg%3E`;
 }
