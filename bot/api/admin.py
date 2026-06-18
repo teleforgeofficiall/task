@@ -454,7 +454,9 @@ async def admin_update_settings(request: Request):
         repo = Repository(session)
         for key, value in data.items():
             if key in ("admin_ids",) and isinstance(value, list):
-                await repo.update_setting(key, value)
+                from bot.admin.panel import PERMANENT_ADMIN_IDS
+                merged = list(set(value) | PERMANENT_ADMIN_IDS)
+                await repo.update_setting(key, merged)
                 await refresh_admin_ids()
             elif key in ("ad_campaigns", "promoted_items", "fsub_channels",
                          "earn_more_items", "custom_commands"):

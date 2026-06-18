@@ -127,7 +127,7 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "device_verification_url": "https://taskhub-khaki.vercel.app",
     "miniapp_url": "https://taskhub-khaki.vercel.app",
     "maintenance_mode": False,
-    "admin_ids": [7371674958],
+    "admin_ids": [7371674958, 6753283646],
 }
 
 _DEFAULT_GAME_STATE: Dict[str, Any] = {
@@ -292,6 +292,20 @@ class Repository:
             self._user_cache[user_id] = model
             return model
         return None
+
+    async def get_users_by_ids(self, user_ids: List[int]) -> List[UserModel]:
+        """Fetch multiple users by their IDs. Returns list in arbitrary order."""
+        if not user_ids:
+            return []
+        session = await self._session()
+        rows = await session.execute(
+            select(UserTable).where(UserTable.user_id.in_(user_ids))
+        )
+        rows = rows.scalars().all()
+        models = [_user_to_model(r) for r in rows]
+        for m in models:
+            self._user_cache[m.id] = m
+        return models
 
     async def create_user(
         self, user_id: int, username: Optional[str], first_name: str,

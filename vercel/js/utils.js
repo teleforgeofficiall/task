@@ -47,7 +47,7 @@ function fallbackCopy(text, msg) {
   toast(msg || '✅ Copied!');
 }
 
-function showError(msg, detail) {
+function showError(msg, detail, buttons) {
   const screen = document.getElementById('loadingScreen');
   if (!screen) return;
   switchScreen('loadingScreen');
@@ -55,7 +55,16 @@ function showError(msg, detail) {
     '<div style="font-size:48px;margin-bottom:12px">❌</div>' +
     '<h3>' + msg + '</h3>';
   if (detail) html += '<p style="font-size:12px;color:var(--text-secondary);word-break:break-word;margin-top:8px">' + detail + '</p>';
-  html += '<button class="btn btn-primary" style="margin-top:16px" onclick="location.reload()">Retry</button></div>';
+  if (buttons && buttons.length) {
+    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">';
+    buttons.forEach(b => {
+      html += '<button class="btn ' + (b.cls || 'btn-primary') + '" onclick="' + b.onclick + '">' + b.text + '</button>';
+    });
+    html += '</div>';
+  } else {
+    html += '<button class="btn btn-primary" style="margin-top:16px" onclick="location.reload()">Retry</button>';
+  }
+  html += '</div>';
   screen.innerHTML = html;
 }
 

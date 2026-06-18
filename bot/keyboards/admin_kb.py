@@ -270,6 +270,22 @@ def broadcast_cancel_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
+def admin_ids_keyboard(admin_ids: list, permanent_ids: set, user_names: dict) -> InlineKeyboardMarkup:
+    """Show admin IDs as inline buttons with add/remove actions."""
+    keyboard = []
+    for aid in admin_ids:
+        name = user_names.get(aid, f"User {aid}")
+        is_permanent = aid in permanent_ids
+        label = f"🔒 {name} ({aid})" if is_permanent else f"👤 {name} ({aid})"
+        if is_permanent:
+            keyboard.append([InlineKeyboardButton(label, callback_data="admin:admin_noop")])
+        else:
+            keyboard.append([InlineKeyboardButton(label, callback_data=f"admin:remove_admin:{aid}")])
+    keyboard.append([InlineKeyboardButton("➕ Add New Admin", callback_data="admin:add_admin_start")])
+    keyboard.append([InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")])
+    return InlineKeyboardMarkup(keyboard)
+
+
 def settings_menu(require_contact: bool = True, refer_paused: bool = False, maintenance_on: bool = False) -> InlineKeyboardMarkup:
     """General settings dashboard."""
     referral_toggle = "🔴 Referrals Paused" if refer_paused else "🟢 Referrals Active"

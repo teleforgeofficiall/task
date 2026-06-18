@@ -31,8 +31,17 @@ async function init() {
   const user = TG?.initDataUnsafe?.user;
 
   if (!user) {
-    if (!TG) { showError('Not in Telegram', 'Open this from the Telegram bot.'); return; }
-    else { showError('No user data', 'Restart Telegram and try again.'); return; }
+    if (!TG) {
+      showError('Not in Telegram', 'This Mini App can only be opened inside Telegram.\n\nTap the button below to open the bot.', [
+        { text: '📱 Open Bot', cls: 'btn-primary', onclick: 'openLink(\'https://t.me/Taskhubpocketbot\')' }
+      ]);
+      return;
+    } else {
+      showError('No user data', 'Restart Telegram and try again.', [
+        { text: '📱 Open Bot', cls: 'btn-primary', onclick: 'openLink(\'https://t.me/Taskhubpocketbot\')' }
+      ]);
+      return;
+    }
   }
   USER = user;
 

@@ -10,8 +10,8 @@ from telegram.error import BadRequest
 from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
 
 from bot.database import get_db, Repository
-from bot.admin.panel import is_admin
-from bot.keyboards.admin_kb import settings_menu, messages_manager_keyboard
+from bot.admin.panel import is_admin, is_permanent_admin, PERMANENT_ADMIN_IDS
+from bot.keyboards.admin_kb import settings_menu, messages_manager_keyboard, admin_ids_keyboard, back_to_admin
 from bot.utils import escape_html
 
 logger = logging.getLogger(__name__)
@@ -91,29 +91,104 @@ async def admin_settings_toggle_maintenance(update: Update, context: ContextType
 
 
 async def admin_manage_admins_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show current admin IDs and prompt to change."""
+    """Show current admin IDs as inline buttons with add/remove options."""
     query = update.callback_query
     if not query or not is_admin(query.from_user.id):
         return
 
+    context.user_data.pop("admin_state", None)
+
     repository = Repository(await get_db())
     admin_ids = await repository.get_setting("admin_ids", [])
+    users = await repository.get_users_by_ids(admin_ids)
+    user_names = {u.id: u.first_name or f"User {u.id}" for u in users}
+    for aid in admin_ids:
+        if aid not in user_names:
+            user_names[aid] = f"User {aid}"
+
+    permanent_text = ""
+    for pid in PERMANENT_ADMIN_IDS:
+        name = user_names.get(pid, f"User {pid}")
+        permanent_text += f"🔒 <b>{name}</b> (<code>{pid}</code>) — <i>permanent</i>\n"
+
     text = (
         "👑 <b>Admin Management</b>\n\n"
-        f"Current Admin IDs: <code>{', '.join(str(a) for a in admin_ids)}</code>\n\n"
-        "Send new comma-separated admin IDs to update.\n"
-        "Example: <code>7371674958, 123456789</code>\n\n"
+        f"{permanent_text}\n"
+        "• 🔒 = Permanent (cannot be removed)\n"
+        "• 👤 = Removable (tap to remove)\n\n"
+        "Tap ➕ <b>Add New Admin</b> to add a Telegram user ID."
+    )
+
+    await query.edit_message_text(
+        text=text,
+        reply_markup=admin_ids_keyboard(admin_ids, PERMANENT_ADMIN_IDS, user_names),
+        parse_mode="HTML"
+    )
+    await query.answer()
+
+
+async def admin_add_admin_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Prompt admin to enter a new admin ID to add."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    context.user_data["admin_state"] = "awaiting_new_admin_id"
+    text = (
+        "👑 <b>Add New Admin</b>\n\n"
+        "Send the Telegram <b>User ID</b> of the person you want to add as admin.\n\n"
         "Type /cancel to abort."
     )
-    context.user_data["admin_state"] = "edit_admin_ids"
     await query.edit_message_text(
         text=text,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("❌ Cancel", callback_data="admin:settings_menu")]
+            [InlineKeyboardButton("❌ Cancel", callback_data="admin:manage_admins")]
         ]),
         parse_mode="HTML"
     )
     await query.answer()
+
+
+async def admin_remove_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Remove an admin by ID (permanent admins cannot be removed)."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+
+    parts = query.data.split(":")
+    if len(parts) < 3:
+        await query.answer("Invalid data")
+        return
+
+    try:
+        remove_id = int(parts[2])
+    except ValueError:
+        await query.answer("Invalid ID")
+        return
+
+    if is_permanent_admin(remove_id):
+        await query.answer("❌ This admin is permanent and cannot be removed!", show_alert=True)
+        return
+
+    if remove_id == query.from_user.id:
+        await query.answer("❌ You cannot remove yourself!", show_alert=True)
+        return
+
+    repository = Repository(await get_db())
+    admin_ids = await repository.get_setting("admin_ids", [])
+    if remove_id not in admin_ids:
+        await query.answer("This user is not an admin.")
+        return
+
+    admin_ids = [a for a in admin_ids if a != remove_id]
+    await repository.update_setting("admin_ids", admin_ids)
+    from bot.admin.panel import refresh_admin_ids
+    await refresh_admin_ids()
+
+    await query.answer(f"✅ Removed admin {remove_id}")
+
+    # Refresh the admin list view
+    await admin_manage_admins_start(update, context)
 
 
 async def admin_messages_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -190,19 +265,40 @@ async def admin_settings_text_handler(update: Update, context: ContextTypes.DEFA
         await msg.reply_text("❌ Cancelled.", reply_markup=messages_manager_keyboard())
         return
 
-    if admin_state == "edit_admin_ids":
-        ids = [int(x.strip()) for x in text.split(",") if x.strip().isdigit()]
-        if not ids:
-            await msg.reply_text("❌ No valid IDs found. Send numbers separated by commas.")
+    if admin_state == "awaiting_new_admin_id":
+        try:
+            new_id = int(text.strip())
+        except ValueError:
+            await msg.reply_text("❌ Invalid ID. Please send a numeric User ID.")
             return
-        await repository.update_setting("admin_ids", ids)
+
+        if new_id <= 0:
+            await msg.reply_text("❌ Invalid ID. User IDs are positive numbers.")
+            return
+
+        admin_ids = await repository.get_setting("admin_ids", [])
+        if new_id in admin_ids:
+            await msg.reply_text(f"❌ User <code>{new_id}</code> is already an admin.", parse_mode="HTML")
+            return
+
+        if new_id in PERMANENT_ADMIN_IDS:
+            await msg.reply_text(f"✅ User <code>{new_id}</code> is already a permanent admin.", parse_mode="HTML")
+            context.user_data.pop("admin_state", None)
+            return
+
+        admin_ids.append(new_id)
+        await repository.update_setting("admin_ids", admin_ids)
         from bot.admin.panel import refresh_admin_ids
         await refresh_admin_ids()
         context.user_data.pop("admin_state", None)
+
+        users = await repository.get_users_by_ids([new_id])
+        name = users[0].first_name if users else str(new_id)
+
         await msg.reply_text(
-            f"✅ Admin IDs updated: <code>{', '.join(str(a) for a in ids)}</code>",
+            f"✅ <b>{name}</b> (<code>{new_id}</code>) added as admin!",
             parse_mode="HTML",
-            reply_markup=messages_manager_keyboard()
+            reply_markup=back_to_admin()
         )
         return
 
@@ -256,10 +352,12 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(admin_settings_toggle_refer, pattern="^admin:set_toggle_refer$"))
     application.add_handler(CallbackQueryHandler(admin_settings_toggle_maintenance, pattern="^admin:set_toggle_maintenance$"))
     application.add_handler(CallbackQueryHandler(admin_manage_admins_start, pattern="^admin:manage_admins$"))
+    application.add_handler(CallbackQueryHandler(admin_add_admin_start, pattern="^admin:add_admin_start$"))
+    application.add_handler(CallbackQueryHandler(admin_remove_admin_callback, pattern="^admin:remove_admin:\\d+$"))
     application.add_handler(CallbackQueryHandler(admin_messages_menu_handler, pattern="^admin:set_messages$"))
     application.add_handler(CallbackQueryHandler(admin_msg_edit_start, pattern="^admin:msg_edit:[a-z_]+$"))
     application.add_handler(CallbackQueryHandler(admin_reset_data_cli, pattern="^admin:reset_data_cli$"))
-    
+
     # Text input handlers for updating templates
     application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND,

