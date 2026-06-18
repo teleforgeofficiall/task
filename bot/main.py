@@ -340,38 +340,62 @@ async def api_verification_done(request: Request):
         return {"ok": False, "error": "Server error"}
 
 
+async def _get_tg_file_path(user_id: int) -> str | None:
+    """Get Telegram file_path for user's profile photo using raw Bot API (no ptb_app dependency)."""
+    import httpx
+    try:
+        token = settings.BOT_TOKEN
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                f"https://api.telegram.org/bot{token}/getUserProfilePhotos",
+                json={"user_id": user_id, "limit": 1}
+            )
+            d = r.json()
+            if not d.get("ok") or not d["result"]["total_count"]:
+                return None
+            file_id = d["result"]["photos"][0][-1]["file_id"]
+            r = await client.post(
+                f"https://api.telegram.org/bot{token}/getFile",
+                json={"file_id": file_id}
+            )
+            d = r.json()
+            if not d.get("ok"):
+                return None
+            return d["result"]["file_path"]
+    except Exception:
+        return None
+
+
 @app.get("/api/user/{user_id}/photo")
 async def api_user_photo(user_id: int):
     """Return downloadable URL for user's profile photo."""
     try:
-        photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
-        if not photos.photos:
+        file_path = await _get_tg_file_path(user_id)
+        if not file_path:
             return {"ok": False, "error": "No photo"}
-        file_id = photos.photos[0][-1].file_id
-        file = await ptb_app.bot.get_file(file_id)
-        return {"ok": True, "url": file.file_path}
+        return {"ok": True, "url": f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{file_path}"}
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
 
 
 @app.get("/api/user/{user_id}/pfp")
 async def api_user_pfp(user_id: int):
-    """Proxy user's Telegram profile photo — always fetches fresh URL."""
+    """Proxy user's Telegram profile photo — fetches fresh via raw Bot API."""
     import httpx
     try:
-        photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
-        if not photos.photos:
+        file_path = await _get_tg_file_path(user_id)
+        if not file_path:
             return Response(status_code=404)
-        f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
-        if not f.file_path:
-            return Response(status_code=404)
-        url = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{f.file_path}"
+        url = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{file_path}"
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(url)
             if resp.status_code != 200:
                 return Response(status_code=404)
-            content_type = resp.headers.get("content-type", "image/jpeg")
-            return Response(content=resp.content, media_type=content_type, headers={"Cache-Control": "public, max-age=3600"})
+            return Response(
+                content=resp.content,
+                media_type=resp.headers.get("content-type", "image/jpeg"),
+                headers={"Cache-Control": "public, max-age=3600"}
+            )
     except Exception:
         return Response(status_code=404)
 
@@ -467,16 +491,14 @@ async def app_init(user_id: int, init_data: str = "", hash: str = "", startapp: 
                 use_cache = cached_pfp and cache_age < 1800
                 if use_cache:
                     pfp = f"/api/user/{user_id}/pfp"
-                elif not settings.DISABLE_TELEGRAM_NETWORK:
+                else:
                     try:
-                        photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
-                        if photos.photos:
-                            f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
-                            if f.file_path:
-                                meta["pfp_url"] = f.file_path
-                                meta["pfp_cached_at"] = time.time()
-                                await repo.update_user_fields(user_id, user_meta=meta)
-                                pfp = f"/api/user/{user_id}/pfp"
+                        file_path = await _get_tg_file_path(user_id)
+                        if file_path:
+                            meta["pfp_url"] = file_path
+                            meta["pfp_cached_at"] = time.time()
+                            await repo.update_user_fields(user_id, user_meta=meta)
+                            pfp = f"/api/user/{user_id}/pfp"
                     except Exception as e:
                         logger.warning("app_init: Telegram PFP fetch failed for %s: %s", user_id, e)
             except Exception as exc:
@@ -1104,19 +1126,17 @@ async def app_leaderboard(user_id: int = 0):
             cache_age = time.time() - cached_at if cached_at else float('inf')
             if cached_pfp and cache_age < 1800:
                 pfp = f"/api/user/{u.user_id}/pfp"
-            elif not settings.DISABLE_TELEGRAM_NETWORK:
+            else:
                 try:
-                    photos = await ptb_app.bot.get_user_profile_photos(u.user_id, limit=1)
-                    if photos.photos:
-                        f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
-                        if f.file_path:
-                            meta["pfp_url"] = f.file_path
-                            meta["pfp_cached_at"] = time.time()
-                            try:
-                                await repo.update_user_fields(u.user_id, user_meta=meta)
-                            except Exception:
-                                pass
-                            pfp = f"/api/user/{u.user_id}/pfp"
+                    file_path = await _get_tg_file_path(u.user_id)
+                    if file_path:
+                        meta["pfp_url"] = file_path
+                        meta["pfp_cached_at"] = time.time()
+                        try:
+                            await repo.update_user_fields(u.user_id, user_meta=meta)
+                        except Exception:
+                            pass
+                        pfp = f"/api/user/{u.user_id}/pfp"
                 except Exception:
                     pass
             leaders.append({
