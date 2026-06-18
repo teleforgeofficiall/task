@@ -184,6 +184,34 @@ async def _migrate_sqlite_schema(engine) -> None:
                 except Exception as exc:
                     logger.warning("Could not add column withdrawals.%s: %s", col_name, exc)
 
+        # ── Tasks table: add missing columns ──
+        task_columns_sqlite: dict[str, str] = {
+            "completion_count": "INTEGER DEFAULT 0",
+            "video_url": "TEXT DEFAULT ''",
+            "steps": "TEXT DEFAULT NULL",
+            "color": "VARCHAR(20) DEFAULT '#7b5ef8'",
+            "color2": "VARCHAR(20) DEFAULT '#5a3fd6'",
+            "duration_text": "VARCHAR(50) DEFAULT '15 min'",
+            "is_multi_reward": "INTEGER DEFAULT 0",
+            "offer_url": "TEXT DEFAULT ''",
+            "referrer_reward": "FLOAT DEFAULT 0.0",
+            "completer_reward": "FLOAT DEFAULT 0.0",
+            "max_completers": "INTEGER DEFAULT 0",
+            "current_completers": "INTEGER DEFAULT 0",
+        }
+        def _get_task_cols_sqlite(sync_conn):
+            return {c["name"] for c in inspect(sync_conn).get_columns("tasks")}
+        task_existing = await conn.run_sync(_get_task_cols_sqlite)
+        for col_name, col_type in task_columns_sqlite.items():
+            if col_name not in task_existing:
+                try:
+                    await conn.execute(sa_text(
+                        f'ALTER TABLE tasks ADD COLUMN {col_name} {col_type}'
+                    ))
+                    logger.info("Added column tasks.%s", col_name)
+                except Exception as exc:
+                    logger.warning("Could not add column tasks.%s: %s", col_name, exc)
+
 
 async def _migrate_mysql_schema(engine) -> None:
     """Add missing columns to existing MySQL tables."""
@@ -249,19 +277,33 @@ async def _migrate_mysql_schema(engine) -> None:
                 except Exception as exc:
                     logger.warning("Could not add column withdrawals.%s: %s", col_name, exc)
 
-        # ── Tasks table: add completion_count column ──
+        # ── Tasks table: add missing columns ──
+        task_columns: dict[str, str] = {
+            "completion_count": "INTEGER DEFAULT 0",
+            "video_url": "TEXT DEFAULT ''",
+            "steps": "JSON DEFAULT NULL",
+            "color": "VARCHAR(20) DEFAULT '#7b5ef8'",
+            "color2": "VARCHAR(20) DEFAULT '#5a3fd6'",
+            "duration_text": "VARCHAR(50) DEFAULT '15 min'",
+            "is_multi_reward": "BOOLEAN DEFAULT FALSE",
+            "offer_url": "TEXT DEFAULT ''",
+            "referrer_reward": "FLOAT DEFAULT 0.0",
+            "completer_reward": "FLOAT DEFAULT 0.0",
+            "max_completers": "INTEGER DEFAULT 0",
+            "current_completers": "INTEGER DEFAULT 0",
+        }
         def _get_task_cols(sync_conn):
             return {c["name"] for c in inspect(sync_conn).get_columns("tasks")}
         task_existing = await conn.run_sync(_get_task_cols)
-
-        if "completion_count" not in task_existing:
-            try:
-                await conn.execute(sa_text(
-                    'ALTER TABLE tasks ADD COLUMN `completion_count` INTEGER DEFAULT 0'
-                ))
-                logger.info("Added column tasks.completion_count")
-            except Exception as exc:
-                logger.warning("Could not add column tasks.completion_count: %s", exc)
+        for col_name, col_type in task_columns.items():
+            if col_name not in task_existing:
+                try:
+                    await conn.execute(sa_text(
+                        f'ALTER TABLE tasks ADD COLUMN `{col_name}` {col_type}'
+                    ))
+                    logger.info("Added column tasks.%s", col_name)
+                except Exception as exc:
+                    logger.warning("Could not add column tasks.%s: %s", col_name, exc)
 
 
 @asynccontextmanager
