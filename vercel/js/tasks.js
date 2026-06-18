@@ -277,6 +277,7 @@ async function loadPromoted() {
   }
 
   el.innerHTML = items.map((p, i) => renderCard(p, i)).join('') + items.map((p, i) => renderCard(p, i)).join('');
+  el.style.scrollBehavior = 'auto';
 
   if (_promoRaf) cancelAnimationFrame(_promoRaf);
   if (_promoResumeTimer) clearTimeout(_promoResumeTimer);

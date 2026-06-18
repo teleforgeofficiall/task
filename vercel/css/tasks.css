@@ -108,7 +108,7 @@
 
 .promoted-scroll {
   display: flex; gap: 10px; overflow-x: auto; padding: 6px 0;
-  scroll-behavior: smooth; scroll-snap-type: x mandatory;
+  scroll-snap-type: x proximity;
   overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
 }
 .promoted-scroll::-webkit-scrollbar { display: none; }
