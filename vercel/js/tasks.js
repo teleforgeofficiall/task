@@ -1,4 +1,6 @@
 let currentTaskFilter = 'all';
+let _promoRaf = null;
+let _promoResumeTimer = null;
 
 async function loadTasks() {
   const el = document.getElementById('taskList');
@@ -274,34 +276,47 @@ async function loadPromoted() {
 
   el.innerHTML = items.map(renderCard).join('') + items.map(renderCard).join('');
 
-  el.classList.add('auto-scroll');
-  el.style.setProperty('--scroll-duration', Math.max(15, items.length * 6) + 's');
+  if (_promoRaf) cancelAnimationFrame(_promoRaf);
+  if (_promoResumeTimer) clearTimeout(_promoResumeTimer);
 
-  let pauseTimeout = null;
-  function pauseScroll() {
-    el.classList.add('paused');
-    if (pauseTimeout) clearTimeout(pauseTimeout);
+  let paused = false;
+  let lastTime = performance.now();
+  const pxPerSecond = 40;
+
+  function tick(time) {
+    if (!paused) {
+      var delta = time - lastTime;
+      el.scrollLeft += pxPerSecond * (delta / 1000);
+      if (el.scrollLeft >= el.scrollWidth / 2) {
+        el.scrollLeft = 0;
+      }
+    }
+    lastTime = time;
+    _promoRaf = requestAnimationFrame(tick);
   }
-  function resumeScroll() {
-    if (pauseTimeout) clearTimeout(pauseTimeout);
-    pauseTimeout = setTimeout(function() {
-      el.classList.remove('paused');
+
+  function doPause() {
+    paused = true;
+    if (_promoResumeTimer) clearTimeout(_promoResumeTimer);
+  }
+
+  function scheduleResume() {
+    if (_promoResumeTimer) clearTimeout(_promoResumeTimer);
+    _promoResumeTimer = setTimeout(function() {
+      paused = false;
+      lastTime = performance.now();
     }, 2000);
   }
-  el.addEventListener('mouseenter', pauseScroll);
-  el.addEventListener('mouseleave', resumeScroll);
-  el.addEventListener('touchstart', pauseScroll, { passive: true });
-  el.addEventListener('touchend', resumeScroll, { passive: true });
 
-  // Reset scroll position on manual drag so animation doesn't jump
+  el.addEventListener('mouseenter', doPause);
+  el.addEventListener('mouseleave', scheduleResume);
+  el.addEventListener('touchstart', doPause, { passive: true });
+  el.addEventListener('touchend', scheduleResume, { passive: true });
   el.addEventListener('scroll', function() {
-    if (el.classList.contains('paused')) return;
-    el.classList.add('paused');
-    if (pauseTimeout) clearTimeout(pauseTimeout);
-    pauseTimeout = setTimeout(function() {
-      el.classList.remove('paused');
-    }, 2000);
+    if (!paused) { doPause(); scheduleResume(); }
   }, { passive: true });
+
+  _promoRaf = requestAnimationFrame(tick);
 }
 
 let promoStep = 1;

@@ -166,7 +166,11 @@ function enterApp(data) {
   const nameEl = document.getElementById('headerName');
   const idEl = document.getElementById('headerId');
 
-  if (pfp) pfp.src = data.user.pfp || getAvatarSvg(data.user.first_name || 'U');
+  if (pfp) {
+    var fallback = getAvatarSvg(data.user.first_name || 'U');
+    pfp.src = data.user.pfp || fallback;
+    pfp.dataset.fallback = fallback;
+  }
   if (nameEl) nameEl.textContent = data.user.first_name || 'User';
   if (idEl) idEl.textContent = 'ID: ' + data.user.id;
   updateBalance(data.user.balance || 0);

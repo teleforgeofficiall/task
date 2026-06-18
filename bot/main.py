@@ -455,7 +455,7 @@ async def app_init(user_id: int, init_data: str = "", hash: str = "", startapp: 
                         meta["pfp_url"] = pfp
                         await repo.update_user_fields(user_id, user_meta=meta)
             except Exception as exc:
-                logger.debug("app_init: profile photo failed: %s", exc)
+                logger.warning("app_init: profile photo failed: %s", exc)
                 pfp = ""
             return {
                 "ok": True,
