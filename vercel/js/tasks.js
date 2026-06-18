@@ -265,7 +265,7 @@ async function loadPromoted() {
 
   function renderCard(p, i) {
     return `
-      <div class="promoted-card animate-in fade stagger-${Math.min(i + 1, 10)}" onclick="openLink('${p.url||'#'}')">
+      <div class="promoted-card" onclick="openLink('${p.url||'#'}')">
         <div class="promo-icon" style="background:linear-gradient(135deg,${p.color1||'#7b5ef8'},${p.color2||'#5a3fd6'})">${p.icon||'📢'}</div>
         <div class="promo-info">
           <span class="badge">${p.badge||'⭐ Official Partner'}</span>

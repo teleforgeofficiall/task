@@ -585,38 +585,42 @@ async def app_claim_bonus(request: Request):
 async def app_tasks(user_id: int):
     """Get all available tasks for the Mini App."""
     from bot.database import get_session, Repository
-    async with get_session() as session:
-        repo = Repository(session)
-        tasks = await repo.get_active_tasks()
-        user = await repo.get_user(user_id)
-        completed_tasks = list(user.completed_tasks or []) if user else []
-        result = []
-        for t in tasks:
-            result.append({
-                "id": t.id,
-                "title": t.description[:50] if isinstance(t.description, str) else "Task",
-                "description": t.description or "",
-                "reward": float(t.reward),
-                "type": t.task_type or "manual",
-                "icon": "📋",
-                "image": t.image or "",
-                "color": t.color or "#7b5ef8",
-                "color2": t.color2 or "#5a3fd6",
-                "duration": t.duration_text or "15 min",
-                "completions": t.completion_count or 0,
-                "is_completed": t.id in completed_tasks,
-                "guide": t.guide or "",
-                "channel_title": t.channel_title or "",
-                "video_url": t.video_url or "",
-                "steps": t.steps or [],
-                "is_multi_reward": t.is_multi_reward or False,
-                "offer_url": t.offer_url or "",
-                "referrer_reward": float(t.referrer_reward or 0),
-                "completer_reward": float(t.completer_reward or 0),
-                "max_completers": t.max_completers or 0,
-                "current_completers": t.current_completers or 0,
-            })
-        return {"ok": True, "tasks": result}
+    try:
+        async with get_session() as session:
+            repo = Repository(session)
+            tasks = await repo.get_active_tasks()
+            user = await repo.get_user(user_id)
+            completed_tasks = list(user.completed_tasks or []) if user else []
+            result = []
+            for t in tasks:
+                result.append({
+                    "id": t.id,
+                    "title": t.description[:50] if isinstance(t.description, str) else "Task",
+                    "description": t.description or "",
+                    "reward": float(t.reward),
+                    "type": t.task_type or "manual",
+                    "icon": "📋",
+                    "image": t.image or "",
+                    "color": t.color or "#7b5ef8",
+                    "color2": t.color2 or "#5a3fd6",
+                    "duration": t.duration_text or "15 min",
+                    "completions": t.completion_count or 0,
+                    "is_completed": t.id in completed_tasks,
+                    "guide": t.guide or "",
+                    "channel_title": t.channel_title or "",
+                    "video_url": t.video_url or "",
+                    "steps": t.steps or [],
+                    "is_multi_reward": t.is_multi_reward or False,
+                    "offer_url": t.offer_url or "",
+                    "referrer_reward": float(t.referrer_reward or 0),
+                    "completer_reward": float(t.completer_reward or 0),
+                    "max_completers": t.max_completers or 0,
+                    "current_completers": t.current_completers or 0,
+                })
+            return {"ok": True, "tasks": result}
+    except Exception as e:
+        logger.error("app_tasks failed for user %s: %s", user_id, e, exc_info=True)
+        return {"ok": False, "error": "Failed to load tasks"}
 
 
 @app.get("/api/app/task/{task_id}")
