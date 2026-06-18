@@ -279,6 +279,8 @@ async function loadPromoted() {
   el.innerHTML = items.map((p, i) => renderCard(p, i)).join('') + items.map((p, i) => renderCard(p, i)).join('');
   el.style.scrollBehavior = 'auto';
 
+  if (!el.scrollWidth || el.scrollWidth <= el.clientWidth) return;
+
   if (_promoRaf) cancelAnimationFrame(_promoRaf);
   if (_promoResumeTimer) clearTimeout(_promoResumeTimer);
 
@@ -331,20 +333,14 @@ async function loadPromoted() {
     }, 2000);
   }
 
-  function onScroll() {
-    if (!paused) { doPause(); scheduleResume(); }
-  }
-
   el.removeEventListener('mouseenter', doPause);
   el.removeEventListener('mouseleave', scheduleResume);
   el.removeEventListener('touchstart', doPause);
   el.removeEventListener('touchend', scheduleResume);
-  el.removeEventListener('scroll', onScroll);
   el.addEventListener('mouseenter', doPause);
   el.addEventListener('mouseleave', scheduleResume);
   el.addEventListener('touchstart', doPause, { passive: true });
   el.addEventListener('touchend', scheduleResume, { passive: true });
-  el.addEventListener('scroll', onScroll, { passive: true });
 
   _promoRaf = requestAnimationFrame(tick);
 }
