@@ -20,9 +20,16 @@ function animateCounter(element, target, duration) {
   if (!element) return;
   const start = 0;
   const startTime = performance.now();
+  const FRAME_INTERVAL = 1000 / 60;
+  let lastFrame = 0;
 
   function update(currentTime) {
     const elapsed = currentTime - startTime;
+    if (currentTime - lastFrame < FRAME_INTERVAL) {
+      requestAnimationFrame(update);
+      return;
+    }
+    lastFrame = currentTime;
     const progress = Math.min(elapsed / duration, 1);
     const eased = 1 - Math.pow(1 - progress, 3);
     const current = Math.floor(start + (target - start) * eased);

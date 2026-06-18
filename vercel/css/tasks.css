@@ -103,36 +103,44 @@
 .channel-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .channel-check.checked { background: var(--success); border-color: var(--success); color: #fff; font-size: 14px; }
 
-.promoted-section { margin-bottom: 14px; }
+.promoted-section { margin-bottom: 14px; overflow: hidden; }
 .promoted-section .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 
-.promoted-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 6px 0; }
+.promoted-scroll {
+  display: flex; gap: 10px; overflow-x: auto; padding: 6px 0;
+  scroll-behavior: smooth; scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+}
 .promoted-scroll::-webkit-scrollbar { display: none; }
 
 .promoted-card {
-  min-width: 260px; background: var(--card); border-radius: 14px; padding: 14px;
+  min-width: 260px; background: var(--card); border-radius: var(--radius); padding: 14px;
   border: 1px solid var(--border); scroll-snap-align: start; display: flex; gap: 12px; align-items: center;
-  cursor: pointer; transition: transform 0.15s; flex-shrink: 0;
+  cursor: pointer; flex-shrink: 0; box-shadow: var(--shadow);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
-.promoted-card:active { transform: scale(0.97); }
+.promoted-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+.promoted-card:active { transform: scale(0.97); box-shadow: var(--shadow); }
 
 .promoted-card .promo-icon {
   width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 .promoted-card .promo-info { flex: 1; min-width: 0; }
 .promoted-card .promo-info .badge {
   display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 700;
-  background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: #fff; margin-bottom: 4px;
+  background: var(--danger-gradient); color: #fff; margin-bottom: 4px;
 }
 .promoted-card .promo-info h4 { font-size: 13px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .promoted-card .promo-info p { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .promoted-card .promo-open {
   padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 700;
   background: var(--primary-gradient); color: #fff; border: none; cursor: pointer; flex-shrink: 0;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, transform 0.15s;
 }
-.promoted-card .promo-open:active { opacity: 0.8; }
+.promoted-card .promo-open:hover { opacity: 0.9; transform: scale(1.05); }
+.promoted-card .promo-open:active { opacity: 0.8; transform: scale(0.95); }
 
 .proof-submit { max-width: 400px; margin: 0 auto; }
 .proof-warning {

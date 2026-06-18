@@ -111,12 +111,6 @@
   transform: scale(0.95) !important;
 }
 
-/* Premium promoted scroll animation */
-@keyframes promotedScroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

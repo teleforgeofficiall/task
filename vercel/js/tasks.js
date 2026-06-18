@@ -263,9 +263,9 @@ async function loadPromoted() {
   const items = data.items || [];
   if (items.length === 0) { el.innerHTML = ''; return; }
 
-  function renderCard(p) {
+  function renderCard(p, i) {
     return `
-      <div class="promoted-card" onclick="openLink('${p.url||'#'}')">
+      <div class="promoted-card animate-in fade stagger-${Math.min(i + 1, 10)}" onclick="openLink('${p.url||'#'}')">
         <div class="promo-icon" style="background:linear-gradient(135deg,${p.color1||'#7b5ef8'},${p.color2||'#5a3fd6'})">${p.icon||'📢'}</div>
         <div class="promo-info">
           <span class="badge">${p.badge||'⭐ Official Partner'}</span>
@@ -276,21 +276,41 @@ async function loadPromoted() {
       </div>`;
   }
 
-  el.innerHTML = items.map(renderCard).join('') + items.map(renderCard).join('');
+  el.innerHTML = items.map((p, i) => renderCard(p, i)).join('') + items.map((p, i) => renderCard(p, i)).join('');
 
   if (_promoRaf) cancelAnimationFrame(_promoRaf);
   if (_promoResumeTimer) clearTimeout(_promoResumeTimer);
 
   let paused = false;
   let lastTime = performance.now();
-  const pxPerSecond = 40;
+  const pxPerSecond = 80;
+  const FRAME_INTERVAL = 1000 / 60;
+  let resetActive = false;
+  let resetStart = 0;
+  let resetFrom = 0;
 
   function tick(time) {
     if (!paused) {
       var delta = time - lastTime;
-      el.scrollLeft += pxPerSecond * (delta / 1000);
-      if (el.scrollLeft >= el.scrollWidth / 2) {
-        el.scrollLeft = 0;
+      if (delta < FRAME_INTERVAL) {
+        _promoRaf = requestAnimationFrame(tick);
+        return;
+      }
+      if (resetActive) {
+        var resetProgress = Math.min((time - resetStart) / 300, 1);
+        var eased = 1 - Math.pow(1 - resetProgress, 3);
+        el.scrollLeft = resetFrom - (resetFrom * eased);
+        if (resetProgress >= 1) {
+          el.scrollLeft = 0;
+          resetActive = false;
+        }
+      } else {
+        el.scrollLeft += pxPerSecond * (delta / 1000);
+        if (el.scrollLeft >= el.scrollWidth / 2) {
+          resetActive = true;
+          resetStart = time;
+          resetFrom = el.scrollLeft;
+        }
       }
       lastTime = time;
     }

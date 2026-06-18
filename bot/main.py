@@ -443,17 +443,21 @@ async def app_init(user_id: int, init_data: str = "", hash: str = "", startapp: 
                 if cached_pfp:
                     if cached_pfp.startswith("photos/") or cached_pfp.startswith("documents/"):
                         pfp = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{cached_pfp}"
-                        meta["pfp_url"] = pfp
-                        await repo.update_user_fields(user_id, user_meta=meta)
-                    else:
+                    elif cached_pfp.startswith("http"):
                         pfp = cached_pfp
+                    else:
+                        pfp = ""
                 elif not settings.DISABLE_TELEGRAM_NETWORK:
-                    photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
-                    if photos.photos:
-                        f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
-                        pfp = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{f.file_path}" if f.file_path else ""
-                        meta["pfp_url"] = pfp
-                        await repo.update_user_fields(user_id, user_meta=meta)
+                    try:
+                        photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
+                        if photos.photos:
+                            f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
+                            if f.file_path:
+                                pfp = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{f.file_path}"
+                                meta["pfp_url"] = f.file_path
+                                await repo.update_user_fields(user_id, user_meta=meta)
+                    except Exception:
+                        pass
             except Exception as exc:
                 logger.warning("app_init: profile photo failed: %s", exc)
                 pfp = ""
@@ -1070,21 +1074,22 @@ async def app_leaderboard(user_id: int = 0):
         for i, u in enumerate(top_users):
             meta = dict(u.user_meta or {})
             pfp = meta.get("pfp_url", "")
-            if not pfp and not settings.DISABLE_TELEGRAM_NETWORK:
+            if pfp and pfp.startswith("http"):
+                pass
+            elif pfp and (pfp.startswith("photos/") or pfp.startswith("documents/")):
+                pfp = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{pfp}"
+            elif not pfp and not settings.DISABLE_TELEGRAM_NETWORK:
                 try:
                     photos = await ptb_app.bot.get_user_profile_photos(u.user_id, limit=1)
                     if photos.photos:
                         f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
-                        pfp = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{f.file_path}" if f.file_path else ""
-                        meta["pfp_url"] = pfp
-                        await repo.update_user_fields(u.user_id, user_meta=meta)
-                except Exception:
-                    pass
-            elif pfp and (pfp.startswith("photos/") or pfp.startswith("documents/")):
-                pfp = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{pfp}"
-                meta["pfp_url"] = pfp
-                try:
-                    await repo.update_user_fields(u.user_id, user_meta=meta)
+                        if f.file_path:
+                            pfp = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{f.file_path}"
+                            meta["pfp_url"] = f.file_path
+                            try:
+                                await repo.update_user_fields(u.user_id, user_meta=meta)
+                            except Exception:
+                                pass
                 except Exception:
                     pass
             leaders.append({
