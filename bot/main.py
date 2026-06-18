@@ -232,7 +232,11 @@ async def api_user_info(user_id: int):
         return {"ok": False, "error": "User not found"}
     try:
         photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
-        pfp_url = photos.photos[0][-1].file_id if photos.photos else ""
+        if photos.photos:
+            f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
+            pfp_url = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{f.file_path}" if f.file_path else ""
+        else:
+            pfp_url = ""
     except Exception:
         pfp_url = ""
     return {
@@ -437,12 +441,17 @@ async def app_init(user_id: int, init_data: str = "", hash: str = "", startapp: 
                 meta = dict(user.user_meta or {})
                 cached_pfp = meta.get("pfp_url", "")
                 if cached_pfp:
-                    pfp = cached_pfp
+                    if cached_pfp.startswith("photos/") or cached_pfp.startswith("documents/"):
+                        pfp = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{cached_pfp}"
+                        meta["pfp_url"] = pfp
+                        await repo.update_user_fields(user_id, user_meta=meta)
+                    else:
+                        pfp = cached_pfp
                 elif not settings.DISABLE_TELEGRAM_NETWORK:
                     photos = await ptb_app.bot.get_user_profile_photos(user_id, limit=1)
                     if photos.photos:
                         f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
-                        pfp = f.file_path or ""
+                        pfp = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{f.file_path}" if f.file_path else ""
                         meta["pfp_url"] = pfp
                         await repo.update_user_fields(user_id, user_meta=meta)
             except Exception as exc:
@@ -1066,9 +1075,16 @@ async def app_leaderboard(user_id: int = 0):
                     photos = await ptb_app.bot.get_user_profile_photos(u.user_id, limit=1)
                     if photos.photos:
                         f = await ptb_app.bot.get_file(photos.photos[0][-1].file_id)
-                        pfp = f.file_path or ""
+                        pfp = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{f.file_path}" if f.file_path else ""
                         meta["pfp_url"] = pfp
                         await repo.update_user_fields(u.user_id, user_meta=meta)
+                except Exception:
+                    pass
+            elif pfp and (pfp.startswith("photos/") or pfp.startswith("documents/")):
+                pfp = f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{pfp}"
+                meta["pfp_url"] = pfp
+                try:
+                    await repo.update_user_fields(u.user_id, user_meta=meta)
                 except Exception:
                     pass
             leaders.append({
