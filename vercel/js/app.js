@@ -27,17 +27,42 @@ async function init() {
   const loadStart = Date.now();
 
   setLoadingStatus('Checking Telegram...');
-  const initData = TG?.initData || '';
-  const user = TG?.initDataUnsafe?.user;
+  let initData = TG?.initData || '';
+  let user = TG?.initDataUnsafe?.user;
 
   if (!user) {
-    if (!TG) {
-      showError('Not in Telegram', 'This Mini App can only be opened inside Telegram.\n\nTap the button below to open the bot.', [
-        { text: '📱 Open Bot', cls: 'btn-primary', onclick: 'openLink(\'https://t.me/Taskhubpocketbot\')' }
-      ]);
-      return;
-    } else {
-      showError('No user data', 'Restart Telegram and try again.', [
+    try {
+      let p = new URLSearchParams(window.location.search);
+      let raw = p.get('tgWebAppData');
+      if (!raw && window.location.hash) {
+        raw = new URLSearchParams(window.location.hash.slice(1)).get('tgWebAppData');
+      }
+      if (raw) {
+        let dp = new URLSearchParams(raw);
+        let userStr = dp.get('user');
+        if (userStr) {
+          user = JSON.parse(userStr);
+          initData = raw;
+          if (!window.TG) window.TG = {};
+          window.TG.initData = initData;
+          window.TG.initDataUnsafe = { user: user };
+        }
+      }
+    } catch(e) {}
+
+    if (!user) {
+      try {
+        let p = new URLSearchParams(window.location.search);
+        let uid = p.get('user_id');
+        if (uid) {
+          user = { id: parseInt(uid) };
+          initData = '';
+        }
+      } catch(e) {}
+    }
+
+    if (!user) {
+      showError('Not in Telegram', 'This Mini App only works inside Telegram.\n\nOpen the bot and tap "Open MiniApp".', [
         { text: '📱 Open Bot', cls: 'btn-primary', onclick: 'openLink(\'https://t.me/Taskhubpocketbot\')' }
       ]);
       return;
