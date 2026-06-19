@@ -111,12 +111,12 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "img_refer_new": "https://telegra.ph/file/5e2fdf0e4e93fb7cc28fe-17e0302973422b849b.jpg",
     "img_refer_paused": "https://telegra.ph/file/02790c2b0d88478d4b634-e974bcc86d6915320a.jpg",
     "img_bonus_drop": "https://telegra.ph/file/246af8dcd72ce749589fb-ddec441baa01f7ef5b.jpg",
-    "img_treasure": "https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg",
+
     "img_channel_task": "https://telegra.ph/file/8169af7a7a4a846c08aae-785a9c0e0843d922ea.jpg",
     "img_tasks_list": "https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg",
     "img_leaderboard": "https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg",
     "img_drop_rain": "https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg",
-    "img_redeem_success": "https://telegra.ph/file/20ab23c510650dca3405f-1aaee19ec2c221b9fb.jpg",
+
     "img_withdraw_redeem": "",
     "img_withdraw_stars": "",
     "img_withdraw_upi": "",
@@ -267,13 +267,13 @@ class Repository:
             if existing is None:
                 session.add(SettingTable(key=gk, value=hub_val))
 
-        # Seed tasks_list and leaderboard images from existing img_treasure
-        treasure_img = await session.get(SettingTable, "img_treasure")
-        treasure_val = treasure_img.value if treasure_img else json.dumps(_DEFAULT_SETTINGS["img_treasure"])
-        for nk in ("img_tasks_list", "img_leaderboard"):
-            existing = await session.get(SettingTable, nk)
-            if existing is None:
-                session.add(SettingTable(key=nk, value=treasure_val))
+        # Seed tasks_list and leaderboard images
+        tasks_row = await session.get(SettingTable, "img_tasks_list")
+        if tasks_row is None:
+            session.add(SettingTable(key="img_tasks_list", value=json.dumps("https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg")))
+        leader_row = await session.get(SettingTable, "img_leaderboard")
+        if leader_row is None:
+            session.add(SettingTable(key="img_leaderboard", value=json.dumps("https://telegra.ph/file/fd64c013ba69e0d5a501c-d9b6d5828ce0edf6a8.jpg")))
 
         # Reset game_config to new defaults (old stored values may conflict with updated _DEFAULT_CONFIG)
         gc_row = await session.get(SettingTable, "game_config")

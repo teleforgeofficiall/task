@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Device Verification</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://telegram.org/js/telegram-web-app.js" crossorigin="anonymous"></script>
 <style>
 :root {
   --primary: #7b5ef8;
@@ -246,13 +246,17 @@ async function doVerifyContinue(userId) {
 }
 
 window.onerror = function (msg, src, line, col, err) {
+  var displayMsg = msg;
+  if (!msg || msg === 'Script error.') {
+    displayMsg = 'An unexpected error occurred. Please try again.';
+  }
   var el = document.getElementById('verifyScreen');
   if (el && el.classList.contains('active')) {
     el.innerHTML =
-      '<div class="verify-card" style="padding:32px 24px;text-align:center;background:var(--card);border:1px solid var(--border)"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><h3 style="color:var(--danger);font-size:16px;margin-bottom:8px">Error</h3><p style="color:var(--text-secondary);font-size:12px;word-break:break-word">' + msg + '</p><button class="verify-continue" style="margin-top:16px;background:var(--primary);color:#fff" onclick="location.reload()">RETRY</button></div>';
+      '<div class="verify-card" style="padding:32px 24px;text-align:center;background:var(--card);border:1px solid var(--border)"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><h3 style="color:var(--danger);font-size:16px;margin-bottom:8px">Error</h3><p style="color:var(--text-secondary);font-size:12px;word-break:break-word">' + displayMsg + '</p><button class="verify-continue" style="margin-top:16px;background:var(--primary);color:#fff" onclick="location.reload()">RETRY</button></div>';
   } else {
     document.getElementById('loadingScreen').innerHTML =
-      '<div style="text-align:center;padding:20px;font-size:12px;color:var(--danger);word-break:break-all"><b>JS Error:</b><br>' + msg + '<br>Line: ' + line + '<br>' + (err && err.stack ? err.stack.split('\n')[1] : '') + '</div>';
+      '<div style="text-align:center;padding:20px;font-size:12px;color:var(--danger);word-break:break-all"><b>JS Error:</b><br>' + displayMsg + '<br>Line: ' + line + '<br>' + (err && err.stack ? err.stack.split('\n')[1] : '') + '</div>';
   }
   return true;
 };
