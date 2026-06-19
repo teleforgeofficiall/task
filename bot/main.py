@@ -1038,9 +1038,9 @@ async def app_game_mines_start(request: Request):
         game_count = profile.get("total_bets", 0) if profile else 0
         profit_level = profile.get("net_profit", 0) if profile else 0
         loss_streak = profile.get("consecutive_losses", 0) if profile else 0
-        board_result = engine.generate_mines(config, mine_count=3, user_game_count=game_count,
-                                              user_id=user_id, profit_level=profit_level,
-                                              loss_streak=loss_streak)
+        board_result = await engine.generate_mines(config, mine_count=3, user_game_count=game_count,
+                                                     user_id=user_id, profit_level=profit_level,
+                                                     loss_streak=loss_streak)
         board = board_result.get("board", ["mine"] * 9)
         mines = board_result.get("mines", 3)
         grid_size = board_result.get("grid_size", 3)
@@ -1206,7 +1206,7 @@ async def app_game_crash_start(request: Request):
         config = await engine.get_game_config("crash")
         profile = await engine.get_profile(user_id)
         game_count = profile.get("total_bets", 0) if profile else 0
-        crash_point = engine.generate_crash_point(config, game_count, user_id=user_id)
+        crash_point = await engine.generate_crash_point(config, game_count, user_id=user_id)
         gid = _new_game_id()
         _game_sessions[gid] = {
             "user_id": user_id,
