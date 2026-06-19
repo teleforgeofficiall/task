@@ -305,6 +305,21 @@ async def _migrate_mysql_schema(engine) -> None:
                 except Exception as exc:
                     logger.warning("Could not add column tasks.%s: %s", col_name, exc)
 
+        # ── Proofs table: change proof_file_id from TEXT to LONGTEXT ──
+        try:
+            def _get_proof_cols(sync_conn):
+                return {c["name"] for c in inspect(sync_conn).get_columns("proofs")}
+            proof_existing = await conn.run_sync(_get_proof_cols)
+            if "proof_file_id" in proof_existing:
+                col_type = proof_existing["proof_file_id"].type
+                if hasattr(col_type, 'length') and col_type.length and col_type.length < 100000:
+                    await conn.execute(sa_text(
+                        'ALTER TABLE proofs MODIFY COLUMN `proof_file_id` LONGTEXT NOT NULL'
+                    ))
+                    logger.info("Altered proofs.proof_file_id to LONGTEXT")
+        except Exception as exc:
+            logger.warning("Could not alter proofs.proof_file_id: %s", exc)
+
 
 @asynccontextmanager
 async def get_session() -> AsyncIterator[AsyncSession]:

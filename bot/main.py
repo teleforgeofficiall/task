@@ -704,6 +704,7 @@ async def app_submit_proof(task_id: int, request: Request):
         return {"ok": False, "error": "Missing user_id"}
     if not proof_image and not txn_id:
         return {"ok": False, "error": "Please provide proof screenshot or transaction ID"}
+    proof_image = (proof_image or "")[:500000]
     async with get_session() as session:
         repo = Repository(session)
         task = await repo.get_task(task_id)
@@ -715,8 +716,11 @@ async def app_submit_proof(task_id: int, request: Request):
             return {"ok": False, "error": "Already completed"}
         if await repo.has_pending_proof(user_id, task_id):
             return {"ok": False, "error": "Proof already submitted, awaiting review"}
-        # Store proof for admin review - do NOT mark task as completed yet
-        await repo.add_proof(user_id, task_id, proof_image, "photo")
+        try:
+            await repo.add_proof(user_id, task_id, proof_image, "photo")
+        except Exception as exc:
+            logger.exception("add_proof failed for user %s task %s: %s", user_id, task_id, exc)
+            return {"ok": False, "error": "Failed to save proof. Try a smaller image."}
         # Save UPI for payout if provided
         if upi:
             meta = dict(user.user_meta or {})
@@ -850,6 +854,19 @@ async def app_spin(request: Request):
         await repo.update_user_fields(user_id, user_meta=meta)
         user = await repo.get_user(user_id)
         return {"ok": True, "amount": amount, "balance": float(user.balance or 0)}
+
+
+@app.get("/api/app/spin-config")
+async def app_spin_config(user_id: int = 0):
+    """Get spin wheel configuration for the Mini App."""
+    from bot.database import get_session, Repository
+    async with get_session() as session:
+        repo = Repository(session)
+        enabled = await repo.get_setting("spin_enabled", True)
+        segments = await repo.get_setting("spin_segments", [0.5, 1, 2, 3, 5, 0, 1.5, 0.75])
+        price = float(await repo.get_setting("spin_price", 0.0))
+        cooldown_hours = int(await repo.get_setting("spin_cooldown_hours", 24))
+    return {"ok": True, "enabled": enabled, "segments": segments, "price": price, "cooldown_hours": cooldown_hours}
 
 
 @app.get("/api/app/earn")

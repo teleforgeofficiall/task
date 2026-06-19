@@ -581,6 +581,7 @@ async def admin_add_ad(request: Request):
             "title": data.get("title", ""),
             "description": data.get("description", ""),
             "image": data.get("image", ""),
+            "video_url": data.get("video_url", ""),
             "url": data.get("url", ""),
             "reward": float(data.get("reward", 0)),
             "active": data.get("active", True),

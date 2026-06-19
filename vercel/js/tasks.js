@@ -149,10 +149,14 @@ function renderAffiliateSection(t) {
 }
 
 function startTask(taskId) {
-  closeModal();
   api('/api/app/task/' + taskId + '?' + new URLSearchParams({ user_id: USER.id }).toString()).then(data => {
     if (!data.ok) return;
     const t = data.task;
+
+    if (t.offer_url) {
+      openLink(t.offer_url);
+    }
+
     const steps = t.steps || (t.guide ? t.guide.split('\n').filter(s => s.trim()) : []);
     const stepsHtml = steps.length > 0
       ? `<div style="margin:12px 0;padding:12px 16px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
@@ -182,10 +186,6 @@ function startTask(taskId) {
           <div id="proofFileName" style="font-size:11px;color:var(--text-secondary);margin-top:4px"></div>
         </div>
         <div class="form-group">
-          <label>🔑 Transaction ID / Order ID</label>
-          <input class="form-input" id="proofTxnId" placeholder="Enter transaction ID if applicable">
-        </div>
-        <div class="form-group">
           <label>💳 Your UPI ID (for payment)</label>
           <input class="form-input" id="proofUpi" placeholder="Enter your UPI ID" value="${CURRENT_USER?.upi||''}">
         </div>
@@ -200,40 +200,31 @@ function handleProofFile(event) {
   if (!file) return;
   const el = document.getElementById('proofFileName');
   if (el) el.textContent = '📎 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
-  if (file.size > 500 * 1024) {
-    const img = new Image();
-    img.onload = function() {
-      const canvas = document.createElement('canvas');
-      let w = img.width, h = img.height;
-      const maxDim = 800;
-      if (w > maxDim || h > maxDim) {
-        if (w > h) { h = (h / w) * maxDim; w = maxDim; }
-        else { w = (w / h) * maxDim; h = maxDim; }
-      }
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      const compressed = canvas.toDataURL('image/jpeg', 0.7);
-      const input = document.getElementById('proofImage');
-      if (input) input.value = compressed;
-      if (el) el.textContent += ' (compressed)';
-    };
-    img.src = URL.createObjectURL(file);
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = function(e) {
+  const img = new Image();
+  img.onload = function() {
+    const canvas = document.createElement('canvas');
+    let w = img.width, h = img.height;
+    const maxDim = 800;
+    if (w > maxDim || h > maxDim) {
+      if (w > h) { h = (h / w) * maxDim; w = maxDim; }
+      else { w = (w / h) * maxDim; h = maxDim; }
+    }
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    const quality = file.size > 500 * 1024 ? 0.5 : 0.7;
+    const compressed = canvas.toDataURL('image/jpeg', quality);
     const input = document.getElementById('proofImage');
-    if (input) input.value = e.target.result;
+    if (input) input.value = compressed;
+    if (el) el.textContent += ' (compressed)';
   };
-  reader.readAsDataURL(file);
+  img.src = URL.createObjectURL(file);
 }
 
 async function submitProof(taskId) {
   const proof_image = document.getElementById('proofImage')?.value;
-  const txn_id = document.getElementById('proofTxnId')?.value;
   const upi = document.getElementById('proofUpi')?.value;
-  if (!proof_image && !txn_id) { toast('📸 Please provide a screenshot or transaction ID'); return; }
+  if (!proof_image) { toast('📸 Please provide a screenshot'); return; }
   if (!upi) { toast('💳 Please enter your UPI ID for payment'); return; }
 
   const btn = document.querySelector('.proof-submit .btn-success');
@@ -241,7 +232,7 @@ async function submitProof(taskId) {
 
   const data = await api('/api/app/task/' + taskId + '/submit', {
     method: 'POST',
-    body: JSON.stringify({ user_id: USER.id, proof_image, txn_id, upi }),
+    body: JSON.stringify({ user_id: USER.id, proof_image, upi }),
     timeout: 60000
   });
 
@@ -574,7 +565,6 @@ async function loadAdvertise() {
   ]);
 
   const adGoal = earnData.ad_goal || { current: 0, target: 20, reward: 1, reset_in: '24h', completed: false, no_ads: true };
-  const hasAds = earnData.has_ads || false;
   const ads = earnData.ads || [];
   const pct = Math.min(100, (adGoal.current / adGoal.target) * 100);
   const items = promoData.items || [];
@@ -586,25 +576,14 @@ async function loadAdvertise() {
   if (isCompleted) {
     goalBody = `<div style="text-align:center;padding:16px;font-size:14px;font-weight:700;color:#00e5a0">✅ Target complete! Come back in ${adGoal.reset_in}</div>
     <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px">Resets at midnight</div>`;
-  } else if (!hasAds) {
-    goalBody = `<div style="text-align:center;padding:16px;font-size:14px;font-weight:700;color:rgba(255,255,255,0.6)">No ads found</div>`;
+  } else if (ads.length === 0) {
+    goalBody = `<div style="text-align:center;padding:16px;font-size:14px;font-weight:700;color:rgba(255,255,255,0.6)">No ads available</div>`;
   } else {
     goalBody = `<div style="text-align:center;margin-bottom:12px;font-size:12px;color:rgba(255,255,255,0.5)">
       Watch ${adGoal.target} ads at ₹${perAd} each to earn ₹${adGoal.reward}
     </div>
-    <button class="btn-watch-ad" onclick="watchAd('goal')">▶ WATCH AD TO EARN</button>`;
+    <button class="btn-watch-ad" onclick="watchAdVideo()">▶ WATCH AD TO EARN</button>`;
   }
-
-  const adsHtml = hasAds ? ads.map(a => `
-    <div class="ad-card">
-      <div class="ad-icon" style="background:linear-gradient(135deg,${a.color1||'#ff6b6b'},${a.color2||'#ee5a24'})">${a.icon||'📺'}</div>
-      <div class="ad-info">
-        <h4>${a.title}</h4>
-        <p>${a.description||'Watch and earn'}</p>
-      </div>
-      <button class="btn btn-sm btn-primary" onclick="watchAd(${a.id})">▶ Watch</button>
-    </div>
-  `).join('') : '';
 
   el.innerHTML = `
     <div class="adgoal-card">
@@ -632,7 +611,6 @@ async function loadAdvertise() {
       </div>
       ${goalBody}
     </div>
-    ${adsHtml ? `<h3 class="section-title" style="margin-top:16px">📺 Available Ads</h3>${adsHtml}` : ''}
     ${items.length > 0 ? `
       <h3 class="section-title" style="margin-top:16px">📢 Promoted</h3>
       ${items.map(p => `
@@ -656,16 +634,96 @@ async function loadAdvertise() {
   `;
 }
 
-async function watchAd(adId) {
-  const data = await api('/api/app/ad/watch', {
-    method: 'POST',
-    body: JSON.stringify({ user_id: USER.id, ad_id: typeof adId === 'number' ? adId : 0 })
+async function watchAdVideo() {
+  const earnData = await api('/api/app/earn?' + new URLSearchParams({ user_id: USER.id }).toString());
+  const ads = earnData.ads || [];
+  if (ads.length === 0) { toast('No ads available'); return; }
+
+  const randomAd = ads[Math.floor(Math.random() * ads.length)];
+  const videoUrl = randomAd.video_url || '';
+  if (!videoUrl) { toast('No video ad available'); return; }
+
+  let adCompleted = false;
+  let adCancelled = false;
+
+  try { TG?.BackButton?.hide(); } catch(e) {}
+
+  const overlay = document.createElement('div');
+  overlay.id = 'adOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div id="adTimer" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;z-index:10">Loading...</div>
+    <div style="width:100%;max-width:480px;aspect-ratio:16/9;background:#111;border-radius:8px;overflow:hidden;position:relative">
+      <video id="adVideoPlayer" style="width:100%;height:100%;object-fit:contain" playsinline webkit-playsinline controlsList="nodownload noplaybackrate">
+        <source src="${escHtml(videoUrl)}" type="video/mp4">
+      </video>
+      <div id="adProgressBar" style="position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,0.2)">
+        <div id="adProgressFill" style="height:100%;background:#00e5a0;width:0%;transition:width 0.3s"></div>
+      </div>
+    </div>
+    <div style="margin-top:16px;font-size:13px;color:rgba(255,255,255,0.7);text-align:center">Watch the full ad to earn reward</div>
+  `;
+  document.body.appendChild(overlay);
+
+  const video = document.getElementById('adVideoPlayer');
+  const timerEl = document.getElementById('adTimer');
+  const progressFill = document.getElementById('adProgressFill');
+
+  if (!video) { closeAdOverlay(); return; }
+
+  video.play().catch(() => {});
+
+  video.addEventListener('timeupdate', function onTimeUpdate() {
+    if (!video.duration) return;
+    const pct = Math.min(100, (video.currentTime / video.duration) * 100);
+    if (progressFill) progressFill.style.width = pct + '%';
+    const remaining = Math.ceil(video.duration - video.currentTime);
+    if (timerEl) timerEl.textContent = remaining + 's remaining';
   });
-  if (data.ok) {
-    toast('💰 +₹' + (data.amount || '0.10') + ' earned!');
-    updateBalance(data.balance || CURRENT_USER.balance);
-    loadAdvertise();
-  } else {
-    toast(data.error || 'Failed');
+
+  video.addEventListener('ended', function onEnded() {
+    adCompleted = true;
+    if (timerEl) timerEl.textContent = '✅ Complete!';
+    if (progressFill) progressFill.style.width = '100%';
+
+    api('/api/app/ad/watch', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: USER.id, ad_id: randomAd.id })
+    }).then(data => {
+      if (data.ok) {
+        toast('💰 +₹' + (data.amount || '0.10') + ' earned!');
+        updateBalance(data.balance || CURRENT_USER.balance);
+      }
+      setTimeout(closeAdOverlay, 800);
+    }).catch(() => {
+      setTimeout(closeAdOverlay, 800);
+    });
+  });
+
+  video.addEventListener('error', function() {
+    toast('Video failed to load');
+    closeAdOverlay();
+  });
+
+  function onVisibilityChange() {
+    if (document.hidden && !adCompleted && !adCancelled) {
+      adCancelled = true;
+      try { video.pause(); } catch(e) {}
+      toast('Ad closed early — no reward');
+      setTimeout(closeAdOverlay, 300);
+    }
   }
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
+  window._adCleanup = function() {
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    try { TG?.BackButton?.show(); } catch(e) {}
+  };
+}
+
+function closeAdOverlay() {
+  const ov = document.getElementById('adOverlay');
+  if (ov) ov.remove();
+  if (window._adCleanup) { window._adCleanup(); window._adCleanup = null; }
+  try { TG?.BackButton?.show(); } catch(e) {}
 }

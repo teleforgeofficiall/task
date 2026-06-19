@@ -1,13 +1,20 @@
+let _spinSegmentsData = [];
+
 async function loadBonus() {
   const el = document.getElementById('dailyBonusSection');
+  const spinSection = document.querySelector('.spin-section');
   if (!el) return;
 
-  const data = await api('/api/app/bonus?' + new URLSearchParams({ user_id: USER.id }).toString());
-  const canClaim = data.can_claim;
-  const day = data.day || 1;
-  const amount = data.amount || 1;
-  const streak = data.streak || 0;
-  const nextIn = data.next_in || '';
+  const [bonusData, spinData] = await Promise.all([
+    api('/api/app/bonus?' + new URLSearchParams({ user_id: USER.id }).toString()),
+    api('/api/app/spin-config?' + new URLSearchParams({ user_id: USER.id }).toString())
+  ]);
+
+  const canClaim = bonusData.can_claim;
+  const day = bonusData.day || 1;
+  const amount = bonusData.amount || 1;
+  const streak = bonusData.streak || 0;
+  const nextIn = bonusData.next_in || '';
 
   el.innerHTML = `
     <div class="bonus-hero animate-in">
@@ -21,6 +28,16 @@ async function loadBonus() {
     </div>
     <div class="streak-info">Come back daily for bigger rewards! <strong>Day 7 = ₹10 bonus 🎉</strong></div>
   `;
+
+  if (spinSection) {
+    if (spinData.ok && spinData.enabled) {
+      spinSection.style.display = '';
+      _spinSegmentsData = spinData.segments || [];
+      renderSpinWheel();
+    } else {
+      spinSection.style.display = 'none';
+    }
+  }
 }
 
 async function claimDailyBonus() {
@@ -37,25 +54,16 @@ async function claimDailyBonus() {
   }
 }
 
-const SPIN_SEGMENTS = [
-  { label: '₹0.5', color: '#7b5ef8', amount: 0.5 },
-  { label: '₹1', color: '#00e5a0', amount: 1 },
-  { label: '₹2', color: '#ffab00', amount: 2 },
-  { label: '₹3', color: '#ff4f5e', amount: 3 },
-  { label: '₹5', color: '#a78bfa', amount: 5 },
-  { label: '₹0', color: '#6b6b80', amount: 0 },
-  { label: '₹1.5', color: '#34d399', amount: 1.5 },
-  { label: '₹0.75', color: '#f87171', amount: 0.75 },
-];
+const SPIN_COLORS = ['#7b5ef8','#00e5a0','#ffab00','#ff4f5e','#a78bfa','#6b6b80','#34d399','#f87171','#60a5fa','#fbbf24'];
 
 function renderSpinWheel() {
   const container = document.getElementById('spinSegments');
-  if (!container) return;
+  if (!container || !_spinSegmentsData.length) return;
 
-  const segmentAngle = 360 / SPIN_SEGMENTS.length;
-  container.innerHTML = SPIN_SEGMENTS.map((seg, i) => `
+  const segmentAngle = 360 / _spinSegmentsData.length;
+  container.innerHTML = _spinSegmentsData.map((amount, i) => `
     <div class="spin-segment"
-      style="background:${seg.color}; transform: rotate(${i * segmentAngle}deg);
+      style="background:${SPIN_COLORS[i % SPIN_COLORS.length]}; transform: rotate(${i * segmentAngle}deg);
       clip-path: polygon(50% 50%, 50% 0%, ${50 + 50 * Math.tan((segmentAngle / 2) * Math.PI / 180)}% 0%);">
     </div>
   `).join('');
@@ -67,7 +75,6 @@ async function startSpin() {
   btn.disabled = true;
   btn.textContent = 'Spinning...';
 
-  // Spin animation
   const wheel = document.querySelector('.spin-wheel');
   if (wheel) {
     const spinDeg = 1800 + Math.floor(Math.random() * 360);
@@ -90,7 +97,6 @@ async function startSpin() {
       toast(data.error || 'Try again tomorrow');
     }
 
-    // Reset wheel
     if (wheel) {
       setTimeout(() => {
         wheel.style.transition = 'none';

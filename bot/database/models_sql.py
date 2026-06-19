@@ -13,6 +13,7 @@ from sqlalchemy import (
     Column, Integer, BigInteger, Float, String, Boolean, DateTime,
     Text, JSON, ForeignKey, UniqueConstraint, Index, text,
 )
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -160,7 +161,7 @@ class ProofTable(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     task_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    proof_file_id: Mapped[str] = mapped_column(Text, nullable=False)
+    proof_file_id: Mapped[str] = mapped_column(LONGTEXT, nullable=False)
     file_type: Mapped[str] = mapped_column(String(10), default="photo")
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     reject_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

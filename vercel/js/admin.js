@@ -422,7 +422,7 @@ function adminAddPromoted() {
       <div class="form-group"><label>Description</label><textarea id="f_p_desc" oninput="adminUpdatePromoPreview()" rows="3"></textarea></div>
       <div class="form-group"><label>Accent Color</label><input id="f_p_color" type="color" value="#7b5ef8" oninput="adminUpdatePromoPreview()" style="height:44px;padding:4px"></div>
       <div class="form-group"><label>Image URL</label><input id="f_p_image" placeholder="https://..." oninput="adminUpdatePromoPreview()"></div>
-      <div class="form-group"><label>Link URL</label><input id="f_p_url" placeholder="https://..." style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      <div class="form-group"><label>Link URL</label><input id="f_p_url" placeholder="https://..."></div>
       <div class="form-group"><label>Badge Text</label><input id="f_p_badge" placeholder="AD, PROMO, etc." oninput="adminUpdatePromoPreview()"></div>
       <div id="promoPreview"></div>
       <button class="btn btn-primary btn-block" onclick="adminSavePromoted()">Add</button>
@@ -456,7 +456,7 @@ async function adminEditPromoted(id) {
       <div class="form-group"><label>Description</label><textarea id="f_p_desc" oninput="adminEditPreview(${id})" rows="3">${escHtml(item.description || '')}</textarea></div>
       <div class="form-group"><label>Accent Color</label><input id="f_p_color" type="color" value="${color}" oninput="adminEditPreview(${id})" style="height:44px;padding:4px"></div>
       <div class="form-group"><label>Image URL</label><input id="f_p_image" value="${escHtml(item.image || '')}" placeholder="https://..." oninput="adminEditPreview(${id})"></div>
-      <div class="form-group"><label>Link URL</label><input id="f_p_url" value="${escHtml(item.url || '')}" placeholder="https://..." style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      <div class="form-group"><label>Link URL</label><input id="f_p_url" value="${escHtml(item.url || '')}" placeholder="https://..."></div>
       <div class="form-group"><label>Badge Text</label><input id="f_p_badge" value="${escHtml(item.badge || '')}" placeholder="AD, PROMO, etc." oninput="adminEditPreview(${id})"></div>
       <div id="promoPreview"></div>
       <div style="display:flex;gap:8px">
@@ -526,7 +526,7 @@ async function adminAds() {
   list.innerHTML = data.ads.map(a => `
     <div class="admin-list-item">
       <div class="info">
-        <div class="title">${a.title || 'Untitled'} ${a.active === false ? '<span class="badge badge-rejected">INACTIVE</span>' : ''}</div>
+        <div class="title">${a.title || 'Untitled'} ${a.active === false ? '<span class="badge badge-rejected">INACTIVE</span>' : ''} ${a.video_url ? '<span class="badge badge-approved">VIDEO</span>' : ''}</div>
         <div class="subtitle">₹${a.reward || 0} per view · ${a.description?.slice(0, 50) || ''}</div>
       </div>
       <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();adminDeleteAd(${a.id})">🗑️</button>
@@ -540,6 +540,7 @@ function adminAddAd() {
       <div class="form-group"><label>Title</label><input id="f_a_title"></div>
       <div class="form-group"><label>Description</label><textarea id="f_a_desc"></textarea></div>
       <div class="form-group"><label>Image URL</label><input id="f_a_image" placeholder="https://..."></div>
+      <div class="form-group"><label>Video URL</label><input id="f_a_video" placeholder="https://youtube.com/watch?v=..."></div>
       <div class="form-group"><label>Link URL</label><input id="f_a_url" placeholder="https://..."></div>
       <div class="form-group"><label>Reward per View (₹)</label><input id="f_a_reward" type="number" step="0.01" value="0.05"></div>
       <button class="btn btn-primary btn-block" onclick="adminSaveAd()">Add</button>
@@ -552,6 +553,7 @@ async function adminSaveAd() {
     title: document.getElementById('f_a_title')?.value || '',
     description: document.getElementById('f_a_desc')?.value || '',
     image: document.getElementById('f_a_image')?.value || '',
+    video_url: document.getElementById('f_a_video')?.value || '',
     url: document.getElementById('f_a_url')?.value || '',
     reward: parseFloat(document.getElementById('f_a_reward')?.value || 0),
   };
