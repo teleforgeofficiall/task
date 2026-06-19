@@ -49,6 +49,7 @@ async def admin_withdraws_queue_handler(update: Update, context: ContextTypes.DE
     repository = Repository(await get_db())
 
     pending = await repository.get_pending_withdrawals()
+    pending = [w for w in pending if w.get("method") != "stars"]
     if not pending:
         await query.answer("🎉 No pending withdrawals remaining!", show_alert=True)
         return

@@ -317,7 +317,6 @@ def settings_menu(require_contact: bool = True, refer_paused: bool = False, main
             InlineKeyboardButton("🏷️ Promo Config", callback_data="admin:set_promo"),
         ],
         [
-            InlineKeyboardButton("🎡 Spin & Win Config", callback_data="admin:spin_menu"),
             InlineKeyboardButton("🔥 Streak Bonus Config", callback_data="admin:streak_menu"),
         ],
         [

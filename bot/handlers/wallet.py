@@ -48,14 +48,11 @@ async def wallet_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         f"━━━━━━━━━━━━━━━━━━━━"
     )
 
-    banner_url = await repository.get_image("img_welcome")
-
     await edit_or_reply(
         update=update,
         context=context,
         text=text,
-        reply_markup=wallet_keyboard(user_id),
-        image_url=banner_url
+        reply_markup=wallet_keyboard(user_id)
     )
 
 
