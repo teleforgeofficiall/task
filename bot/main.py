@@ -884,6 +884,455 @@ async def app_spin_config(user_id: int = 0):
     return {"ok": True, "enabled": enabled, "segments": segments, "price": price, "cooldown_hours": cooldown_hours}
 
 
+# ─── In-Memory Game Sessions (Mines / Crash) ────────────────────────────────
+_game_sessions: Dict[str, Dict] = {}
+
+def _new_game_id() -> str:
+    import secrets, string
+    return ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+
+
+BET_AMOUNTS = [5, 10, 25, 50, 100]
+
+
+@app.get("/api/app/game/config")
+async def app_game_config():
+    """Return game configuration for the Mini App."""
+    return {"ok": True, "bet_amounts": BET_AMOUNTS}
+
+
+async def _process_game_bet(user_id: int, bet: float, game: str, repo: Repository) -> dict | None:
+    """Common validation: check user exists, banned, balance >= bet, etc. Returns error dict or None."""
+    user = await repo.get_user(user_id)
+    if not user:
+        return {"ok": False, "error": "User not found"}
+    if user.banned:
+        return {"ok": False, "error": "You are banned"}
+    if bet not in BET_AMOUNTS:
+        return {"ok": False, "error": "Invalid bet amount"}
+    balance = float(user.balance or 0)
+    if balance < bet:
+        return {"ok": False, "error": f"Insufficient balance. Need ₹{bet}"}
+    return None
+
+
+# ─── Dice ────────────────────────────────────────────────────────────────────
+@app.post("/api/app/game/dice")
+async def app_game_dice(request: Request):
+    """Play dice game."""
+    from bot.database import get_session, Repository
+    from bot.services.risk_engine import RiskEngine
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON"}
+    user_id = data.get("user_id")
+    bet = data.get("bet")
+    if not user_id or not bet:
+        return {"ok": False, "error": "Missing user_id or bet"}
+        bet = float(bet)
+    async with get_session() as session:
+        repo = Repository(session)
+        err = await _process_game_bet(user_id, bet, "dice", repo)
+        if err:
+            return err
+        await repo.record_game_bet_transaction(user_id, "dice", bet)
+        engine = RiskEngine(repo)
+        config = await engine.get_game_config("dice")
+        profile = await engine.get_profile(user_id)
+        game_count = profile.get("total_bets", 0) if profile else 0
+        result = engine.roll_dice(config, game_count, user_id=user_id)
+        won = result.get("win", False)
+        multiplier = float(result.get("multiplier", 0))
+        payout = round(bet * multiplier, 2) if won else 0
+        if won and payout > 0:
+            await repo.record_game_win_transaction(user_id, "dice", payout, multiplier)
+        engine.record_bet("dice", bet, payout)
+        await repo.record_game_round(user_id, "dice", bet, payout, multiplier, won,
+                                     details={"roll": result.get("roll")})
+        engine.update_session(user_id, "dice", bet, won)
+        user = await repo.get_user(user_id)
+        return {
+            "ok": True,
+            "roll": result.get("roll"),
+            "win": won,
+            "multiplier": multiplier,
+            "payout": payout,
+            "balance": float(user.balance or 0),
+        }
+
+
+# ─── Slots ───────────────────────────────────────────────────────────────────
+@app.post("/api/app/game/slots")
+async def app_game_slots(request: Request):
+    """Play slots game."""
+    from bot.database import get_session, Repository
+    from bot.services.risk_engine import RiskEngine
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON"}
+    user_id = data.get("user_id")
+    bet = data.get("bet")
+    if not user_id or not bet:
+        return {"ok": False, "error": "Missing user_id or bet"}
+        bet = float(bet)
+    async with get_session() as session:
+        repo = Repository(session)
+        err = await _process_game_bet(user_id, bet, "slots", repo)
+        if err:
+            return err
+        await repo.record_game_bet_transaction(user_id, "slots", bet)
+        engine = RiskEngine(repo)
+        config = await engine.get_game_config("slots")
+        profile = await engine.get_profile(user_id)
+        game_count = profile.get("total_bets", 0) if profile else 0
+        result = engine.spin_slots(config, game_count, user_id=user_id)
+        won = result.get("win", False)
+        multiplier = float(result.get("multiplier", 0))
+        payout = round(bet * multiplier, 2) if won else 0
+        if won and payout > 0:
+            await repo.record_game_win_transaction(user_id, "slots", payout, multiplier)
+        engine.record_bet("slots", bet, payout)
+        await repo.record_game_round(user_id, "slots", bet, payout, multiplier, won,
+                                     details={"reels": result.get("display"), "jackpot": result.get("jackpot", False)})
+        engine.update_session(user_id, "slots", bet, won)
+        user = await repo.get_user(user_id)
+        return {
+            "ok": True,
+            "reels": result.get("display"),
+            "win": won,
+            "multiplier": multiplier,
+            "payout": payout,
+            "jackpot": result.get("jackpot", False),
+            "near_miss": result.get("near_miss", False),
+            "balance": float(user.balance or 0),
+        }
+
+
+# ─── Mines ───────────────────────────────────────────────────────────────────
+@app.post("/api/app/game/mines/start")
+async def app_game_mines_start(request: Request):
+    """Start a new mines game round."""
+    from bot.database import get_session, Repository
+    from bot.services.risk_engine import RiskEngine
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON"}
+    user_id = data.get("user_id")
+    bet = data.get("bet")
+    if not user_id or not bet:
+        return {"ok": False, "error": "Missing user_id or bet"}
+    bet = float(bet)
+    async with get_session() as session:
+        repo = Repository(session)
+        err = await _process_game_bet(user_id, bet, "mines", repo)
+        if err:
+            return err
+        engine = RiskEngine(repo)
+        config = await engine.get_game_config("mines")
+        profile = await engine.get_profile(user_id)
+        game_count = profile.get("total_bets", 0) if profile else 0
+        profit_level = profile.get("net_profit", 0) if profile else 0
+        loss_streak = profile.get("consecutive_losses", 0) if profile else 0
+        board_result = engine.generate_mines(config, mine_count=3, user_game_count=game_count,
+                                              user_id=user_id, profit_level=profit_level,
+                                              loss_streak=loss_streak)
+        board = board_result.get("board", ["mine"] * 9)
+        mines = board_result.get("mines", 3)
+        grid_size = board_result.get("grid_size", 3)
+        gid = _new_game_id()
+        _game_sessions[gid] = {
+            "user_id": user_id,
+            "game": "mines",
+            "bet": bet,
+            "board": board,
+            "mines": mines,
+            "grid_size": grid_size,
+            "revealed": [False] * (grid_size * grid_size),
+            "gems_found": 0,
+            "active": True,
+            "won": False,
+            "payout": 0,
+        }
+        await repo.record_game_bet_transaction(user_id, "mines", bet)
+        return {
+            "ok": True,
+            "game_id": gid,
+            "mines": mines,
+            "grid_size": grid_size,
+        }
+
+
+@app.post("/api/app/game/mines/reveal")
+async def app_game_mines_reveal(request: Request):
+    """Reveal a cell in an active mines game."""
+    from bot.database import get_session, Repository
+    from bot.services.risk_engine import RiskEngine
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON"}
+    user_id = data.get("user_id")
+    game_id = data.get("game_id")
+    cell_index = data.get("cell_index")
+    if not user_id or not game_id or cell_index is None:
+        return {"ok": False, "error": "Missing parameters"}
+    session_state = _game_sessions.get(game_id)
+    if not session_state:
+        return {"ok": False, "error": "Game not found or expired"}
+    if session_state["user_id"] != user_id:
+        return {"ok": False, "error": "Not your game"}
+    if not session_state["active"]:
+        return {"ok": False, "error": "Game already finished"}
+    grid_size = session_state["grid_size"]
+    total_cells = grid_size * grid_size
+    if cell_index < 0 or cell_index >= total_cells:
+        return {"ok": False, "error": "Invalid cell"}
+    if session_state["revealed"][cell_index]:
+        return {"ok": False, "error": "Cell already revealed"}
+    session_state["revealed"][cell_index] = True
+    is_mine = session_state["board"][cell_index] == "mine"
+    async with get_session() as session:
+        repo = Repository(session)
+        if is_mine:
+            session_state["active"] = False
+            session_state["won"] = False
+            engine = RiskEngine(repo)
+            engine.record_bet("mines", session_state["bet"], 0)
+            await repo.record_game_round(user_id, "mines", session_state["bet"], 0, 0, False,
+                                         details={"gems_found": session_state["gems_found"], "hit_mine": True})
+            engine.update_session(user_id, "mines", session_state["bet"], False)
+            user = await repo.get_user(user_id)
+            return {
+                "ok": True,
+                "hit": True,
+                "gems_found": session_state["gems_found"],
+                "multiplier": 0,
+                "payout": 0,
+                "game_over": True,
+                "won": False,
+                "balance": float(user.balance or 0),
+            }
+        else:
+            session_state["gems_found"] += 1
+            gems = session_state["gems_found"]
+            total_mines = session_state["mines"]
+            engine = RiskEngine(repo)
+            multiplier = engine.get_mines_multiplier(gems, total_mines, grid_size)
+            return {
+                "ok": True,
+                "hit": False,
+                "gems_found": gems,
+                "multiplier": round(multiplier, 2),
+                "payout": round(session_state["bet"] * multiplier, 2),
+                "game_over": False,
+                "won": False,
+            }
+
+
+@app.post("/api/app/game/mines/cashout")
+async def app_game_mines_cashout(request: Request):
+    """Cash out from an active mines game."""
+    from bot.database import get_session, Repository
+    from bot.services.risk_engine import RiskEngine
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON"}
+    user_id = data.get("user_id")
+    game_id = data.get("game_id")
+    if not user_id or not game_id:
+        return {"ok": False, "error": "Missing parameters"}
+    session_state = _game_sessions.get(game_id)
+    if not session_state:
+        return {"ok": False, "error": "Game not found or expired"}
+    if session_state["user_id"] != user_id:
+        return {"ok": False, "error": "Not your game"}
+    if not session_state["active"]:
+        return {"ok": False, "error": "Game already finished"}
+    if session_state["gems_found"] == 0:
+        return {"ok": False, "error": "Reveal at least one gem first"}
+    gems = session_state["gems_found"]
+    total_mines = session_state["mines"]
+    grid_size = session_state["grid_size"]
+    async with get_session() as session:
+        repo = Repository(session)
+        engine = RiskEngine(repo)
+        multiplier = engine.get_mines_multiplier(gems, total_mines, grid_size)
+        payout = round(session_state["bet"] * multiplier, 2)
+        session_state["active"] = False
+        session_state["won"] = True
+        session_state["payout"] = payout
+        await repo.record_game_win_transaction(user_id, "mines", payout, multiplier)
+        engine.record_bet("mines", session_state["bet"], payout)
+        await repo.record_game_round(user_id, "mines", session_state["bet"], payout, multiplier, True,
+                                     details={"gems_found": gems, "cashout": True})
+        engine.update_session(user_id, "mines", session_state["bet"], True)
+        user = await repo.get_user(user_id)
+        return {
+            "ok": True,
+            "gems_found": gems,
+            "multiplier": round(multiplier, 2),
+            "payout": payout,
+            "balance": float(user.balance or 0),
+        }
+
+
+# ─── Crash ───────────────────────────────────────────────────────────────────
+@app.post("/api/app/game/crash/start")
+async def app_game_crash_start(request: Request):
+    """Start a new crash game round."""
+    from bot.database import get_session, Repository
+    from bot.services.risk_engine import RiskEngine
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON"}
+    user_id = data.get("user_id")
+    bet = data.get("bet")
+    if not user_id or not bet:
+        return {"ok": False, "error": "Missing user_id or bet"}
+    bet = float(bet)
+    async with get_session() as session:
+        repo = Repository(session)
+        err = await _process_game_bet(user_id, bet, "crash", repo)
+        if err:
+            return err
+        engine = RiskEngine(repo)
+        config = await engine.get_game_config("crash")
+        profile = await engine.get_profile(user_id)
+        game_count = profile.get("total_bets", 0) if profile else 0
+        crash_point = engine.generate_crash_point(config, game_count, user_id=user_id)
+        gid = _new_game_id()
+        _game_sessions[gid] = {
+            "user_id": user_id,
+            "game": "crash",
+            "bet": bet,
+            "crash_point": crash_point,
+            "cashout_mult": 0,
+            "active": True,
+            "won": False,
+            "payout": 0,
+        }
+        await repo.record_game_bet_transaction(user_id, "crash", bet)
+        return {
+            "ok": True,
+            "game_id": gid,
+        }
+
+
+@app.post("/api/app/game/crash/cashout")
+async def app_game_crash_cashout(request: Request):
+    """Cash out before crash."""
+    from bot.database import get_session, Repository
+    from bot.services.risk_engine import RiskEngine
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON"}
+    user_id = data.get("user_id")
+    game_id = data.get("game_id")
+    cashout_mult = data.get("cashout_mult")
+    if not user_id or not game_id or not cashout_mult:
+        return {"ok": False, "error": "Missing parameters"}
+    cashout_mult = float(cashout_mult)
+    session_state = _game_sessions.get(game_id)
+    if not session_state:
+        return {"ok": False, "error": "Game not found or expired"}
+    if session_state["user_id"] != user_id:
+        return {"ok": False, "error": "Not your game"}
+    if not session_state["active"]:
+        return {"ok": False, "error": "Game already finished"}
+    crash_point = session_state["crash_point"]
+    if cashout_mult >= crash_point:
+        return {"ok": False, "error": "Already crashed", "crash_point": crash_point}
+    if cashout_mult < 1.0:
+        return {"ok": False, "error": "Invalid cashout multiplier"}
+    payout = round(session_state["bet"] * cashout_mult, 2)
+    session_state["active"] = False
+    session_state["won"] = True
+    session_state["payout"] = payout
+    session_state["cashout_mult"] = cashout_mult
+    async with get_session() as session:
+        repo = Repository(session)
+        engine = RiskEngine(repo)
+        await repo.record_game_win_transaction(user_id, "crash", payout, cashout_mult)
+        engine.record_bet("crash", session_state["bet"], payout)
+        await repo.record_game_round(user_id, "crash", session_state["bet"], payout, cashout_mult, True,
+                                     details={"crash_point": crash_point})
+        engine.update_session(user_id, "crash", session_state["bet"], True)
+        engine.crash_eng().record_crash(f"crash_{user_id}", crash_point)
+        user = await repo.get_user(user_id)
+        return {
+            "ok": True,
+            "cashout_mult": cashout_mult,
+            "crash_point": crash_point,
+            "payout": payout,
+            "balance": float(user.balance or 0),
+        }
+
+
+@app.post("/api/app/game/crash/result")
+async def app_game_crash_result(request: Request):
+    """Get crash result (after crash)."""
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON"}
+    game_id = data.get("game_id")
+    user_id = data.get("user_id")
+    if not game_id:
+        return {"ok": False, "error": "Missing game_id"}
+    session_state = _game_sessions.get(game_id)
+    if not session_state:
+        return {"ok": False, "error": "Game not found or expired"}
+    if user_id and session_state["user_id"] != user_id:
+        return {"ok": False, "error": "Not your game"}
+    crash_point = session_state["crash_point"]
+    if session_state["active"]:
+        session_state["active"] = False
+        session_state["won"] = False
+        async with get_session() as session:
+            from bot.database import Repository
+            repo = Repository(session)
+            engine = RiskEngine(repo)
+            engine.record_bet("crash", session_state["bet"], 0)
+            await repo.record_game_round(session_state["user_id"], "crash", session_state["bet"], 0, crash_point, False,
+                                         details={"crash_point": crash_point, "busted": True})
+            engine.update_session(session_state["user_id"], "crash", session_state["bet"], False)
+            engine.crash_eng().record_crash(f"crash_{session_state['user_id']}", crash_point)
+    return {
+        "ok": True,
+        "crash_point": crash_point,
+        "busted": True,
+        "won": False,
+    }
+
+
+# ─── Cleanup stale game sessions ────────────────────────────────────────────
+import asyncio as _asyncio
+
+async def _cleanup_stale_games():
+    """Periodically remove inactive game sessions older than 5 minutes."""
+    while True:
+        await _asyncio.sleep(60)
+        now = time.time()
+        stale = [gid for gid, state in list(_game_sessions.items())
+                 if not state.get("active") and state.get("_ts", now) < now - 300]
+        for gid in stale:
+            _game_sessions.pop(gid, None)
+        for state in _game_sessions.values():
+            state.setdefault("_ts", now)
+
+
+@app.on_event("startup")
+async def _start_game_cleanup():
+    _asyncio.create_task(_cleanup_stale_games())
+
+
+# ─── Earn / Ads ──────────────────────────────────────────────────────────────
 @app.get("/api/app/earn")
 async def app_earn(user_id: int):
     """Get earn/ads page data."""
