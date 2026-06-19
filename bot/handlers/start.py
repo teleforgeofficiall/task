@@ -154,10 +154,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             if verif_url:
                 bot_username = (await context.bot.get_me()).username or ""
                 if verif_url.endswith("/device.html"):
-                    verify_url = verif_url
+                    base_url = verif_url
                 else:
-                    verify_url = f"{verif_url.rstrip('/')}/device.html"
-                if verify_url.startswith("https://"):
+                    base_url = f"{verif_url.rstrip('/')}/device.html"
+                sep = "&" if "?" in base_url else "?"
+                verify_url = f"{base_url}{sep}user_id={user_id}"
+                if base_url.startswith("https://"):
                     btn = InlineKeyboardButton("🌐 Verify Device", web_app=WebAppInfo(url=verify_url))
                 else:
                     btn = InlineKeyboardButton("🌐 Verify Device", url=verify_url)
@@ -234,10 +236,12 @@ async def fsub_verify_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 if verif_url:
                     bot_username = (await context.bot.get_me()).username or ""
                     if verif_url.endswith("/device.html"):
-                        verify_url = verif_url
+                        base_url = verif_url
                     else:
-                        verify_url = f"{verif_url.rstrip('/')}/device.html"
-                    if verify_url.startswith("https://"):
+                        base_url = f"{verif_url.rstrip('/')}/device.html"
+                    sep = "&" if "?" in base_url else "?"
+                    verify_url = f"{base_url}{sep}user_id={user_id}"
+                    if base_url.startswith("https://"):
                         btn = InlineKeyboardButton("🌐 Verify Device", web_app=WebAppInfo(url=verify_url))
                     else:
                         btn = InlineKeyboardButton("🌐 Verify Device", url=verify_url)

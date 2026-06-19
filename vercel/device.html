@@ -45,7 +45,6 @@ body {
 .btn:active { transform: scale(0.96); }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-block { width: 100%; }
-/* Verification Screen */
 .verify-screen { background: var(--card); min-height: 100vh; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; position: fixed; inset: 0; z-index: 999; }
 .verify-screen.active { display: flex; }
 .verify-card { background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: 20px; padding: 32px 24px; width: 100%; max-width: 380px; text-align: center; }
@@ -94,29 +93,140 @@ body {
 </div>
 
 <script>
-function getDeviceFingerprint(){var s=navigator.userAgent+'|'+screen.width+'x'+screen.height+'|'+(navigator.language||'')+'|'+(navigator.platform||'')+'|'+new Date().getTimezoneOffset()+'|'+(navigator.hardwareConcurrency||'');var h=0,i,c;for(i=0;i<s.length;i++){c=s.charCodeAt(i);h=((h<<5)-h)+c;h|=0;}return Math.abs(h).toString(16);}
-function playVerifySound(){try{var ctx=new(window.AudioContext||window.webkitAudioContext)();var osc=ctx.createOscillator();var g=ctx.createGain();osc.connect(g);g.connect(ctx.destination);osc.frequency.setValueAtTime(880,ctx.currentTime);osc.frequency.exponentialRampToValueAtTime(1320,ctx.currentTime+0.15);osc.frequency.exponentialRampToValueAtTime(880,ctx.currentTime+0.3);osc.type='sine';g.gain.setValueAtTime(0.25,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+0.6);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.6);}catch(e){}}
-async function doFullVerification(uid){var vs=document.getElementById('verifyScreen');var ls=document.getElementById('loadingScreen');var card=document.getElementById('verifyCard');if(!vs||!card)return;vs.classList.add('active');vs.style.display='flex';if(ls){ls.classList.remove('active');ls.style.display='none';}card.innerHTML='<div style="text-align:center;padding:32px"><div class="loader" style="margin:0 auto 16px;width:40px;height:40px"></div><div style="font-weight:600">Loading...</div></div>';try{var ab=(window.location.origin||'https://taskhub-khaki.vercel.app');var r=await fetch(ab+'/api/user/'+uid);var d=await r.json();var nm=(d.ok&&d.user)?(d.user.first_name||d.user.username||'User'):'User';var pf=(d.ok&&d.user&&d.user.pfp_url)?d.user.pfp_url:'';if(!pf){var il=nm.charAt(0).toUpperCase();pf='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%237b5ef8\'/%3E%3Ctext x=\'50\' y=\'68\' text-anchor=\'middle\' fill=\'%23fff\' font-size=\'44\'%3E'+il+'%3C/text%3E%3C/svg%3E';}var di='ID: '+uid;if(d.ok&&d.user&&d.user.username)di='@'+d.user.username+' | '+uid;card.innerHTML='<div class="verify-user"><img src="'+pf+'" alt=""><div class="vu-info"><div class="vu-name">'+nm+'</div><div class="vu-id">'+di+'</div></div><span class="verify-badge scanning">SCANNING</span></div><div class="verify-scanner"><div class="ring"></div><div class="ring2"></div><div class="dot"></div></div><div class="verify-title">Device Verification</div><div class="verify-sub">Verifying your device...</div><div class="verify-progress"><div class="bar"></div></div>';var fh=getDeviceFingerprint();var ar=await fetch(ab+'/api/verify-device',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_hash:fh,user_id:parseInt(uid)})});var re=await ar.json();if(re.ok||re.error==='already_verified'){await new Promise(function(r){setTimeout(r,3000);});try{playVerifySound();}catch(e){}card.innerHTML='<div class="verify-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="verify-ctitle">Verification Complete</div><div class="verify-csub">Your device has been verified.</div><button class="verify-continue" onclick="doVerifyContinue(\''+uid+'\')">CONTINUE TO BOT</button>';}else if(re.error==='device_linked'){card.innerHTML='<div class="verify-check fail"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div><div class="verify-ctitle fail">Verification Failed</div><div class="verify-csub">Account already linked to another device.<br><br>Multiple accounts or VPN usage is not allowed.</div>';(function ts(){if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.sendData){window.Telegram.WebApp.sendData(JSON.stringify({action:'failed',user_id:parseInt(uid),reason:'device_linked'}));}else{setTimeout(ts,300);}})();}else{card.innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><div style="font-size:16px;font-weight:700;color:var(--danger);margin-bottom:8px">Verification Error</div><div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">'+(re.error||'Something went wrong')+'</div><button class="verify-continue" style="background:var(--primary);color:#fff" onclick="location.reload()">RETRY</button></div>';}}catch(e){card.innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><div style="font-size:16px;font-weight:700;color:var(--danger);margin-bottom:8px">Connection Error</div><div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Failed to reach server. Check your connection.</div><button class="verify-continue" style="background:var(--primary);color:#fff" onclick="location.reload()">RETRY</button></div>';}window.__verifyDone=true;}
+function getDeviceFingerprint() {
+  var s = navigator.userAgent + '|' + screen.width + 'x' + screen.height + '|' + (navigator.language || '') + '|' + (navigator.platform || '') + '|' + new Date().getTimezoneOffset() + '|' + (navigator.hardwareConcurrency || '');
+  var h = 0, i, c;
+  for (i = 0; i < s.length; i++) { c = s.charCodeAt(i); h = ((h << 5) - h) + c; h |= 0; }
+  return Math.abs(h).toString(16);
+}
+
+function playVerifySound() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc = ctx.createOscillator();
+    var g = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3);
+    osc.type = 'sine';
+    g.gain.setValueAtTime(0.25, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.6);
+  } catch (e) {}
+}
+
+function apiBase() {
+  return window.location.origin || 'https://taskhub-khaki.vercel.app';
+}
+
+async function apiFetch(path, options) {
+  var controller = new AbortController();
+  var timeout = setTimeout(function () { controller.abort(); }, 10000);
+  try {
+    var res = await fetch(apiBase() + path, Object.assign({ signal: controller.signal }, options || {}));
+    return await res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function showVerifyCard(html) {
+  var card = document.getElementById('verifyCard');
+  if (card) card.innerHTML = html;
+}
+
+async function doFullVerification(uid) {
+  var vs = document.getElementById('verifyScreen');
+  var ls = document.getElementById('loadingScreen');
+  var card = document.getElementById('verifyCard');
+  if (!vs || !card) return;
+  vs.classList.add('active');
+  vs.style.display = 'flex';
+  if (ls) { ls.classList.remove('active'); ls.style.display = 'none'; }
+  showVerifyCard('<div style="text-align:center;padding:32px"><div class="loader" style="margin:0 auto 16px;width:40px;height:40px"></div><div style="font-weight:600">Loading...</div></div>');
+  try {
+    var d = await apiFetch('/api/user/' + uid);
+    var nm = (d.ok && d.user) ? (d.user.first_name || d.user.username || 'User') : 'User';
+    var pf = (d.ok && d.user && d.user.pfp_url) ? d.user.pfp_url : '';
+    if (!pf) {
+      var il = nm.charAt(0).toUpperCase();
+      pf = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%237b5ef8\'/%3E%3Ctext x=\'50\' y=\'68\' text-anchor=\'middle\' fill=\'%23fff\' font-size=\'44\'%3E' + il + '%3C/text%3E%3C/svg%3E';
+    }
+    var di = 'ID: ' + uid;
+    if (d.ok && d.user && d.user.username) di = '@' + d.user.username + ' | ' + uid;
+    showVerifyCard(
+      '<div class="verify-user"><img src="' + pf + '" alt=""><div class="vu-info"><div class="vu-name">' + nm + '</div><div class="vu-id">' + di + '</div></div><span class="verify-badge scanning">SCANNING</span></div>' +
+      '<div class="verify-scanner"><div class="ring"></div><div class="ring2"></div><div class="dot"></div></div>' +
+      '<div class="verify-title">Device Verification</div>' +
+      '<div class="verify-sub">Verifying your device...</div>' +
+      '<div class="verify-progress"><div class="bar"></div></div>'
+    );
+    var fh = getDeviceFingerprint();
+    var re = await apiFetch('/api/verify-device', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_hash: fh, user_id: parseInt(uid) })
+    });
+    if (re.ok || re.error === 'already_verified') {
+      await new Promise(function (r) { setTimeout(r, 3000); });
+      try { playVerifySound(); } catch (e) {}
+      showVerifyCard(
+        '<div class="verify-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></div>' +
+        '<div class="verify-ctitle">Device Verified</div>' +
+        '<div class="verify-csub">Your device has been verified successfully.</div>' +
+        '<button class="verify-continue" onclick="doVerifyContinue(\'' + uid + '\')">CONTINUE</button>'
+      );
+    } else if (re.error === 'device_linked') {
+      showVerifyCard(
+        '<div class="verify-check fail"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>' +
+        '<div class="verify-ctitle fail">Already Linked</div>' +
+        '<div class="verify-csub">This device is already linked to another account. Use that account or contact support.</div>' +
+        '<button class="verify-continue" style="background:var(--danger);color:#fff" onclick="location.reload()">TRY AGAIN</button>'
+      );
+      (function ts() {
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.sendData) {
+          window.Telegram.WebApp.sendData(JSON.stringify({ action: 'failed', user_id: parseInt(uid), reason: 'device_linked' }));
+        } else { setTimeout(ts, 300); }
+      })();
+    } else {
+      showVerifyCard(
+        '<div class="verify-check fail"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>' +
+        '<div class="verify-ctitle fail">Verification Failed</div>' +
+        '<div class="verify-csub">' + (re.error || 'Unknown error') + '</div>' +
+        '<button class="verify-continue" style="background:var(--danger);color:#fff" onclick="location.reload()">RETRY</button>'
+      );
+    }
+  } catch (e) {
+    showVerifyCard(
+      '<div class="verify-check fail"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>' +
+      '<div class="verify-ctitle fail">Connection Error</div>' +
+      '<div class="verify-csub">Could not reach server. Check your connection and try again.</div>' +
+      '<button class="verify-continue" style="background:var(--primary);color:#fff" onclick="location.reload()">RETRY</button>'
+    );
+  }
+  window.__verifyDone = true;
+}
 
 function switchScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
   document.getElementById(id).classList.add('active');
 }
 
 function showError(msg) {
   switchScreen('loadingScreen');
-  document.getElementById('loadingScreen').innerHTML = '<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">❌</div><h3 style="font-size:16px;margin-bottom:8px">' + msg + '</h3><button class="btn btn-primary" style="margin-top:16px" onclick="location.reload()">RETRY</button></div>';
+  document.getElementById('loadingScreen').innerHTML =
+    '<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><h3 style="font-size:16px;margin-bottom:8px">' + msg + '</h3><button class="btn btn-primary" style="margin-top:16px" onclick="location.reload()">RETRY</button></div>';
 }
 
 async function doVerifyContinue(userId) {
-  var ab = window.location.origin || 'https://taskhub-khaki.vercel.app';
   try {
-    await fetch(ab + '/api/verification-done', {
+    await apiFetch('/api/verification-done', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: parseInt(userId) })
     });
-  } catch(e) {}
+  } catch (e) {}
   var tg = window.Telegram?.WebApp;
   if (tg && tg.close) {
     tg.close();
@@ -124,21 +234,24 @@ async function doVerifyContinue(userId) {
     tg.closeWebView();
   } else {
     switchScreen('loadingScreen');
-    document.getElementById('loadingScreen').innerHTML = '<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">✅</div><h3>Verification Complete!</h3><p style="color:var(--text-secondary);margin-top:8px">Go back to Telegram to continue.</p></div>';
+    document.getElementById('loadingScreen').innerHTML =
+      '<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">&#x2705;</div><h3>Verification Complete!</h3><p style="color:var(--text-secondary);margin-top:8px">Go back to Telegram to continue.</p></div>';
   }
 }
 
-window.onerror = function(msg, src, line, col, err) {
+window.onerror = function (msg, src, line, col, err) {
   var el = document.getElementById('verifyScreen');
   if (el && el.classList.contains('active')) {
-    el.innerHTML = '<div class="verify-card" style="padding:32px 24px;text-align:center;background:var(--card);border:1px solid var(--border)"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><h3 style="color:var(--danger);font-size:16px;margin-bottom:8px">Error</h3><p style="color:var(--text-secondary);font-size:12px;word-break:break-word">' + msg + '</p><button class="verify-continue" style="margin-top:16px;background:var(--primary);color:#fff" onclick="location.reload()">RETRY</button></div>';
+    el.innerHTML =
+      '<div class="verify-card" style="padding:32px 24px;text-align:center;background:var(--card);border:1px solid var(--border)"><div style="font-size:48px;margin-bottom:12px">&#x274C;</div><h3 style="color:var(--danger);font-size:16px;margin-bottom:8px">Error</h3><p style="color:var(--text-secondary);font-size:12px;word-break:break-word">' + msg + '</p><button class="verify-continue" style="margin-top:16px;background:var(--primary);color:#fff" onclick="location.reload()">RETRY</button></div>';
   } else {
-    document.getElementById('loadingScreen').innerHTML = '<div style="text-align:center;padding:20px;font-size:12px;color:var(--danger);word-break:break-all"><b>JS Error:</b><br>' + msg + '<br>Line: ' + line + '<br>' + (err && err.stack ? err.stack.split('\n')[1] : '') + '</div>';
+    document.getElementById('loadingScreen').innerHTML =
+      '<div style="text-align:center;padding:20px;font-size:12px;color:var(--danger);word-break:break-all"><b>JS Error:</b><br>' + msg + '<br>Line: ' + line + '<br>' + (err && err.stack ? err.stack.split('\n')[1] : '') + '</div>';
   }
   return true;
 };
 
-let _initDone = false;
+var _initDone = false;
 
 async function init() {
   if (_initDone) return;
@@ -159,13 +272,13 @@ async function init() {
         showError('Could not identify user. Please open from Telegram bot.');
       }
     }
-  } catch(e) {
+  } catch (e) {
     console.error('Device verify init error:', e);
     showError('Something went wrong. Please try again.');
   }
 }
 
-setTimeout(function() {
+setTimeout(function () {
   if (document.getElementById('loadingScreen').classList.contains('active')) {
     var retryBtn = document.querySelector('#loadingScreen .btn-primary');
     if (retryBtn && retryBtn.textContent.includes('Retry')) return;

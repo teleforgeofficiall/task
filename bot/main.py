@@ -400,16 +400,9 @@ async def api_user_pfp(user_id: int):
         return Response(status_code=404)
 
 
-@app.get("/verify/{user_id}")
-async def verify_page(user_id: int):
-    """Serve the device verification HTML page with bot username injected."""
+async def _serve_device_html(bot_username: str = "") -> Response:
+    """Read device.html and inject bot username."""
     import os
-    bot_username = ""
-    try:
-        bot_user = await ptb_app.bot.get_me()
-        bot_username = bot_user.username or ""
-    except Exception:
-        pass
     html_path = os.path.join(os.path.dirname(__file__), "..", "vercel", "device.html")
     if os.path.exists(html_path):
         with open(html_path, "r", encoding="utf-8") as f:
@@ -418,6 +411,28 @@ async def verify_page(user_id: int):
         html = "<html><body><h2>Verification page not found</h2></body></html>"
     html = html.replace("__BOT_USERNAME__", bot_username)
     return Response(content=html, media_type="text/html")
+
+@app.get("/verify/{user_id}")
+async def verify_page(user_id: int):
+    """Serve the device verification HTML page with bot username injected."""
+    bot_username = ""
+    try:
+        bot_user = await ptb_app.bot.get_me()
+        bot_username = bot_user.username or ""
+    except Exception:
+        pass
+    return await _serve_device_html(bot_username)
+
+@app.get("/device.html")
+async def device_page(user_id: int = 0):
+    """Serve device verification HTML page (query-param based)."""
+    bot_username = ""
+    try:
+        bot_user = await ptb_app.bot.get_me()
+        bot_username = bot_user.username or ""
+    except Exception:
+        pass
+    return await _serve_device_html(bot_username)
 
 
 @app.post("/webhook")
