@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Device Verification</title>
-<script src="https://telegram.org/js/telegram-web-app.js" crossorigin="anonymous"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root {
   --primary: #7b5ef8;
@@ -221,28 +221,38 @@ function showError(msg) {
 
 async function doVerifyContinue(userId) {
   var tg = window.Telegram?.WebApp;
-  if (tg && tg.sendData) {
-    tg.sendData(JSON.stringify({ action: 'verified', user_id: parseInt(userId) }));
-  } else {
-    try {
+  try {
+    if (tg && tg.sendData) {
+      tg.sendData(JSON.stringify({ action: 'verified', user_id: parseInt(userId) }));
+    } else {
       await apiFetch('/api/verification-done', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: parseInt(userId) })
       });
-    } catch (e) {}
+    }
+  } catch (e) {
+    console.warn('sendData failed:', e);
   }
   setTimeout(function() {
-    if (tg && tg.close) {
-      tg.close();
-    } else if (tg && tg.closeWebView) {
-      tg.closeWebView();
-    } else {
-      switchScreen('loadingScreen');
-      document.getElementById('loadingScreen').innerHTML =
-        '<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">&#x2705;</div><h3>Verification Complete!</h3><p style="color:var(--text-secondary);margin-top:8px">Go back to Telegram to continue.</p></div>';
+    try {
+      if (tg && tg.close) {
+        tg.close();
+      } else if (tg && tg.closeWebView) {
+        tg.closeWebView();
+      } else {
+        showFallbackSuccess();
+      }
+    } catch (e) {
+      console.warn('close failed:', e);
+      showFallbackSuccess();
     }
   }, 500);
+  function showFallbackSuccess() {
+    switchScreen('loadingScreen');
+    document.getElementById('loadingScreen').innerHTML =
+      '<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">&#x2705;</div><h3>Verification Complete!</h3><p style="color:var(--text-secondary);margin-top:8px">Go back to Telegram to continue.</p></div>';
+  }
 }
 
 window.onerror = function (msg, src, line, col, err) {

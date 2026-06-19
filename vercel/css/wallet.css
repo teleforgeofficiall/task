@@ -22,6 +22,7 @@
 }
 .withdraw-opt:active { transform: scale(0.96); }
 .withdraw-opt svg { width: 28px; height: 28px; stroke: var(--primary); margin-bottom: 6px; }
+.withdraw-opt img.w-card-img { width: calc(100% + 24px); margin: -16px -12px 8px; border-radius: 10px 10px 0 0; object-fit: cover; max-height: 100px; display: block; }
 .withdraw-opt h4 { font-size: 13px; font-weight: 700; }
 .withdraw-opt p { font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
 

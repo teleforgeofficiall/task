@@ -12,6 +12,18 @@ async function loadWallet() {
   var redeemData = await api('/api/app/redeem-codes?' + new URLSearchParams({ user_id: USER.id }).toString());
   var redeemCodes = (redeemData.ok && redeemData.codes) || [];
 
+  var imgUpi = data.img_withdraw_upi ? '/api/app/image/img_withdraw_upi' : '';
+  var imgStars = data.img_withdraw_stars ? '/api/app/image/img_withdraw_stars' : '';
+  var imgRedeem = data.img_withdraw_redeem ? '/api/app/image/img_withdraw_redeem' : '';
+
+  function wCard(click, imgSrc, svgHtml, title, sub) {
+    return '<div class="withdraw-opt animate-in fade" onclick="startWithdraw(\'' + click + '\')">' +
+      (imgSrc ? '<img src="' + imgSrc + '" onerror="this.style.display=\'none\'" class="w-card-img">' : svgHtml) +
+      '<h4>' + title + '</h4>' +
+      '<p>' + sub + '</p>' +
+      '</div>';
+  }
+
   el.innerHTML = `
     <div class="wallet-hero animate-in">
       <div class="label">Total Balance</div>
@@ -24,21 +36,9 @@ async function loadWallet() {
 
     <h3 class="section-title">Withdraw</h3>
     <div class="withdraw-grid">
-      <div class="withdraw-opt animate-in fade stagger-1" onclick="startWithdraw('upi')">
-        <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
-        <h4>UPI</h4>
-        <p>Min ₹${min_withdraw}</p>
-      </div>
-      <div class="withdraw-opt animate-in fade stagger-2" onclick="startWithdraw('stars')">
-        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        <h4>Stars</h4>
-        <p>1⭐ = ₹2</p>
-      </div>
-      <div class="withdraw-opt animate-in fade stagger-3" onclick="startWithdraw('redeem')">
-        <svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="14" rx="2"/><path d="M12 2v6"/><path d="M8 2l4 6 4-6"/></svg>
-        <h4>Redeem</h4>
-        <p>Instant</p>
-      </div>
+      ${wCard('upi', imgUpi, '<svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>', 'UPI', 'Min \u20B9' + min_withdraw)}
+      ${wCard('stars', imgStars, '<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>', 'Stars', '1\u2B50 = \u20B92')}
+      ${wCard('redeem', imgRedeem, '<svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="14" rx="2"/><path d="M12 2v6"/><path d="M8 2l4 6 4-6"/></svg>', 'Redeem', 'Instant')}
     </div>
 
     <h3 class="section-title">My Redeem Codes</h3>
