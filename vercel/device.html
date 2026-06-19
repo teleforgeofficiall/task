@@ -234,25 +234,8 @@ async function doVerifyContinue(userId) {
   } catch (e) {
     console.warn('sendData failed:', e);
   }
-  setTimeout(function() {
-    try {
-      if (tg && tg.close) {
-        tg.close();
-      } else if (tg && tg.closeWebView) {
-        tg.closeWebView();
-      } else {
-        showFallbackSuccess();
-      }
-    } catch (e) {
-      console.warn('close failed:', e);
-      showFallbackSuccess();
-    }
-  }, 500);
-  function showFallbackSuccess() {
-    switchScreen('loadingScreen');
-    document.getElementById('loadingScreen').innerHTML =
-      '<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">&#x2705;</div><h3>Verification Complete!</h3><p style="color:var(--text-secondary);margin-top:8px">Go back to Telegram to continue.</p></div>';
-  }
+  // Navigate to main Mini App instead of closing
+  window.location.href = '/' + window.location.search;
 }
 
 window.onerror = function (msg, src, line, col, err) {
