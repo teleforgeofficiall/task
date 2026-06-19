@@ -195,7 +195,7 @@ def star_amount_keyboard(tiers: dict) -> InlineKeyboardMarkup:
 
 
 def withdraw_amount_keyboard(method: str, extra: str = "") -> InlineKeyboardMarkup:
-    amounts = [10, 30, 50]
+    amounts = [10, 25, 50, 100, 250, 500]
     keyboard = []
     row = []
     for i, a in enumerate(amounts):

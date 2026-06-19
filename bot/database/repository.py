@@ -869,8 +869,11 @@ class Repository:
         await session.commit()
         return count
 
-    async def get_available_redeem_code(self, amount: float) -> Optional[str]:
+    async def get_available_redeem_code(self, amount: float, user_id: Optional[int] = None) -> Optional[str]:
+        """Find and atomically mark an unused code as used by a specific user."""
         session = await self._session()
+        from datetime import datetime, timezone, timedelta
+        ISTt = timezone(timedelta(hours=5, minutes=30))
         row = await session.execute(
             select(RedeemCodeTable)
             .where(RedeemCodeTable.amount == amount, RedeemCodeTable.used == False)
@@ -881,29 +884,24 @@ class Repository:
         if not row:
             return None
         row.used = True
-        row.used_by = None
-        row.used_at = None
+        row.used_by = user_id
+        row.used_at = datetime.now(ISTt).isoformat() if user_id else None
         await session.commit()
         return row.code
 
-    async def use_redeem_code(self, code: str, user_id: int) -> bool:
+    async def get_user_redeem_codes(self, user_id: int, limit: int = 20) -> List[dict]:
+        """Get redeem codes used by a specific user (for history)."""
         session = await self._session()
-        from datetime import datetime, timezone, timedelta
-        ISTt = timezone(timedelta(hours=5, minutes=30))
-        row = await session.execute(
-            select(RedeemCodeTable).where(
-                RedeemCodeTable.code == code,
-                RedeemCodeTable.used == False,
-            ).with_for_update()
+        rows = await session.execute(
+            select(RedeemCodeTable)
+            .where(RedeemCodeTable.used_by == user_id)
+            .order_by(RedeemCodeTable.used_at.desc())
+            .limit(limit)
         )
-        row = row.scalar_one_or_none()
-        if not row:
-            return False
-        row.used = True
-        row.used_by = user_id
-        row.used_at = datetime.now(ISTt).isoformat()
-        await session.commit()
-        return True
+        return [
+            {"code": r.code, "amount": r.amount, "used_at": r.used_at}
+            for r in rows.scalars().all()
+        ]
 
     async def get_redeem_code_inventory(self) -> List[dict]:
         session = await self._session()

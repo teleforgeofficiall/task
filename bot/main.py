@@ -1448,9 +1448,19 @@ async def app_wallet(user_id: int):
         }
 
 
+@app.get("/api/app/redeem-codes")
+async def app_redeem_codes(user_id: int):
+    """Get user's redeemed codes history."""
+    from bot.database import get_session, Repository
+    async with get_session() as session:
+        repo = Repository(session)
+        codes = await repo.get_user_redeem_codes(user_id, 50)
+        return {"ok": True, "codes": codes}
+
+
 @app.post("/api/app/withdraw")
 async def app_withdraw(request: Request):
-    """Request withdrawal from Mini App."""
+    """Request withdrawal from Mini App. Redeem codes are instant."""
     from bot.database import get_session, Repository
     try:
         data = await request.json()
@@ -1462,9 +1472,12 @@ async def app_withdraw(request: Request):
     upi = data.get("upi", "")
     if not user_id or amount <= 0:
         return {"ok": False, "error": "Invalid request"}
-    min_amt = {"upi": 10, "stars": 5, "redeem": 50}
+    min_amt = {"upi": 10, "stars": 5, "redeem": 10}
+    max_amt = {"upi": 10000, "stars": 500, "redeem": 500}
     if amount < min_amt.get(method, 10):
         return {"ok": False, "error": f"Minimum ₹{min_amt.get(method, 10)} for {method}"}
+    if amount > max_amt.get(method, 10000):
+        return {"ok": False, "error": f"Maximum ₹{max_amt.get(method, 10000)} for {method}"}
     async with get_session() as session:
         repo = Repository(session)
         user = await repo.get_user(user_id)
@@ -1472,6 +1485,35 @@ async def app_withdraw(request: Request):
             return {"ok": False, "error": "User not found"}
         if (user.balance or 0) < amount:
             return {"ok": False, "error": "Insufficient balance"}
+        # Daily limit check
+        daily_limit = await repo.get_setting("daily_withdraw_limit", 3)
+        if daily_limit > 0:
+            today_count = await repo.count_today_withdrawals(user_id)
+            if today_count >= daily_limit:
+                return {"ok": False, "error": f"Daily withdrawal limit reached ({daily_limit}/day)"}
+        # Pending withdrawal check
+        if method == "redeem":
+            pending = await repo.get_setting(f"pending_redeem:{user_id}")
+            if pending:
+                return {"ok": False, "error": "You already have a pending redeem request"}
+            # Check redeem stock enabled
+            redeem_enabled = await repo.get_setting("redeem_stock_enabled", True)
+            if not redeem_enabled:
+                return {"ok": False, "error": "Redeem codes are currently disabled"}
+            # Instant redeem
+            code = await repo.get_available_redeem_code(amount, user_id)
+            if not code:
+                return {"ok": False, "error": f"No ₹{amount:.0f} codes available. Try a different amount."}
+            await repo.debit_balance(user_id, amount, "redeem_withdrawal", f"Redeem code: ₹{amount}")
+            w_req = await repo.add_withdrawal(user_id, amount, method="redeem")
+            await repo.update_withdrawal_redeem_code(w_req.id, code)
+            await repo.update_withdrawal_status(w_req.id, "paid")
+            meta = dict(user.user_meta or {})
+            meta["total_withdrawn"] = meta.get("total_withdrawn", 0) + amount
+            await repo.update_user_fields(user_id, user_meta=meta)
+            user = await repo.get_user(user_id)
+            return {"ok": True, "balance": float(user.balance or 0), "code": code, "withdrawal_id": w_req.id, "message": "Redeem code issued!"}
+        # UPI / Stars — standard pending withdrawal
         await repo.debit_balance(user_id, amount, f"withdraw_{method}", f"Withdrawal via {method}")
         meta = dict(user.user_meta or {})
         if method == "upi" and upi:

@@ -327,7 +327,7 @@ async def withdraw_amount_sel_handler(update: Update, context: ContextTypes.DEFA
             await query.answer("❌ Redeem codes are currently disabled.", show_alert=True)
             return
 
-        code = await repository.get_available_redeem_code(amount)
+        code = await repository.get_available_redeem_code(amount, user_id)
         if not code:
             await query.answer(
                 f"❌ Sorry, no ₹{amount:.0f} Google Redeem codes available. Try another amount.",
@@ -343,9 +343,6 @@ async def withdraw_amount_sel_handler(update: Update, context: ContextTypes.DEFA
             tx_type="redeem_withdrawal",
             description=f"Google Redeem Code withdrawal of {format_currency(amount)}"
         )
-
-        # Mark code as used
-        await repository.use_redeem_code(code, user_id)
 
         # Create withdrawal record (already paid)
         w_req = await repository.add_withdrawal(user_id, amount, method="redeem")
