@@ -963,7 +963,7 @@ async def app_wallet(user_id: int):
                 "upi": meta.get("upi", ""),
             },
             "transactions": await repo.get_user_transactions(user_id, 20),
-            "min_withdraw": float(await repo.get_setting("min_withdraw_upi", 10)),
+            "min_withdraw": float(await repo.get_setting("min_withdraw", 10)),
         }
 
 

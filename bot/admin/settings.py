@@ -303,23 +303,30 @@ async def admin_settings_text_handler(update: Update, context: ContextTypes.DEFA
         return
 
     # ─── Ad Goal Config ───────────────────────────────────────────────
-    if admin_state == "set_ad_goal":
-        parts = text.split("|")
-        if len(parts) != 2:
-            await msg.reply_text("❌ Invalid format. Use: <code>target|reward</code> (e.g. 20|1.5).", parse_mode="HTML")
-            return
+    if admin_state == "adgoal_set_target":
         try:
-            target = int(parts[0].strip())
-            reward = float(parts[1].strip())
-            if target <= 0 or reward <= 0:
+            val = int(text)
+            if val <= 0:
                 raise ValueError
         except ValueError:
-            await msg.reply_text("❌ Invalid numbers. Target must be a whole number > 0, reward must be > 0.")
+            await msg.reply_text("❌ Invalid number. Send a whole number greater than 0.")
             return
         context.user_data.pop("admin_state", None)
-        await repository.update_setting("ad_goal_target", target)
-        await repository.update_setting("ad_goal_reward", reward)
-        await msg.reply_text(f"✅ Ad goal set: {target} ads, \u20b9{reward:.2f} reward.", reply_markup=back_to_admin())
+        await repository.update_setting("ad_goal_target", val)
+        await msg.reply_text(f"✅ Ad goal target set to {val} ads.", reply_markup=back_to_admin())
+        return
+
+    if admin_state == "adgoal_set_reward":
+        try:
+            val = float(text.replace(",", ""))
+            if val <= 0:
+                raise ValueError
+        except ValueError:
+            await msg.reply_text("❌ Invalid amount. Send a number greater than 0.")
+            return
+        context.user_data.pop("admin_state", None)
+        await repository.update_setting("ad_goal_reward", val)
+        await msg.reply_text(f"✅ Ad goal reward set to \u20b9{val:.2f}.", reply_markup=back_to_admin())
         return
 
     # ─── Promo Config ─────────────────────────────────────────────────
@@ -375,23 +382,58 @@ async def admin_settings_text_handler(update: Update, context: ContextTypes.DEFA
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def admin_set_ad_goal_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Prompt admin for ad goal target and reward."""
+    """Show ad goal config menu."""
     query = update.callback_query
     if not query or not is_admin(query.from_user.id):
         return
-    context.user_data["admin_state"] = "set_ad_goal"
+    context.user_data.pop("admin_state", None)
     repo = Repository(await get_db())
     target = await repo.get_setting("ad_goal_target", 20)
     reward = await repo.get_setting("ad_goal_reward", 1.0)
-    await query.edit_message_text(
+    text = (
         "📊 <b>Ad Goal Configuration</b>\n\n"
-        f"Current Target: <code>{target}</code> ads\n"
-        f"Current Reward: <code>\u20b9{reward:.2f}</code>\n\n"
-        "Send the new target and reward separated by a vertical bar.\n"
-        "Format: <code>target|reward</code> (e.g. <code>20|1.5</code>).",
+        f"🎯 Current Target: <code>{target}</code> ads\n"
+        f"💰 Current Reward: <code>\u20b9{reward:.2f}</code>\n\n"
+        "Choose what to update:"
+    )
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎯 Set Target", callback_data="admin:adgoal_set_target")],
+        [InlineKeyboardButton("💰 Set Reward", callback_data="admin:adgoal_set_reward")],
+        [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")],
+    ])
+    await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=kb)
+    await query.answer()
+
+
+async def admin_adgoal_set_target_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+    context.user_data["admin_state"] = "adgoal_set_target"
+    await query.edit_message_text(
+        "🎯 <b>Set Ad Goal Target</b>\n\n"
+        "Send the number of ads a user must watch to complete the goal.\n"
+        "Example: <code>20</code>",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Cancel", callback_data="admin:settings_menu")]
+            [InlineKeyboardButton("🔙 Cancel", callback_data="admin:set_ad_goal")]
+        ])
+    )
+    await query.answer()
+
+
+async def admin_adgoal_set_reward_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+    context.user_data["admin_state"] = "adgoal_set_reward"
+    await query.edit_message_text(
+        "💰 <b>Set Ad Goal Reward</b>\n\n"
+        "Send the reward amount in Rupees.\n"
+        "Example: <code>1.5</code>",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Cancel", callback_data="admin:set_ad_goal")]
         ])
     )
     await query.answer()
@@ -520,6 +562,8 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(admin_messages_menu_handler, pattern="^admin:set_messages$"))
     application.add_handler(CallbackQueryHandler(admin_msg_edit_start, pattern="^admin:msg_edit:[a-z_]+$"))
     application.add_handler(CallbackQueryHandler(admin_set_ad_goal_start, pattern="^admin:set_ad_goal$"))
+    application.add_handler(CallbackQueryHandler(admin_adgoal_set_target_start, pattern="^admin:adgoal_set_target$"))
+    application.add_handler(CallbackQueryHandler(admin_adgoal_set_reward_start, pattern="^admin:adgoal_set_reward$"))
     application.add_handler(CallbackQueryHandler(admin_set_promo_start, pattern="^admin:set_promo$"))
     application.add_handler(CallbackQueryHandler(admin_promo_set_price_start, pattern="^admin:promo_set_price$"))
     application.add_handler(CallbackQueryHandler(admin_promo_set_qr_start, pattern="^admin:promo_set_qr$"))

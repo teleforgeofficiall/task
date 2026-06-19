@@ -174,6 +174,7 @@ async def admin_ref_config_text_handler(update: Update, context: ContextTypes.DE
         return
 
     # Case A: Fixed Payout
+    if admin_state == "awaiting_ref_fixed_amt":
         try:
             val = float(text.replace(",", ""))
             if val < 0:
@@ -189,7 +190,10 @@ async def admin_ref_config_text_handler(update: Update, context: ContextTypes.DE
             f"✅ Fixed referral reward set to <b>{format_currency(val)}</b>! Mode auto-switched to <b>FIXED</b>.",
             parse_mode="HTML"
         )
-        
+        mode = await repository.get_setting("referral_mode", "random")
+        await msg.reply_text("🤝 Referral settings updated.", reply_markup=referral_config_keyboard(mode))
+        return
+
     # Case B: Random Range
     elif admin_state == "awaiting_ref_range":
         parts = text.split("|")
