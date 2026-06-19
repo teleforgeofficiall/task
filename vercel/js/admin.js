@@ -666,6 +666,9 @@ async function adminSettings() {
     { key: 'referral_min_reward', label: 'Referral Min Reward (₹)', type: 'float' },
     { key: 'referral_max_reward', label: 'Referral Max Reward (₹)', type: 'float' },
     { key: 'promo_price', label: 'Promo Price (₹)', type: 'float' },
+    { key: 'spin_enabled', label: 'Spin & Win Enabled', type: 'bool' },
+    { key: 'spin_price', label: 'Spin Price (₹)', type: 'float' },
+    { key: 'spin_cooldown_hours', label: 'Spin Cooldown (hours)', type: 'int' },
   ];
   list.innerHTML = settingsToShow.map(st => {
     const val = s[st.key];

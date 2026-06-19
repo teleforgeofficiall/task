@@ -33,6 +33,13 @@ async function loadBonus() {
     if (spinData.ok && spinData.enabled) {
       spinSection.style.display = '';
       _spinSegmentsData = spinData.segments || [];
+      const price = spinData.price || 0;
+      const cooldown = spinData.cooldown_hours || 24;
+      const cooldownText = cooldown >= 24 ? 'Daily' : `Every ${cooldown}h`;
+      const priceText = price > 0 ? `₹${price}/spin` : 'Free';
+      spinSection.querySelector('.spin-sub').textContent = `${cooldownText} · ${priceText}`;
+      const btn = document.getElementById('spinBtn');
+      if (btn) btn.textContent = price > 0 ? `🎡 Spin (₹${price})` : '🎡 Free Spin';
       renderSpinWheel();
     } else {
       spinSection.style.display = 'none';
@@ -73,7 +80,7 @@ async function startSpin() {
   const btn = document.getElementById('spinBtn');
   if (!btn) return;
   btn.disabled = true;
-  btn.textContent = 'Spinning...';
+  btn.textContent = '🎡 Spinning...';
 
   const wheel = document.querySelector('.spin-wheel');
   if (wheel) {
@@ -88,12 +95,14 @@ async function startSpin() {
       body: JSON.stringify({ user_id: USER.id })
     });
     btn.disabled = false;
-    btn.textContent = '🎡 Spin Now';
 
     if (data.ok) {
       toast('🎉 You won ₹' + data.amount + '!');
       updateBalance(data.balance || CURRENT_USER.balance);
+      const cfg = await api('/api/app/spin-config?' + new URLSearchParams({ user_id: USER.id }).toString());
+      btn.textContent = cfg.price > 0 ? `🎡 Spin (₹${cfg.price})` : '🎡 Free Spin';
     } else {
+      btn.textContent = '🎡 Spin Now';
       toast(data.error || 'Try again tomorrow');
     }
 

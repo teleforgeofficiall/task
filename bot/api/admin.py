@@ -482,13 +482,16 @@ async def admin_update_settings(request: Request):
                               "earn_more_items", "custom_commands"):
                 await repo.update_setting(canonical, value)
             elif canonical in ("maintenance_mode", "refer_paused", "require_contact",
-                               "device_verification_enabled", "redeem_stock_enabled"):
+                               "device_verification_enabled", "redeem_stock_enabled",
+                               "spin_enabled"):
                 await repo.update_setting(canonical, bool(value))
             elif canonical in ("welcome_bonus_amount", "min_withdraw", "max_withdraw",
                                "daily_withdraw_limit", "ad_goal_target", "ad_goal_reward",
                                "fixed_referral_reward", "random_reward_min", "random_reward_max",
-                               "promo_price"):
+                               "promo_price", "spin_price"):
                 await repo.update_setting(canonical, float(value))
+            elif canonical in ("spin_cooldown_hours",):
+                await repo.update_setting(canonical, int(value))
             else:
                 await repo.update_setting(canonical, value)
     return {"ok": True}

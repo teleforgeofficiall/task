@@ -18,14 +18,14 @@
 .streak-info { text-align: center; font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
 .streak-info strong { color: var(--primary); }
 
-.spin-section { text-align: center; margin-top: 20px; }
-.spin-section h3 { margin-bottom: 4px; }
-.spin-section .spin-sub { color: var(--text-secondary); font-size: 13px; margin-bottom: 12px; }
+.spin-section { text-align: center; margin-top: 20px; padding: 20px 16px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
+.spin-section h3 { margin-bottom: 4px; font-size: 18px; }
+.spin-section .spin-sub { color: var(--text-secondary); font-size: 12px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; gap: 6px; }
 
 .spin-wheel {
   width: 260px; height: 260px; margin: 0 auto 16px; position: relative;
   border-radius: 50%; overflow: hidden; border: 5px solid var(--primary);
-  box-shadow: 0 0 30px rgba(123,94,248,0.15);
+  box-shadow: 0 0 40px rgba(123,94,248,0.25);
 }
 
 .spin-segment {
@@ -46,7 +46,11 @@
   padding: 14px 40px; border-radius: var(--radius-sm); font-size: 16px;
   font-weight: 800; border: none; cursor: pointer;
   background: var(--primary-gradient); color: #fff;
-  transition: transform 0.15s;
+  transition: transform 0.15s, opacity 0.2s;
 }
 .spin-btn:active { transform: scale(0.96); }
-.spin-btn:disabled { opacity: 0.5; }
+.spin-btn:disabled { opacity: 0.5; cursor: default; }
+
+.spin-info-row { display: flex; justify-content: center; gap: 16px; margin-bottom: 12px; font-size: 12px; color: var(--text-secondary); }
+.spin-info-row span { display: flex; align-items: center; gap: 4px; }
+.spin-price-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.15); color: #fff; }
