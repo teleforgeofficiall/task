@@ -12,9 +12,9 @@ async function loadWallet() {
   var redeemData = await api('/api/app/redeem-codes?' + new URLSearchParams({ user_id: USER.id }).toString());
   var redeemCodes = (redeemData.ok && redeemData.codes) || [];
 
-  var imgUpi = data.img_withdraw_upi || '';
-  var imgStars = data.img_withdraw_stars || '';
-  var imgRedeem = data.img_withdraw_redeem || '';
+  var imgUpi = data.img_withdraw_upi || 'https://t.me/postchannelsss/4';
+  var imgStars = data.img_withdraw_stars || 'https://t.me/postchannelsss/2';
+  var imgRedeem = data.img_withdraw_redeem || 'https://t.me/postchannelsss/3';
 
   el.innerHTML = `
     <div class="wallet-hero animate-in">
@@ -28,19 +28,19 @@ async function loadWallet() {
 
     <h3 class="section-title">Withdraw</h3>
     <div class="withdraw-grid">
-      ${imgUpi ? '<div class="withdraw-img-wrap" onclick="startWithdraw(\'upi\')"><img src="' + imgUpi + '" style="width:100%;border-radius:10px;margin-bottom:8px;object-fit:cover;max-height:120px;cursor:pointer"></div>' : ''}
+      ${imgUpi ? '<div class="withdraw-img-wrap" onclick="startWithdraw(\'upi\')"><img src="' + imgUpi + '" onerror="this.parentElement.style.display=\'none\'" style="width:100%;border-radius:10px;margin-bottom:8px;object-fit:cover;max-height:120px;cursor:pointer"></div>' : ''}
       <div class="withdraw-opt animate-in fade stagger-1" onclick="startWithdraw('upi')">
         <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
         <h4>UPI</h4>
         <p>Min ₹${min_withdraw}</p>
       </div>
-      ${imgStars ? '<div class="withdraw-img-wrap" onclick="startWithdraw(\'stars\')"><img src="' + imgStars + '" style="width:100%;border-radius:10px;margin-bottom:8px;margin-top:8px;object-fit:cover;max-height:120px;cursor:pointer"></div>' : ''}
+      ${imgStars ? '<div class="withdraw-img-wrap" onclick="startWithdraw(\'stars\')"><img src="' + imgStars + '" onerror="this.parentElement.style.display=\'none\'" style="width:100%;border-radius:10px;margin-bottom:8px;margin-top:8px;object-fit:cover;max-height:120px;cursor:pointer"></div>' : ''}
       <div class="withdraw-opt animate-in fade stagger-2" onclick="startWithdraw('stars')">
         <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         <h4>Stars</h4>
         <p>1⭐ = ₹2</p>
       </div>
-      ${imgRedeem ? '<div class="withdraw-img-wrap" onclick="startWithdraw(\'redeem\')"><img src="' + imgRedeem + '" style="width:100%;border-radius:10px;margin-bottom:8px;margin-top:8px;object-fit:cover;max-height:120px;cursor:pointer"></div>' : ''}
+      ${imgRedeem ? '<div class="withdraw-img-wrap" onclick="startWithdraw(\'redeem\')"><img src="' + imgRedeem + '" onerror="this.parentElement.style.display=\'none\'" style="width:100%;border-radius:10px;margin-bottom:8px;margin-top:8px;object-fit:cover;max-height:120px;cursor:pointer"></div>' : ''}
       <div class="withdraw-opt animate-in fade stagger-3" onclick="startWithdraw('redeem')">
         <svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="14" rx="2"/><path d="M12 2v6"/><path d="M8 2l4 6 4-6"/></svg>
         <h4>Redeem</h4>
