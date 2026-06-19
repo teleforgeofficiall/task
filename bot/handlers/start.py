@@ -293,7 +293,7 @@ async def web_app_verified_handler(update: Update, context: ContextTypes.DEFAULT
             except Exception:
                 pass
 
-        await send_congrats(update, context, repository)
+        await send_main_menu(update, context, repository)
 
     elif action == "failed":
         warning_text = (

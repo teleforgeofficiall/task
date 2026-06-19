@@ -220,23 +220,29 @@ function showError(msg) {
 }
 
 async function doVerifyContinue(userId) {
-  try {
-    await apiFetch('/api/verification-done', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: parseInt(userId) })
-    });
-  } catch (e) {}
   var tg = window.Telegram?.WebApp;
-  if (tg && tg.close) {
-    tg.close();
-  } else if (tg && tg.closeWebView) {
-    tg.closeWebView();
+  if (tg && tg.sendData) {
+    tg.sendData(JSON.stringify({ action: 'verified', user_id: parseInt(userId) }));
   } else {
-    switchScreen('loadingScreen');
-    document.getElementById('loadingScreen').innerHTML =
-      '<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">&#x2705;</div><h3>Verification Complete!</h3><p style="color:var(--text-secondary);margin-top:8px">Go back to Telegram to continue.</p></div>';
+    try {
+      await apiFetch('/api/verification-done', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: parseInt(userId) })
+      });
+    } catch (e) {}
   }
+  setTimeout(function() {
+    if (tg && tg.close) {
+      tg.close();
+    } else if (tg && tg.closeWebView) {
+      tg.closeWebView();
+    } else {
+      switchScreen('loadingScreen');
+      document.getElementById('loadingScreen').innerHTML =
+        '<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">&#x2705;</div><h3>Verification Complete!</h3><p style="color:var(--text-secondary);margin-top:8px">Go back to Telegram to continue.</p></div>';
+    }
+  }, 500);
 }
 
 window.onerror = function (msg, src, line, col, err) {

@@ -1366,7 +1366,9 @@ async def app_image(key: str):
     async with get_session() as session:
         repo = Repository(session)
         image_ref = await repo.get_image(key)
+    logger.info("Image proxy: key=%s image_ref=%s (len=%d)", key, repr(image_ref[:50] if image_ref else ""), len(image_ref) if image_ref else 0)
     if not image_ref:
+        logger.warning("Image proxy: no value for key=%s", key)
         return Response(status_code=404)
     import httpx
     try:
@@ -1374,10 +1376,13 @@ async def app_image(key: str):
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(image_ref)
                 if resp.status_code != 200:
+                    logger.warning("Image proxy: URL fetch failed status=%d for key=%s", resp.status_code, key)
                     return Response(status_code=404)
+                ct = resp.headers.get("content-type", "image/jpeg")
+                logger.info("Image proxy: URL success key=%s ct=%s size=%d", key, ct, len(resp.content))
                 return Response(
                     content=resp.content,
-                    media_type=resp.headers.get("content-type", "image/jpeg"),
+                    media_type=ct,
                     headers={"Cache-Control": "public, max-age=3600"}
                 )
         token = settings.BOT_TOKEN
@@ -1388,18 +1393,23 @@ async def app_image(key: str):
             )
             d = r.json()
             if not d.get("ok"):
+                logger.error("Image proxy: getFile failed for key=%s response=%s", key, d)
                 return Response(status_code=404)
             file_path = d["result"]["file_path"]
             url = f"https://api.telegram.org/file/bot{token}/{file_path}"
             resp = await client.get(url)
             if resp.status_code != 200:
+                logger.warning("Image proxy: file download failed status=%d for key=%s", resp.status_code, key)
                 return Response(status_code=404)
+            ct = resp.headers.get("content-type", "image/jpeg")
+            logger.info("Image proxy: file_id success key=%s ct=%s size=%d", key, ct, len(resp.content))
             return Response(
                 content=resp.content,
-                media_type=resp.headers.get("content-type", "image/jpeg"),
+                media_type=ct,
                 headers={"Cache-Control": "public, max-age=3600"}
             )
-    except Exception:
+    except Exception as e:
+        logger.error("Image proxy: exception for key=%s: %s", key, e)
         return Response(status_code=404)
 
 
