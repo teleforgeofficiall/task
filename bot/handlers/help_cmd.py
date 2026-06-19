@@ -7,7 +7,6 @@ from telegram.ext import ContextTypes, CommandHandler, filters
 from telegram.constants import ParseMode
 
 from bot.database import get_db, Repository
-from bot.keyboards.user_kb import main_menu_keyboard
 from bot.middlewares.auth import check_access
 from bot.utils import edit_or_reply, escape_html
 
@@ -51,7 +50,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     await update.message.reply_text(
         text=help_text,
-        reply_markup=main_menu_keyboard(),
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
     )
