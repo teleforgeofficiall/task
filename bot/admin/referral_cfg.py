@@ -29,6 +29,7 @@ async def admin_ref_config_menu_handler(update: Update, context: ContextTypes.DE
     fixed_reward = await repository.get_setting("fixed_referral_reward", 0.5)
     random_min = await repository.get_setting("random_reward_min", 0.5)
     random_max = await repository.get_setting("random_reward_max", 5.0)
+    min_tasks = int(await repository.get_setting("refer_min_tasks", 1))
 
     mode_description = ""
     if mode == "fixed":
@@ -42,7 +43,8 @@ async def admin_ref_config_menu_handler(update: Update, context: ContextTypes.DE
         f"🤝 <b>Referral Rewards Configurator</b>\n\n"
         f"{mode_description}\n\n"
         f"• Fixed Amount setting: <code>{format_currency(fixed_reward)}</code>\n"
-        f"• Random Range setting: <code>{format_currency(random_min)} - {format_currency(random_max)}</code>\n\n"
+        f"• Random Range setting: <code>{format_currency(random_min)} - {format_currency(random_max)}</code>\n"
+        f"• Min Tasks for Payout: <code>{min_tasks}</code>\n\n"
         f"<i>Select a mode or configure its settings using the controls below.</i>"
     )
 
@@ -93,6 +95,28 @@ async def admin_ref_set_fixed_start(update: Update, context: ContextTypes.DEFAUL
     await query.answer()
 
 
+async def admin_ref_set_min_tasks_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Prompt for minimum tasks for payout."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+    context.user_data["admin_state"] = "awaiting_ref_min_tasks"
+    text = (
+        "⚙️ <b>Set Minimum Tasks for Payout</b>\n\n"
+        "Send the number of tasks a referred user must complete before the referrer gets paid.\n"
+        "Current: <code>1</code>\n\n"
+        "Send a whole number (e.g. <code>1</code>)."
+    )
+    await query.edit_message_text(
+        text=text,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ Cancel", callback_data="admin:set_referral_config")]
+        ]),
+        parse_mode="HTML"
+    )
+    await query.answer()
+
+
 async def admin_ref_set_range_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Prompt for random range values."""
     query = update.callback_query
@@ -133,8 +157,23 @@ async def admin_ref_config_text_handler(update: Update, context: ContextTypes.DE
     text = msg.text.strip()
     repository = Repository(await get_db())
 
+    # Case: Min Tasks
+    if admin_state == "awaiting_ref_min_tasks":
+        try:
+            val = int(text)
+            if val < 0:
+                raise ValueError
+        except ValueError:
+            await msg.reply_text("❌ Invalid number. Send a whole number 0 or more.")
+            return
+        context.user_data.pop("admin_state", None)
+        await repository.update_setting("refer_min_tasks", val)
+        await msg.reply_text(f"✅ Minimum tasks for payout set to {val}.", parse_mode="HTML")
+        mode = await repository.get_setting("referral_mode", "random")
+        await msg.reply_text("🤝 Referral settings updated.", reply_markup=referral_config_keyboard(mode))
+        return
+
     # Case A: Fixed Payout
-    if admin_state == "awaiting_ref_fixed_amt":
         try:
             val = float(text.replace(",", ""))
             if val < 0:
@@ -188,6 +227,7 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(admin_ref_config_menu_handler, pattern="^admin:set_referral_config$"))
     application.add_handler(CallbackQueryHandler(admin_ref_mode_toggle_handler, pattern="^admin:ref_mode:(fixed|random|smart)$"))
     application.add_handler(CallbackQueryHandler(admin_ref_set_fixed_start, pattern="^admin:ref_set_fixed$"))
+    application.add_handler(CallbackQueryHandler(admin_ref_set_min_tasks_start, pattern="^admin:ref_set_min_tasks$"))
     application.add_handler(CallbackQueryHandler(admin_ref_set_range_start, pattern="^admin:ref_set_range$"))
     
     # Text input handlers for config values

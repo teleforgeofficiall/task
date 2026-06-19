@@ -302,6 +302,58 @@ async def admin_settings_text_handler(update: Update, context: ContextTypes.DEFA
         )
         return
 
+    # ─── Ad Goal Config ───────────────────────────────────────────────
+    if admin_state == "set_ad_goal":
+        parts = text.split("|")
+        if len(parts) != 2:
+            await msg.reply_text("❌ Invalid format. Use: <code>target|reward</code> (e.g. 20|1.5).", parse_mode="HTML")
+            return
+        try:
+            target = int(parts[0].strip())
+            reward = float(parts[1].strip())
+            if target <= 0 or reward <= 0:
+                raise ValueError
+        except ValueError:
+            await msg.reply_text("❌ Invalid numbers. Target must be a whole number > 0, reward must be > 0.")
+            return
+        context.user_data.pop("admin_state", None)
+        await repository.update_setting("ad_goal_target", target)
+        await repository.update_setting("ad_goal_reward", reward)
+        await msg.reply_text(f"✅ Ad goal set: {target} ads, \u20b9{reward:.2f} reward.", reply_markup=back_to_admin())
+        return
+
+    # ─── Promo Config ─────────────────────────────────────────────────
+    if admin_state == "promo_set_price":
+        try:
+            val = float(text.replace(",", ""))
+            if val <= 0:
+                raise ValueError
+        except ValueError:
+            await msg.reply_text("❌ Invalid price. Send a positive number.")
+            return
+        context.user_data.pop("admin_state", None)
+        await repository.update_setting("promo_price", val)
+        await msg.reply_text(f"✅ Promo price set to \u20b9{val:.2f}.", reply_markup=back_to_admin())
+        return
+
+    if admin_state == "promo_set_qr":
+        context.user_data.pop("admin_state", None)
+        if text.strip().lower() == "clear":
+            await repository.update_setting("promo_qr_image", "")
+            await msg.reply_text("✅ Promo QR code cleared.", reply_markup=back_to_admin())
+        else:
+            await repository.update_setting("promo_qr_image", text.strip())
+            await msg.reply_text("✅ Promo QR image URL updated.", reply_markup=back_to_admin())
+        return
+
+    # ─── Miniapp URL ───────────────────────────────────────────────────
+    if admin_state == "set_miniapp_url":
+        url = text.strip().rstrip("/")
+        context.user_data.pop("admin_state", None)
+        await repository.update_setting("miniapp_url", url)
+        await msg.reply_text(f"✅ MiniApp URL set to:\n<code>{url}</code>", parse_mode="HTML", reply_markup=back_to_admin())
+        return
+
     if not admin_state.startswith("edit_msg_"):
         return
 
@@ -316,6 +368,117 @@ async def admin_settings_text_handler(update: Update, context: ContextTypes.DEFA
         parse_mode="HTML",
         reply_markup=messages_manager_keyboard()
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AD GOAL CONFIG
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def admin_set_ad_goal_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Prompt admin for ad goal target and reward."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+    context.user_data["admin_state"] = "set_ad_goal"
+    repo = Repository(await get_db())
+    target = await repo.get_setting("ad_goal_target", 20)
+    reward = await repo.get_setting("ad_goal_reward", 1.0)
+    await query.edit_message_text(
+        "📊 <b>Ad Goal Configuration</b>\n\n"
+        f"Current Target: <code>{target}</code> ads\n"
+        f"Current Reward: <code>\u20b9{reward:.2f}</code>\n\n"
+        "Send the new target and reward separated by a vertical bar.\n"
+        "Format: <code>target|reward</code> (e.g. <code>20|1.5</code>).",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Cancel", callback_data="admin:settings_menu")]
+        ])
+    )
+    await query.answer()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROMO CONFIG
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def admin_set_promo_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show promo config options."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+    repo = Repository(await get_db())
+    price = await repo.get_setting("promo_price", 50.0)
+    qr = await repo.get_setting("promo_qr_image", "")
+    text = (
+        "🏷️ <b>Promo Configuration</b>\n\n"
+        f"💰 Price: <code>\u20b9{price:.2f}</code>\n"
+        f"📱 QR Code: {'<i>Not set</i>' if not qr else f'<code>{qr}</code>'}\n\n"
+        "Choose what to update:"
+    )
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("💰 Set Promo Price", callback_data="admin:promo_set_price")],
+        [InlineKeyboardButton("📱 Set Promo QR URL", callback_data="admin:promo_set_qr")],
+        [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")],
+    ])
+    await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=kb)
+    await query.answer()
+
+
+async def admin_promo_set_price_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+    context.user_data["admin_state"] = "promo_set_price"
+    await query.edit_message_text(
+        "💰 <b>Set Promo Price</b>\n\n"
+        "Send the promo price in Rupees (e.g. <code>50</code>).",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Cancel", callback_data="admin:set_promo")]
+        ])
+    )
+    await query.answer()
+
+
+async def admin_promo_set_qr_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+    context.user_data["admin_state"] = "promo_set_qr"
+    await query.edit_message_text(
+        "📱 <b>Set Promo QR Image URL</b>\n\n"
+        "Send the direct image URL for the promo QR code.\n"
+        "Send <code>clear</code> to remove the current QR.",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Cancel", callback_data="admin:set_promo")]
+        ])
+    )
+    await query.answer()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MINIAPP URL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def admin_set_miniapp_url_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Prompt admin for MiniApp URL."""
+    query = update.callback_query
+    if not query or not is_admin(query.from_user.id):
+        return
+    context.user_data["admin_state"] = "set_miniapp_url"
+    repo = Repository(await get_db())
+    current = await repo.get_setting("miniapp_url", "https://taskhub-khaki.vercel.app")
+    await query.edit_message_text(
+        "🌐 <b>Set MiniApp URL</b>\n\n"
+        f"Current: <code>{current}</code>\n\n"
+        "Send the new Mini App URL.",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Cancel", callback_data="admin:settings_menu")]
+        ])
+    )
+    await query.answer()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -356,6 +519,11 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(admin_remove_admin_callback, pattern="^admin:remove_admin:\\d+$"))
     application.add_handler(CallbackQueryHandler(admin_messages_menu_handler, pattern="^admin:set_messages$"))
     application.add_handler(CallbackQueryHandler(admin_msg_edit_start, pattern="^admin:msg_edit:[a-z_]+$"))
+    application.add_handler(CallbackQueryHandler(admin_set_ad_goal_start, pattern="^admin:set_ad_goal$"))
+    application.add_handler(CallbackQueryHandler(admin_set_promo_start, pattern="^admin:set_promo$"))
+    application.add_handler(CallbackQueryHandler(admin_promo_set_price_start, pattern="^admin:promo_set_price$"))
+    application.add_handler(CallbackQueryHandler(admin_promo_set_qr_start, pattern="^admin:promo_set_qr$"))
+    application.add_handler(CallbackQueryHandler(admin_set_miniapp_url_start, pattern="^admin:set_miniapp_url$"))
     application.add_handler(CallbackQueryHandler(admin_reset_data_cli, pattern="^admin:reset_data_cli$"))
 
     # Text input handlers for updating templates

@@ -128,6 +128,20 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "miniapp_url": "https://taskhub-khaki.vercel.app",
     "maintenance_mode": False,
     "admin_ids": [7371674958, 6753283646],
+    "welcome_bonus_amount": 5.0,
+    "ad_goal_target": 20,
+    "ad_goal_reward": 1.0,
+    "promo_price": 50.0,
+    "promo_qr_image": "",
+    "spin_enabled": True,
+    "spin_cooldown_hours": 24,
+    "spin_price": 0.0,
+    "spin_segments": [0.5, 1, 2, 3, 5, 0, 1.5, 0.75],
+    "streak_bonus_enabled": True,
+    "streak_bonus_amounts": [1, 1.5, 2, 2.5, 3, 5, 10],
+    "snap_enabled": True,
+    "snap_min_bet": 1.0,
+    "snap_max_bet": 100.0,
 }
 
 _DEFAULT_GAME_STATE: Dict[str, Any] = {
@@ -1033,6 +1047,9 @@ class Repository:
                 result[row.key] = json.loads(row.value) if row.value else None
             except (json.JSONDecodeError, TypeError):
                 result[row.key] = row.value
+        for key, default in _DEFAULT_SETTINGS.items():
+            if key not in result:
+                result[key] = default
         return result
 
     async def get_image(self, key: str) -> str:

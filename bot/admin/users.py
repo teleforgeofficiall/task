@@ -11,6 +11,7 @@ from bot.database import get_db, Repository
 from bot.admin.panel import is_admin
 from bot.keyboards.admin_kb import users_menu, user_action_keyboard, back_to_admin
 from bot.utils import format_currency, escape_html
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 

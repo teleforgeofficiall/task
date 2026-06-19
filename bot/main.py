@@ -738,17 +738,20 @@ async def app_bonus(user_id: int):
         user = await repo.get_user(user_id)
         if not user:
             return {"ok": False, "error": "User not found"}
+        enabled = await repo.get_setting("streak_bonus_enabled", True)
+        if not enabled:
+            return {"ok": False, "error": "Streak bonus disabled"}
         last_bonus = user.last_bonus_date
         today = datetime.date.today().isoformat()
         can_claim = last_bonus != today
         meta = user.user_meta or {}
         bonus_streak = meta.get("bonus_streak", 0)
+        amounts = await repo.get_setting("streak_bonus_amounts", [1, 1.5, 2, 2.5, 3, 5, 10])
         if can_claim:
-            day = (bonus_streak % 7) + 1
+            day = (bonus_streak % len(amounts)) + 1
         else:
-            day = ((bonus_streak - 1) % 7) + 1 if bonus_streak > 0 else 1
-        amounts = [1, 1.5, 2, 2.5, 3, 5, 10]
-        amount = amounts[min(day - 1, 6)]
+            day = ((bonus_streak - 1) % len(amounts)) + 1 if bonus_streak > 0 else 1
+        amount = amounts[min(day - 1, len(amounts) - 1)]
         return {
             "ok": True,
             "can_claim": can_claim,
@@ -776,14 +779,17 @@ async def app_claim_daily_bonus(request: Request):
         user = await repo.get_user(user_id)
         if not user:
             return {"ok": False, "error": "User not found"}
+        enabled = await repo.get_setting("streak_bonus_enabled", True)
+        if not enabled:
+            return {"ok": False, "error": "Streak bonus disabled"}
         today = datetime.date.today().isoformat()
         if user.last_bonus_date == today:
             return {"ok": False, "error": "Already claimed today"}
         meta = dict(user.user_meta or {})
         streak = meta.get("bonus_streak", 0) + 1
-        day = (streak - 1) % 7 + 1
-        amounts = [1, 1.5, 2, 2.5, 3, 5, 10]
-        amount = amounts[min(day - 1, 6)]
+        amounts = await repo.get_setting("streak_bonus_amounts", [1, 1.5, 2, 2.5, 3, 5, 10])
+        day = (streak - 1) % len(amounts) + 1
+        amount = amounts[min(day - 1, len(amounts) - 1)]
         await repo.credit_balance(user_id, amount, "daily_bonus", f"Day {day} daily bonus")
         meta["bonus_streak"] = streak
         await repo.update_user_fields(user_id, last_bonus_date=today, user_meta=meta)
@@ -809,15 +815,38 @@ async def app_spin(request: Request):
         user = await repo.get_user(user_id)
         if not user:
             return {"ok": False, "error": "User not found"}
+        enabled = await repo.get_setting("spin_enabled", True)
+        if not enabled:
+            return {"ok": False, "error": "Spin disabled"}
         meta = dict(user.user_meta or {})
+        cooldown_hours = int(await repo.get_setting("spin_cooldown_hours", 24))
+        price = float(await repo.get_setting("spin_price", 0.0))
+        segments = await repo.get_setting("spin_segments", [0.5, 1, 2, 3, 5, 0, 1.5, 0.75])
         last_spin = meta.get("last_spin_date", "")
         today = datetime.date.today().isoformat()
-        if last_spin == today:
-            return {"ok": False, "error": "Already spun today"}
-        segments = [0.5, 1, 2, 3, 5, 0, 1.5, 0.75]
+        if cooldown_hours >= 24:
+            if last_spin == today:
+                return {"ok": False, "error": "Already spun today"}
+        else:
+            last_spin_dt = meta.get("last_spin_datetime", "")
+            if last_spin_dt:
+                try:
+                    elapsed = (datetime.datetime.now() - datetime.datetime.fromisoformat(last_spin_dt)).total_seconds()
+                    if elapsed < cooldown_hours * 3600:
+                        remaining = int(cooldown_hours * 3600 - elapsed)
+                        return {"ok": False, "error": f"Wait {remaining // 60}m {remaining % 60}s"}
+                except Exception:
+                    pass
+        if price > 0:
+            balance = float(user.balance or 0)
+            if balance < price:
+                return {"ok": False, "error": f"Insufficient balance. Need ₹{price:.2f}"}
+            await repo.debit_balance(user_id, price, "spin_fee", f"Spin fee: ₹{price:.2f}")
         amount = random.choice(segments)
-        await repo.credit_balance(user_id, amount, "spin_win", f"Spin & Win: ₹{amount}")
+        if amount > 0:
+            await repo.credit_balance(user_id, amount, "spin_win", f"Spin & Win: ₹{amount}")
         meta["last_spin_date"] = today
+        meta["last_spin_datetime"] = datetime.datetime.now().isoformat()
         await repo.update_user_fields(user_id, user_meta=meta)
         user = await repo.get_user(user_id)
         return {"ok": True, "amount": amount, "balance": float(user.balance or 0)}

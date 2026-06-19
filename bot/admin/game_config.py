@@ -198,7 +198,7 @@ async def admin_game_config_edit_start(update: Update, context: ContextTypes.DEF
     hint_map = {
         "global": "Keys: new_user_luck_rounds, new_user_rtp_boost, exposure_cap, max_payout, volatility",
         "dice": "Keys: rtp, rtp_min, rtp_max, min_bet, max_bet, win_chance, payout_multiplier, cooldown_seconds",
-        "slots": "Keys: rtp, rtp_min, rtp_max, min_bet, max_bet, jackpot_chance, common_multi, rare_multi, epic_multi, legendary_multi",
+        "slots": "Keys: rtp, rtp_min, rtp_max, min_bet, max_bet, jackpot_chance, common_multi, rare_multi, epic_multi, legendary_multi, jackpot_frequency, jackpot_max_daily, jackpot_min_bet",
         "mines": "Keys: rtp, rtp_min, rtp_max, mine_count, grid_size",
         "crash": "Keys: rtp, rtp_min, rtp_max, min_bet, max_bet, house_edge",
     }
@@ -219,17 +219,8 @@ async def admin_game_config_edit_start(update: Update, context: ContextTypes.DEF
     await query.answer()
 
 
-async def admin_game_config_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    if not query or not is_admin(query.from_user.id):
-        return
-    context.user_data.pop("admin_state", None)
-    await admin_game_config_menu(update, context)
-
-
 def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(admin_game_config_menu, pattern="^admin:game_cfg_menu$"))
     application.add_handler(CallbackQueryHandler(admin_game_config_detail, pattern=r"^admin:game_cfg:(dice|slots|mines|crash|global|analytics|retention|anti_abuse)$"))
     application.add_handler(CallbackQueryHandler(admin_game_config_edit_start, pattern=r"^admin:game_cfg_edit:(dice|slots|mines|crash|global|retention|anti_abuse)$"))
-    application.add_handler(CallbackQueryHandler(admin_game_config_back, pattern="^admin:game_cfg_back$"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_game_config_input), group=12)

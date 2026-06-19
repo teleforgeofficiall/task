@@ -12,7 +12,7 @@ from telegram import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.error import RetryAfter, Forbidden, BadRequest, TelegramError
 
 from bot.database.repository import Repository
-from bot.keyboards.admin_kb import broadcast_cancel_keyboard, back_to_admin
+from bot.keyboards.admin_kb import back_to_admin
 
 logger = logging.getLogger(__name__)
 

@@ -34,6 +34,21 @@ async def require_admin(request: Request) -> int:
     return user_id
 
 
+# Key mapping between canonical DB keys (used by Telegram admin) and
+# frontend-facing keys (used by Mini App admin panel).
+# Ensures both admin panels stay in sync.
+CANONICAL_TO_FRONTEND: dict[str, str] = {
+    "min_withdraw": "min_withdraw_upi",
+    "max_withdraw": "max_withdraw_upi",
+    "refer_paused": "referral_paused",
+    "require_contact": "contact_mandatory",
+    "fixed_referral_reward": "referral_fixed_reward",
+    "random_reward_min": "referral_min_reward",
+    "random_reward_max": "referral_max_reward",
+}
+FRONTEND_TO_CANONICAL: dict[str, str] = {v: k for k, v in CANONICAL_TO_FRONTEND.items()}
+
+
 async def get_admin_repo():
     session = get_session()
     s = await session.__aenter__()
@@ -443,7 +458,11 @@ async def admin_settings(request: Request):
     async with get_session() as session:
         repo = Repository(session)
         all_settings = await repo.get_all_settings()
-    return {"ok": True, "settings": all_settings}
+    exposed = {}
+    for k, v in all_settings.items():
+        exposed_key = CANONICAL_TO_FRONTEND.get(k, k)
+        exposed[exposed_key] = v
+    return {"ok": True, "settings": exposed}
 
 
 @router.put("/settings")
@@ -453,24 +472,25 @@ async def admin_update_settings(request: Request):
     async with get_session() as session:
         repo = Repository(session)
         for key, value in data.items():
-            if key in ("admin_ids",) and isinstance(value, list):
+            canonical = FRONTEND_TO_CANONICAL.get(key, key)
+            if canonical in ("admin_ids",) and isinstance(value, list):
                 from bot.admin.panel import PERMANENT_ADMIN_IDS
                 merged = list(set(value) | PERMANENT_ADMIN_IDS)
-                await repo.update_setting(key, merged)
+                await repo.update_setting(canonical, merged)
                 await refresh_admin_ids()
-            elif key in ("ad_campaigns", "promoted_items", "fsub_channels",
-                         "earn_more_items", "custom_commands"):
-                await repo.update_setting(key, value)
-            elif key in ("maintenance_mode", "referral_paused", "contact_mandatory",
-                         "device_verification_enabled", "redeem_stock_enabled"):
-                await repo.update_setting(key, bool(value))
-            elif key in ("welcome_bonus_amount", "min_withdraw_upi", "max_withdraw_upi",
-                         "daily_withdraw_limit", "ad_goal_target", "ad_goal_reward",
-                         "referral_fixed_reward", "referral_min_reward", "referral_max_reward",
-                         "promo_price"):
-                await repo.update_setting(key, float(value))
+            elif canonical in ("ad_campaigns", "promoted_items", "fsub_channels",
+                              "earn_more_items", "custom_commands"):
+                await repo.update_setting(canonical, value)
+            elif canonical in ("maintenance_mode", "refer_paused", "require_contact",
+                               "device_verification_enabled", "redeem_stock_enabled"):
+                await repo.update_setting(canonical, bool(value))
+            elif canonical in ("welcome_bonus_amount", "min_withdraw", "max_withdraw",
+                               "daily_withdraw_limit", "ad_goal_target", "ad_goal_reward",
+                               "fixed_referral_reward", "random_reward_min", "random_reward_max",
+                               "promo_price"):
+                await repo.update_setting(canonical, float(value))
             else:
-                await repo.update_setting(key, value)
+                await repo.update_setting(canonical, value)
     return {"ok": True}
 
 

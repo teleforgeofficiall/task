@@ -256,18 +256,14 @@ def broadcast_menu() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("🔴 Inactive Users", callback_data="admin:bc_start:inactive"),
+            InlineKeyboardButton("💰 Users with Balance", callback_data="admin:bc_start:bal"),
+        ],
+        [
             InlineKeyboardButton("💰 Bonus Drop", callback_data="admin:bc_start:drop_rain"),
         ],
         [InlineKeyboardButton("🔙 Back to Main", callback_data="admin:main")]
     ]
     return InlineKeyboardMarkup(keyboard)
-
-
-def broadcast_cancel_keyboard() -> InlineKeyboardMarkup:
-    """Broadcast progress cancel handler."""
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🚨 Cancel Broadcast", callback_data="admin:bc_cancel")]
-    ])
 
 
 def admin_ids_keyboard(admin_ids: list, permanent_ids: set, user_names: dict) -> InlineKeyboardMarkup:
@@ -317,8 +313,20 @@ def settings_menu(require_contact: bool = True, refer_paused: bool = False, main
             InlineKeyboardButton("🎰 Game Config", callback_data="admin:game_cfg_menu"),
         ],
         [
+            InlineKeyboardButton("📊 Ad Goal Config", callback_data="admin:set_ad_goal"),
+            InlineKeyboardButton("🏷️ Promo Config", callback_data="admin:set_promo"),
+        ],
+        [
+            InlineKeyboardButton("🎡 Spin & Win Config", callback_data="admin:spin_menu"),
+            InlineKeyboardButton("🔥 Streak Bonus Config", callback_data="admin:streak_menu"),
+        ],
+        [
+            InlineKeyboardButton("🎲 Snap Pick Config", callback_data="admin:snap_menu"),
             InlineKeyboardButton("💾 Backup & Restore", callback_data="admin:backup_menu"),
+        ],
+        [
             InlineKeyboardButton("📂 Export Data", callback_data="admin:export_menu"),
+            InlineKeyboardButton("🌐 Set MiniApp URL", callback_data="admin:set_miniapp_url"),
         ],
         [
             InlineKeyboardButton("⚠️ Reset Data", callback_data="admin:reset_data_cli"),
@@ -354,6 +362,9 @@ def referral_config_keyboard(mode: str) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton("🔧 Set Fixed Reward", callback_data="admin:ref_set_fixed"),
             InlineKeyboardButton("🔧 Set Random Range", callback_data="admin:ref_set_range"),
+        ],
+        [
+            InlineKeyboardButton("⚙️ Min Tasks for Payout", callback_data="admin:ref_set_min_tasks"),
         ],
         [InlineKeyboardButton("🔙 Back to Settings", callback_data="admin:settings_menu")]
     ]

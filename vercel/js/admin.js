@@ -105,18 +105,22 @@ async function adminUsers() {
   const el = document.getElementById('adminSection');
   el.innerHTML = `
     <div style="padding:0 16px"><div class="admin-back" onclick="adminGoBack()">← Back to Menu</div></div>
-    <div class="admin-search"><input id="userSearch" placeholder="Search by ID, name, or @username..." onkeydown="if(event.key==='Enter')adminSearchUsers()"><button class="btn btn-sm" onclick="adminSearchUsers()">Search</button></div>
+    <div class="admin-search"><input id="userSearch" placeholder="Search by ID, name, or @username..." onkeydown="if(event.key==='Enter')adminSearchUsers()"><button class="btn btn-sm" onclick="adminSearchUsers(0)">Search</button></div>
     <div id="userList" class="admin-list">${showAdminLoading()}</div>
   `;
-  adminSearchUsers();
+  _userSearchPage = 0;
+  adminSearchUsers(0);
 }
 
-async function adminSearchUsers() {
+let _userSearchPage = 0;
+
+async function adminSearchUsers(page) {
   const q = document.getElementById('userSearch')?.value || '';
   const list = document.getElementById('userList');
   if (!list) return;
+  if (page !== undefined) _userSearchPage = page;
   list.innerHTML = showAdminLoading();
-  const data = await adminApi('/users/search?q=' + encodeURIComponent(q), 'GET');
+  const data = await adminApi('/users/search?q=' + encodeURIComponent(q) + '&page=' + _userSearchPage, 'GET');
   if (!data.ok) { list.innerHTML = '<div class="empty-state">Failed to load users</div>'; return; }
   if (!data.users.length) { list.innerHTML = '<div class="empty-state">No users found</div>'; return; }
   list.innerHTML = data.users.map(u => `
@@ -128,6 +132,12 @@ async function adminSearchUsers() {
       <span class="arrow">›</span>
     </div>
   `).join('');
+  if (data.users.length === 20) {
+    list.innerHTML += '<div style="text-align:center;padding:8px;margin-top:8px"><button class="btn btn-sm" onclick="adminSearchUsers(' + (_userSearchPage + 1) + ')">Next →</button></div>';
+  }
+  if (_userSearchPage > 0) {
+    list.innerHTML += '<div style="text-align:center;padding:8px;margin-top:4px"><button class="btn btn-sm" onclick="adminSearchUsers(' + (_userSearchPage - 1) + ')">← Prev</button></div>';
+  }
 }
 
 async function adminUserDetail(uid) {
@@ -173,9 +183,14 @@ async function adminUserDetail(uid) {
 }
 
 async function adminAction(action, uid) {
-  if (action === 'ban' && !confirm('Ban user ' + uid + '?')) return;
+  let reason = '';
+  if (action === 'ban') {
+    reason = prompt('Ban reason (optional):', '');
+    if (reason === null) return;
+  }
   if (action === 'warn' && !confirm('Add warning to user ' + uid + '?')) return;
-  const data = await adminApi('/users/' + uid + '/' + action, 'POST');
+  const body = reason ? { reason } : {};
+  const data = await adminApi('/users/' + uid + '/' + action, 'POST', body);
   if (data.ok) { toast('Action completed'); adminUserDetail(uid); }
   else { toast('Failed: ' + data.error); }
 }
@@ -272,14 +287,14 @@ async function adminSaveTask(tid) {
 }
 
 async function adminToggleTask(tid) {
-  const data = await adminApi('/tasks/' + tid + '/toggle', 'POST');
+  const data = await adminApi('/tasks/' + tid + '/toggle', 'POST', {});
   if (data.ok) { toast('Task ' + (data.is_active ? 'resumed' : 'paused')); closeModal(); adminTasks(); }
   else { toast('Failed: ' + data.error); }
 }
 
 async function adminDeleteTask(tid) {
   if (!confirm('Delete task #' + tid + '?')) return;
-  const data = await adminApi('/tasks/' + tid, 'DELETE');
+  const data = await adminApi('/tasks/' + tid, 'DELETE', {});
   if (data.ok) { toast('Task deleted'); closeModal(); adminTasks(); }
   else { toast('Failed: ' + data.error); }
 }
@@ -490,7 +505,7 @@ async function adminUpdatePromoted(id) {
 
 async function adminDeletePromoted(id) {
   if (!confirm('Delete promoted item #' + id + '?')) return;
-  const data = await adminApi('/promoted/' + id, 'DELETE');
+  const data = await adminApi('/promoted/' + id, 'DELETE', {});
   if (data.ok) { toast('Deleted'); adminPromoted(); }
 }
 
@@ -547,7 +562,7 @@ async function adminSaveAd() {
 
 async function adminDeleteAd(id) {
   if (!confirm('Delete ad campaign #' + id + '?')) return;
-  const data = await adminApi('/ads/' + id, 'DELETE');
+  const data = await adminApi('/ads/' + id, 'DELETE', {});
   if (data.ok) { toast('Deleted'); adminAds(); }
 }
 
@@ -642,6 +657,7 @@ async function adminSettings() {
     { key: 'min_withdraw_upi', label: 'Min UPI Withdraw (₹)', type: 'float' },
     { key: 'max_withdraw_upi', label: 'Max UPI Withdraw (₹)', type: 'float' },
     { key: 'daily_withdraw_limit', label: 'Daily Withdraw Limit (₹)', type: 'float' },
+    { key: 'redeem_stock_enabled', label: 'Redeem Stock Enabled', type: 'bool' },
     { key: 'ad_goal_target', label: 'Ad Goal Target', type: 'int' },
     { key: 'ad_goal_reward', label: 'Ad Goal Reward (₹)', type: 'float' },
     { key: 'referral_fixed_reward', label: 'Referral Fixed Reward (₹)', type: 'float' },
