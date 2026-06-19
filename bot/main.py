@@ -928,9 +928,10 @@ async def app_game_dice(request: Request):
         return {"ok": False, "error": "Invalid JSON"}
     user_id = data.get("user_id")
     bet = data.get("bet")
+    if bet is not None:
+        bet = float(bet)
     if not user_id or not bet:
         return {"ok": False, "error": "Missing user_id or bet"}
-        bet = float(bet)
     async with get_session() as session:
         repo = Repository(session)
         err = await _process_game_bet(user_id, bet, "dice", repo)
@@ -941,7 +942,7 @@ async def app_game_dice(request: Request):
         config = await engine.get_game_config("dice")
         profile = await engine.get_profile(user_id)
         game_count = profile.get("total_bets", 0) if profile else 0
-        result = engine.roll_dice(config, game_count, user_id=user_id)
+        result = await engine.roll_dice(config, game_count, user_id=user_id)
         won = result.get("win", False)
         multiplier = float(result.get("multiplier", 0))
         payout = round(bet * multiplier, 2) if won else 0
@@ -974,9 +975,10 @@ async def app_game_slots(request: Request):
         return {"ok": False, "error": "Invalid JSON"}
     user_id = data.get("user_id")
     bet = data.get("bet")
+    if bet is not None:
+        bet = float(bet)
     if not user_id or not bet:
         return {"ok": False, "error": "Missing user_id or bet"}
-        bet = float(bet)
     async with get_session() as session:
         repo = Repository(session)
         err = await _process_game_bet(user_id, bet, "slots", repo)
@@ -987,7 +989,7 @@ async def app_game_slots(request: Request):
         config = await engine.get_game_config("slots")
         profile = await engine.get_profile(user_id)
         game_count = profile.get("total_bets", 0) if profile else 0
-        result = engine.spin_slots(config, game_count, user_id=user_id)
+        result = await engine.spin_slots(config, game_count, user_id=user_id)
         won = result.get("win", False)
         multiplier = float(result.get("multiplier", 0))
         payout = round(bet * multiplier, 2) if won else 0
@@ -995,12 +997,12 @@ async def app_game_slots(request: Request):
             await repo.record_game_win_transaction(user_id, "slots", payout, multiplier)
         engine.record_bet("slots", bet, payout)
         await repo.record_game_round(user_id, "slots", bet, payout, multiplier, won,
-                                     details={"reels": result.get("display"), "jackpot": result.get("jackpot", False)})
+                                     details={"reels": result.get("reels"), "jackpot": result.get("jackpot", False)})
         engine.update_session(user_id, "slots", bet, won)
         user = await repo.get_user(user_id)
         return {
             "ok": True,
-            "reels": result.get("display"),
+            "reels": result.get("reels"),
             "win": won,
             "multiplier": multiplier,
             "payout": payout,
