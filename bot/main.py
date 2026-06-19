@@ -1447,6 +1447,9 @@ async def app_wallet(user_id: int):
             },
             "transactions": await repo.get_user_transactions(user_id, 20),
             "min_withdraw": float(await repo.get_setting("min_withdraw", 10)),
+            "img_withdraw_upi": str(await repo.get_setting("img_withdraw_upi", "")),
+            "img_withdraw_stars": str(await repo.get_setting("img_withdraw_stars", "")),
+            "img_withdraw_redeem": str(await repo.get_setting("img_withdraw_redeem", "")),
         }
 
 
@@ -1472,10 +1475,12 @@ async def app_withdraw(request: Request):
     method = data.get("method", "upi")
     amount = float(data.get("amount", 0))
     upi = data.get("upi", "")
+    stars = int(data.get("stars", 0))
+    post_link = data.get("post_link", "")
     if not user_id or amount <= 0:
         return {"ok": False, "error": "Invalid request"}
-    min_amt = {"upi": 10, "stars": 5, "redeem": 10}
-    max_amt = {"upi": 10000, "stars": 500, "redeem": 500}
+    min_amt = {"upi": 10, "stars": 10, "redeem": 10}
+    max_amt = {"upi": 10000, "stars": 10000, "redeem": 500}
     if amount < min_amt.get(method, 10):
         return {"ok": False, "error": f"Minimum ₹{min_amt.get(method, 10)} for {method}"}
     if amount > max_amt.get(method, 10000):
@@ -1522,7 +1527,9 @@ async def app_withdraw(request: Request):
             meta["upi"] = upi
         meta["total_withdrawn"] = meta.get("total_withdrawn", 0) + amount
         await repo.update_user_fields(user_id, user_meta=meta)
-        await repo.add_withdrawal(user_id, amount, method=method, upi_id=upi if method == "upi" else None)
+        channel_link = post_link if method == "stars" else ""
+        await repo.add_withdrawal(user_id, amount, method=method, upi_id=upi if method == "upi" else None,
+                                  stars=stars, channel_link=channel_link)
         user = await repo.get_user(user_id)
         return {"ok": True, "balance": float(user.balance or 0), "message": "Withdrawal requested"}
 

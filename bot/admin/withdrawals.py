@@ -27,6 +27,7 @@ async def admin_withdraws_menu_handler(update: Update, context: ContextTypes.DEF
     pending = await repository.get_pending_withdrawals()
     upi_count = sum(1 for w in pending if w.get("method") == "upi")
     stars_count = sum(1 for w in pending if w.get("method") == "stars")
+    redeem_count = sum(1 for w in pending if w.get("method") == "redeem")
 
     text = (
         "💳 <b>Withdrawal Payouts Manager</b>\n\n"
@@ -34,7 +35,7 @@ async def admin_withdraws_menu_handler(update: Update, context: ContextTypes.DEF
         "or reject to automatically refund the debit amount back to the user's wallet."
     )
 
-    await query.edit_message_text(text=text, reply_markup=withdraws_menu(upi_count, stars_count), parse_mode="HTML")
+    await query.edit_message_text(text=text, reply_markup=withdraws_menu(upi=upi_count, redeem=redeem_count, stars=stars_count), parse_mode="HTML")
     await query.answer()
 
 

@@ -423,6 +423,8 @@ async def admin_withdrawals_pending(request: Request):
                 "method": w.get("method", "upi"),
                 "upi_id": w.get("upi_id", ""),
                 "date": w.get("date", ""),
+                "channel_link": w.get("channel_link", ""),
+                "stars": int(w.get("stars", 0)),
             })
         return {"ok": True, "withdrawals": result}
 
@@ -432,7 +434,7 @@ async def admin_approve_withdrawal(request: Request, wid: int):
     admin_id = await require_admin(request)
     async with get_session() as session:
         repo = Repository(session)
-        await repo.update_withdrawal_status(wid, "approved", admin_id=admin_id)
+        await repo.update_withdrawal_status(wid, "paid", admin_id=admin_id)
     return {"ok": True}
 
 

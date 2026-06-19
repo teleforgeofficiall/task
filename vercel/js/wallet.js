@@ -13,6 +13,10 @@ async function loadWallet() {
   var redeemData = await api('/api/app/redeem-codes?' + new URLSearchParams({ user_id: USER.id }).toString());
   var redeemCodes = (redeemData.ok && redeemData.codes) || [];
 
+  var imgUpi = data.img_withdraw_upi || '';
+  var imgStars = data.img_withdraw_stars || '';
+  var imgRedeem = data.img_withdraw_redeem || '';
+
   el.innerHTML = `
     <div class="wallet-hero animate-in">
       <div class="label">Total Balance</div>
@@ -25,16 +29,19 @@ async function loadWallet() {
 
     <h3 class="section-title">Withdraw</h3>
     <div class="withdraw-grid">
+      ${imgUpi ? '<img src="' + imgUpi + '" style="width:100%;border-radius:10px;margin-bottom:8px;object-fit:cover;max-height:120px">' : ''}
       <div class="withdraw-opt animate-in fade stagger-1" onclick="startWithdraw('upi')">
         <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
         <h4>UPI</h4>
         <p>Min ₹${min_withdraw}</p>
       </div>
+      ${imgStars ? '<img src="' + imgStars + '" style="width:100%;border-radius:10px;margin-bottom:8px;margin-top:8px;object-fit:cover;max-height:120px">' : ''}
       <div class="withdraw-opt animate-in fade stagger-2" onclick="startWithdraw('stars')">
         <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         <h4>Stars</h4>
-        <p>Instant</p>
+        <p>1⭐ = ₹2</p>
       </div>
+      ${imgRedeem ? '<img src="' + imgRedeem + '" style="width:100%;border-radius:10px;margin-bottom:8px;margin-top:8px;object-fit:cover;max-height:120px">' : ''}
       <div class="withdraw-opt animate-in fade stagger-3" onclick="startWithdraw('redeem')">
         <svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="14" rx="2"/><path d="M12 2v6"/><path d="M8 2l4 6 4-6"/></svg>
         <h4>Redeem</h4>
@@ -88,7 +95,8 @@ function startWithdraw(method) {
     `;
   } else if (method === 'stars') {
     html = `
-      <div class="form-group"><label>Amount (Stars)</label><input class="form-input" id="wStarsAmount" type="number" placeholder="Min 5 Stars"></div>
+      <div class="form-group"><label>Amount (Stars) — 1⭐ = ₹2</label><input class="form-input" id="wStarsAmount" type="number" placeholder="Min 5 Stars"></div>
+      <div class="form-group"><label>Post Link (Optional)</label><input class="form-input" id="wPostLink" placeholder="https://t.me/yourpost"></div>
       <button class="btn btn-success btn-block" onclick="submitWithdraw('stars')">Withdraw via Stars</button>
     `;
   } else if (method === 'redeem') {
@@ -127,7 +135,10 @@ async function submitWithdraw(method) {
     body.upi = document.getElementById('wUpi')?.value;
     body.amount = parseFloat(document.getElementById('wAmount')?.value);
   } else if (method === 'stars') {
-    body.amount = parseFloat(document.getElementById('wStarsAmount')?.value);
+    var starsVal = parseFloat(document.getElementById('wStarsAmount')?.value);
+    body.amount = starsVal * 2;
+    body.stars = starsVal;
+    body.post_link = document.getElementById('wPostLink')?.value || '';
   } else if (method === 'redeem') {
     return;
   }
