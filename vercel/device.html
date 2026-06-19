@@ -256,6 +256,9 @@ async function doVerifyContinue(userId) {
 }
 
 window.onerror = function (msg, src, line, col, err) {
+  console.warn('Uncaught error:', msg, src, line, err);
+  // If CONTINUE button is already showing (verification passed), ignore errors silently
+  if (document.querySelector('.verify-card .verify-continue')) return true;
   var displayMsg = msg;
   if (!msg || msg === 'Script error.') {
     displayMsg = 'An unexpected error occurred. Please try again.';
