@@ -1359,6 +1359,50 @@ async def app_watch_ad(request: Request):
         return {"ok": True, "amount": per_ad, "balance": float(user.balance or 0), "completed": completed}
 
 
+@app.get("/api/app/image/{key}")
+async def app_image(key: str):
+    """Proxy withdraw images — resolves Telegram file_ids or URLs to actual image bytes."""
+    from bot.database import get_session, Repository
+    async with get_session() as session:
+        repo = Repository(session)
+        image_ref = await repo.get_image(key)
+    if not image_ref:
+        return Response(status_code=404)
+    import httpx
+    try:
+        if image_ref.startswith("http://") or image_ref.startswith("https://"):
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(image_ref)
+                if resp.status_code != 200:
+                    return Response(status_code=404)
+                return Response(
+                    content=resp.content,
+                    media_type=resp.headers.get("content-type", "image/jpeg"),
+                    headers={"Cache-Control": "public, max-age=3600"}
+                )
+        token = settings.BOT_TOKEN
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                f"https://api.telegram.org/bot{token}/getFile",
+                json={"file_id": image_ref}
+            )
+            d = r.json()
+            if not d.get("ok"):
+                return Response(status_code=404)
+            file_path = d["result"]["file_path"]
+            url = f"https://api.telegram.org/file/bot{token}/{file_path}"
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                return Response(status_code=404)
+            return Response(
+                content=resp.content,
+                media_type=resp.headers.get("content-type", "image/jpeg"),
+                headers={"Cache-Control": "public, max-age=3600"}
+            )
+    except Exception:
+        return Response(status_code=404)
+
+
 @app.get("/api/app/wallet")
 async def app_wallet(user_id: int):
     """Get wallet information."""

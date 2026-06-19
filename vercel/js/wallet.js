@@ -12,9 +12,9 @@ async function loadWallet() {
   var redeemData = await api('/api/app/redeem-codes?' + new URLSearchParams({ user_id: USER.id }).toString());
   var redeemCodes = (redeemData.ok && redeemData.codes) || [];
 
-  var imgUpi = data.img_withdraw_upi || 'https://t.me/postchannelsss/4';
-  var imgStars = data.img_withdraw_stars || 'https://t.me/postchannelsss/2';
-  var imgRedeem = data.img_withdraw_redeem || 'https://t.me/postchannelsss/3';
+  var imgUpi = data.img_withdraw_upi ? '/api/app/image/img_withdraw_upi' : '';
+  var imgStars = data.img_withdraw_stars ? '/api/app/image/img_withdraw_stars' : '';
+  var imgRedeem = data.img_withdraw_redeem ? '/api/app/image/img_withdraw_redeem' : '';
 
   el.innerHTML = `
     <div class="wallet-hero animate-in">
