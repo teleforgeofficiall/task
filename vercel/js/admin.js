@@ -95,7 +95,7 @@ async function adminUploadImage(inputId) {
         const res = await fetch(`/api/admin/upload?user_id=${USER.id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: ev.target.result })
+          body: JSON.stringify({ user_id: USER.id, data: ev.target.result })
         });
         const d = await res.json();
         if (d.ok) { document.getElementById(inputId).value = d.url; toast('✅ Image uploaded!'); }
