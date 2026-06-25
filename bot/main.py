@@ -736,9 +736,12 @@ async def app_verify_channel_task(task_id: int, request: Request):
             return {"ok": False, "error": "Already completed"}
         if not task.is_active:
             return {"ok": False, "error": "Task is not active"}
+        logger.info("verify-channel: task=%d channel_id=%r channel_url=%r", task_id, task.channel_id, task.channel_url)
+        if not task.channel_id or not str(task.channel_id).strip():
+            return {"ok": False, "error": "Channel ID not configured. Admin must set Channel ID when editing this task.", "channel_url": task.channel_url or ""}
         joined = await check_channel_membership(ptb_app.bot, user_id, task.channel_id)
         if not joined:
-            return {"ok": False, "error": "Join the channel first. Bot must be added as admin in the channel.", "channel_url": task.channel_url or ""}
+            return {"ok": False, "error": "You haven't joined the channel yet, or the bot needs admin access. Please join and try again.", "channel_url": task.channel_url or ""}
         await repo.credit_balance(
             user_id=user_id, amount=task.reward,
             tx_type="task_reward", description=f"Completed Channel Task #{task.id}",
