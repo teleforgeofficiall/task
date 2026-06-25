@@ -27,6 +27,15 @@ async def send_congrats(update: Update, context: ContextTypes.DEFAULT_TYPE, repo
     miniapp_url = await repository.get_setting("miniapp_url", "https://taskhub-khaki.vercel.app")
     separator = "&" if "?" in miniapp_url else "?"
     miniapp_url = f"{miniapp_url}{separator}_cb={int(time.time())}"
+
+    referred_task = context.user_data.pop("referred_task", None) if hasattr(context, 'user_data') else None
+    if referred_task:
+        try:
+            db_user = await repository.get_user(user.id)
+            if db_user and db_user.referrer:
+                miniapp_url += f"&start=ref_{db_user.referrer}_task_{referred_task}"
+        except Exception:
+            pass
     congrats_text = (
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         "🎉 <b>Congratulations!</b>\n"

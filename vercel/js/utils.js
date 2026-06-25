@@ -84,3 +84,23 @@ function getAvatarSvg(name) {
   const colorIndex = initial.charCodeAt(0) % colors.length;
   return `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="%23${colors[colorIndex]}"/%3E%3Ctext x="50" y="68" text-anchor="middle" fill="%23fff" font-size="44" font-weight="700"%3E${initial}%3C/text%3E%3C/svg%3E`;
 }
+
+function fetchImageAsBlob(img, proxyUrl, fallbackUrl) {
+  img.onerror = null;
+  fetch(proxyUrl)
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    })
+    .then(blob => {
+      img.src = URL.createObjectURL(blob);
+    })
+    .catch(() => {
+      if (fallbackUrl && fallbackUrl.startsWith('http')) {
+        img.src = fallbackUrl;
+        img.onerror = null;
+      } else {
+        img.style.display = 'none';
+      }
+    });
+}

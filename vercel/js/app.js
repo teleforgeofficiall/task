@@ -79,8 +79,11 @@ async function init() {
 
   setLoadingStatus('Loading your data...');
   const startParam = TG?.initDataUnsafe?.start_param || '';
+  const urlParams = new URLSearchParams(window.location.search);
+  const startFromUrl = urlParams.get('start') || '';
+  const startapp = startParam || startFromUrl;
   const params = new URLSearchParams({ user_id: user.id, init_data: initData, hash: '' });
-  if (startParam) params.set('startapp', startParam);
+  if (startapp) params.set('startapp', startapp);
   const data = await api('/api/app/init?' + params.toString());
 
   if (!data.ok) {
@@ -193,6 +196,18 @@ function enterApp(data) {
   renderNav();
   switchScreen('mainScreen');
   navigateTab('Tasks');
+
+  // Auto-navigate to referred task if coming from referral link
+  const autoTask = urlParams.get('start') || startParam || '';
+  if (autoTask.startsWith('ref_')) {
+    const parts = autoTask.split('_');
+    if (parts.length >= 4 && parts[2] === 'task') {
+      const taskId = parseInt(parts[3]);
+      if (taskId > 0) {
+        setTimeout(() => showTaskDetail(taskId), 800);
+      }
+    }
+  }
 }
 
 function updateBalance(bal) {

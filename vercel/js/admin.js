@@ -241,6 +241,8 @@ function adminCreateTask() {
       <div class="form-group"><label>Color</label><input id="f_color" type="color" value="#7b5ef8"></div>
       <div class="form-group"><label>Duration Text</label><input id="f_duration" value="15 min"></div>
       <div class="form-group"><label>Offer URL</label><input id="f_offer_url" placeholder="https://..."></div>
+      <div class="form-group"><label>Referrer Reward (₹ per referral)</label><input id="f_referrer_reward" type="number" step="0.01" value="0"></div>
+      <div class="form-group"><label>Completer Bonus (₹)</label><input id="f_completer_reward" type="number" step="0.01" value="0"></div>
       <div class="form-group"><label>Max Completers (0 = unlimited)</label><input id="f_max_completers" type="number" value="0"></div>
       <button class="btn btn-primary btn-block" onclick="adminSaveTask(0)">Create Task</button>
     </div>
@@ -261,6 +263,8 @@ async function adminEditTask(tid) {
       <div class="form-group"><label>Color</label><input id="f_color" type="color" value="${task.color || '#7b5ef8'}"></div>
       <div class="form-group"><label>Duration Text</label><input id="f_duration" value="${task.duration_text || '15 min'}"></div>
       <div class="form-group"><label>Offer URL</label><input id="f_offer_url" value="${task.offer_url || ''}"></div>
+      <div class="form-group"><label>Referrer Reward (₹ per referral)</label><input id="f_referrer_reward" type="number" step="0.01" value="${task.referrer_reward || 0}"></div>
+      <div class="form-group"><label>Completer Bonus (₹)</label><input id="f_completer_reward" type="number" step="0.01" value="${task.completer_reward || 0}"></div>
       <div class="form-group"><label>Max Completers</label><input id="f_max_completers" type="number" value="${task.max_completers || 0}"></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" onclick="adminSaveTask(${tid})">Save</button>
@@ -282,6 +286,8 @@ async function adminSaveTask(tid) {
     color: document.getElementById('f_color')?.value || '#7b5ef8',
     duration_text: document.getElementById('f_duration')?.value || '15 min',
     offer_url: document.getElementById('f_offer_url')?.value || '',
+    referrer_reward: parseFloat(document.getElementById('f_referrer_reward')?.value || 0),
+    completer_reward: parseFloat(document.getElementById('f_completer_reward')?.value || 0),
     max_completers: parseInt(document.getElementById('f_max_completers')?.value || 0),
   };
   const data = tid
@@ -772,7 +778,7 @@ async function adminSettings() {
   list.innerHTML += `
     <div class="setting-item" style="margin-top:12px;flex-direction:column;align-items:stretch;gap:8px">
       <div class="label" style="font-size:14px">📱 Promo QR Code</div>
-      ${s.promo_qr_image ? `<img src="${window.location.origin}/api/app/image/promo_qr_image" style="width:120px;height:120px;border-radius:8px;border:1px solid var(--border);object-fit:contain;margin:4px 0" onerror="var raw='${s.promo_qr_image}';this.onerror=null;if(raw.startsWith('http'))this.src=raw">` : '<div style="font-size:12px;color:var(--text-secondary);padding:8px 0">No QR code set</div>'}
+      ${s.promo_qr_image ? `<img src="${window.location.origin}/api/app/image/promo_qr_image" style="width:120px;height:120px;border-radius:8px;border:1px solid var(--border);object-fit:contain;margin:4px 0" onerror="fetchImageAsBlob(this,'${window.location.origin}/api/app/image/promo_qr_image','${s.promo_qr_image}')">` : '<div style="font-size:12px;color:var(--text-secondary);padding:8px 0">No QR code set</div>'}
       <input id="promoQrInput" placeholder="Paste QR image URL" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px" value="${s.promo_qr_image || ''}">
       <button class="btn btn-sm btn-primary" onclick="adminSavePromoQr()">Save QR Code</button>
     </div>

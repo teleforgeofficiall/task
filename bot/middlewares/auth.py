@@ -24,24 +24,29 @@ async def check_channel_membership(
     channel_id: str,
 ) -> bool:
     """Check if user is a member of a specific channel."""
+    if not channel_id:
+        logger.warning("check_channel_membership: channel_id is None/empty for user %d", user_id)
+        return False
+    channel_id = str(channel_id).strip()
+    if not channel_id:
+        return False
     try:
-        # Convert channel_id to int if it's numeric/starts with -100
         chat_id: int | str = channel_id
-        if str(channel_id).replace("-", "").isdigit():
+        if channel_id.replace("-", "").isdigit():
             chat_id = int(channel_id)
-            
+        logger.info("Checking membership: channel=%s chat_id_type=%s user=%d", channel_id, type(chat_id).__name__, user_id)
         member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+        logger.info("Member status for %d in %s: %s", user_id, channel_id, member.status)
         return member.status in [
             ChatMemberStatus.MEMBER,
             ChatMemberStatus.ADMINISTRATOR,
             ChatMemberStatus.OWNER
         ]
     except BadRequest as e:
-        if "chat not found" in str(e).lower() or "user not found" in str(e).lower():
-            logger.warning("Fsub check failed for channel %s, user %d: %s", channel_id, user_id, e)
+        logger.warning("Membership check failed: channel=%s user=%d error=%s", channel_id, user_id, e)
         return False
     except Exception as exc:
-        logger.error("Unexpected error in membership check for channel %s: %s", channel_id, exc)
+        logger.error("Unexpected error in membership check for channel %s user %d: %s", channel_id, user_id, exc)
         return False
 
 

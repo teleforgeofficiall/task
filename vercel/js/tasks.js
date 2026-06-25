@@ -32,7 +32,7 @@ function renderTaskCard(t, index) {
   const isDone = t.is_completed;
   const hasImage = t.image && t.image.length > 5;
   const imgContent = hasImage
-    ? `<img src="${t.image}" alt="${t.title}" loading="lazy">`
+    ? `<img src="${t.image}" alt="${t.title}" loading="lazy" onerror="fetchImageAsBlob(this,window.location.origin+'${t.image}','${t.image}')">`
     : (t.icon || '📋');
   const badgeClass = t.type === 'channel' ? 'badge-channel' : 'badge-manual';
   const badgeText = t.type === 'channel' ? 'Channel' : 'Manual';
@@ -99,7 +99,7 @@ async function loadTaskDetail(taskId) {
   body.innerHTML = `
     <div class="task-detail-header">
       <div class="task-icon" style="background:linear-gradient(135deg,${t.color || '#7b5ef8'},${t.color2 || '#5a3fd6'})">
-        ${hasImage ? `<img src="${t.image}" style="width:100%;height:100%;object-fit:cover">` : (t.icon || '📋')}
+        ${hasImage ? `<img src="${t.image}" style="width:100%;height:100%;object-fit:cover" onerror="fetchImageAsBlob(this,window.location.origin+'${t.image}','${t.image}')">` : (t.icon || '📋')}
       </div>
       <h3 style="font-size:17px;font-weight:700">${t.title}</h3>
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px">
@@ -515,7 +515,7 @@ async function promoGoStep2() {
       </div>
       ${qr ? `<div style="text-align:center;margin-bottom:12px">
         <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">📱 Scan QR to pay</p>
-        <img src="${cfg.promo_qr_proxy_url}" style="width:180px;height:180px;border-radius:10px;border:1px solid var(--border);object-fit:contain" onerror="this.onerror=null;if('${qr}'.startsWith('http'))this.src='${qr}'">
+        <img src="${cfg.promo_qr_proxy_url}" style="width:180px;height:180px;border-radius:10px;border:1px solid var(--border);object-fit:contain" onerror="fetchImageAsBlob(this,'${cfg.promo_qr_proxy_url}','${qr}')">
       </div>` : `<div style="text-align:center;padding:16px;background:var(--bg);border-radius:10px;margin-bottom:12px;border:1px solid var(--border)">
         <div style="font-size:32px;margin-bottom:4px">📱</div>
         <div style="font-size:12px;color:var(--text-secondary)">QR code not set yet. Contact admin to pay.</div>

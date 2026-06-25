@@ -475,12 +475,18 @@ async def app_init(user_id: int, init_data: str = "", hash: str = "", startapp: 
                 referrer_id = None
                 if startapp:
                     try:
-                        sid = int(startapp)
-                        if sid != user_id:
+                        sid = None
+                        if startapp.startswith("ref_"):
+                            parts = startapp.split("_")
+                            if len(parts) >= 2:
+                                sid = int(parts[1])
+                        else:
+                            sid = int(startapp)
+                        if sid and sid != user_id:
                             ref_user = await repo.get_user(sid)
                             if ref_user and not ref_user.banned:
                                 referrer_id = sid
-                    except (ValueError, TypeError):
+                    except (ValueError, TypeError, IndexError):
                         pass
                 user = await repo.create_user(user_id, "User", "User", referrer=referrer_id)
             from bot.admin.panel import get_admin_ids
@@ -1576,12 +1582,15 @@ async def app_withdraw(request: Request):
         if stars > max_star_withdraw:
             return {"ok": False, "error": f"Maximum {max_star_withdraw}⭐ for stars withdrawal"}
     else:
-        min_amt = {"upi": 10, "redeem": 10}
-        max_amt = {"upi": 10000, "redeem": 500}
+        min_amt = {"upi": float(await repo_for_settings.get_setting("min_withdraw", 10)), "redeem": 10}
+        max_amt = {"upi": float(await repo_for_settings.get_setting("max_withdraw", 10000)), "redeem": 500}
         if amount < min_amt.get(method, 10):
             return {"ok": False, "error": f"Minimum ₹{min_amt.get(method, 10)} for {method}"}
         if amount > max_amt.get(method, 10000):
             return {"ok": False, "error": f"Maximum ₹{max_amt.get(method, 10000)} for {method}"}
+        if method == "upi":
+            if await repo_for_settings.has_pending_withdrawal(user_id):
+                return {"ok": False, "error": "You already have a pending withdrawal. Wait for it to be processed."}
     async with get_session() as session:
         repo = Repository(session)
         user = await repo.get_user(user_id)

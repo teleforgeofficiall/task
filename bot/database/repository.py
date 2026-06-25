@@ -964,10 +964,10 @@ class Repository:
         )
         return [_row_to_dict(r) for r in rows.scalars().all()]
 
-    async def delete_redeem_code(self, code: str) -> bool:
+    async def delete_redeem_code(self, code_id: int) -> bool:
         session = await self._session()
         row = await session.execute(
-            select(RedeemCodeTable).where(RedeemCodeTable.code == code)
+            select(RedeemCodeTable).where(RedeemCodeTable.id == code_id)
         )
         row = row.scalar_one_or_none()
         if not row:
