@@ -772,7 +772,7 @@ async function adminSettings() {
   list.innerHTML += `
     <div class="setting-item" style="margin-top:12px;flex-direction:column;align-items:stretch;gap:8px">
       <div class="label" style="font-size:14px">📱 Promo QR Code</div>
-      ${s.promo_qr_image ? `<img src="${s.promo_qr_image}" style="width:120px;height:120px;border-radius:8px;border:1px solid var(--border);object-fit:contain;margin:4px 0">` : '<div style="font-size:12px;color:var(--text-secondary);padding:8px 0">No QR code set</div>'}
+      ${s.promo_qr_image ? `<img src="/api/app/image/promo_qr_image" style="width:120px;height:120px;border-radius:8px;border:1px solid var(--border);object-fit:contain;margin:4px 0" onerror="this.outerHTML='<div style=\'font-size:12px;color:var(--text-secondary);padding:8px 0\'>QR image failed to load (check URL format)</div>'">` : '<div style="font-size:12px;color:var(--text-secondary);padding:8px 0">No QR code set</div>'}
       <input id="promoQrInput" placeholder="Paste QR image URL" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px" value="${s.promo_qr_image || ''}">
       <button class="btn btn-sm btn-primary" onclick="adminSavePromoQr()">Save QR Code</button>
     </div>

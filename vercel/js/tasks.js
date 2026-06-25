@@ -202,10 +202,6 @@ function startTask(taskId) {
           <input type="file" id="proofFileInput" accept="image/*" style="display:none" onchange="handleProofFile(event)">
           <div id="proofFileName" style="font-size:11px;color:var(--text-secondary);margin-top:4px"></div>
         </div>
-        <div class="form-group">
-          <label>💳 Your UPI ID (for payment)</label>
-          <input class="form-input" id="proofUpi" placeholder="Enter your UPI ID" value="${CURRENT_USER?.upi||''}">
-        </div>
         <button class="btn btn-success btn-block btn-lg" onclick="submitProof(${taskId})">📤 Submit Proof</button>
       </div>
     `);
@@ -278,16 +274,14 @@ async function verifyChannelTask(taskId) {
 
 async function submitProof(taskId) {
   const proof_image = document.getElementById('proofImage')?.value;
-  const upi = document.getElementById('proofUpi')?.value;
   if (!proof_image) { toast('📸 Please provide a screenshot'); return; }
-  if (!upi) { toast('💳 Please enter your UPI ID for payment'); return; }
 
   const btn = document.querySelector('.proof-submit .btn-success');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Submitting...'; }
 
   const data = await api('/api/app/task/' + taskId + '/submit', {
     method: 'POST',
-    body: JSON.stringify({ user_id: USER.id, proof_image, upi }),
+    body: JSON.stringify({ user_id: USER.id, proof_image }),
     timeout: 60000
   });
 
@@ -502,7 +496,7 @@ async function promoGoStep2() {
       </div>
       ${qr ? `<div style="text-align:center;margin-bottom:12px">
         <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">📱 Scan QR to pay</p>
-        <img src="${qr}" style="width:180px;height:180px;border-radius:10px;border:1px solid var(--border);object-fit:contain">
+        <img src="/api/app/image/promo_qr_image" style="width:180px;height:180px;border-radius:10px;border:1px solid var(--border);object-fit:contain" onerror="this.parentElement.innerHTML='<div style=\'padding:16px;font-size:12px;color:var(--text-secondary)\'>QR image failed to load. Contact admin.</div>'">
       </div>` : `<div style="text-align:center;padding:16px;background:var(--bg);border-radius:10px;margin-bottom:12px;border:1px solid var(--border)">
         <div style="font-size:32px;margin-bottom:4px">📱</div>
         <div style="font-size:12px;color:var(--text-secondary)">QR code not set yet. Contact admin to pay.</div>
