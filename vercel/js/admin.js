@@ -97,10 +97,12 @@ async function adminUploadImage(inputId) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user_id: USER.id, data: ev.target.result })
         });
-        const d = await res.json();
+        const txt = await res.text();
+        let d;
+        try { d = JSON.parse(txt); } catch(e) { toast('Upload failed (HTTP ' + res.status + '): ' + txt.slice(0,100)); return; }
         if (d.ok) { document.getElementById(inputId).value = d.url; toast('✅ Image uploaded!'); }
-        else { toast('Upload failed: ' + (d.error || 'unknown')); }
-      } catch(e) { toast('Upload error'); }
+        else { toast('Upload failed: ' + (d.error || txt.slice(0,100))); }
+      } catch(e) { toast('Upload error: ' + e.message); }
       if (btn) { btn.disabled = false; btn.textContent = '📁'; }
     };
     reader.readAsDataURL(file);
