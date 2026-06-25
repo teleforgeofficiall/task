@@ -241,6 +241,7 @@ function adminCreateTask() {
       <div class="form-group"><label>Type</label><select id="f_task_type" onchange="adminToggleTaskType()"><option value="manual">Manual</option><option value="channel">Channel</option></select></div>
       <div id="f_channel_fields" style="display:none">
         <div class="form-group"><label>Channel ID (required)</label><input id="f_channel_id" placeholder="-100... or @channel_username"></div>
+        <div class="form-group"><label>Channel URL</label><input id="f_channel_url" placeholder="https://t.me/channelname"></div>
       </div>
       <div id="f_manual_fields">
         <div class="form-group"><label>Description</label><textarea id="f_description" placeholder="Task description"></textarea></div>
@@ -270,6 +271,7 @@ async function adminEditTask(tid) {
       <div class="form-group"><label>Description</label><textarea id="f_description">${task.description || ''}</textarea></div>
       ${isChannel ? `
       <div class="form-group"><label>Channel ID</label><input id="f_channel_id" value="${task.channel_id || ''}" placeholder="-100... or @username"></div>
+      <div class="form-group"><label>Channel URL</label><input id="f_channel_url" value="${task.channel_url || ''}" placeholder="https://t.me/channelname"></div>
       ` : `
       <div class="form-group"><label>Guide</label><textarea id="f_guide">${task.guide || ''}</textarea></div>
       <div class="form-group"><label>Image URL</label><input id="f_image" value="${task.image || ''}"></div>
@@ -311,6 +313,7 @@ async function adminSaveTask(tid) {
     completer_reward: parseFloat(document.getElementById('f_completer_reward')?.value || 0),
     max_completers: parseInt(document.getElementById('f_max_completers')?.value || 0),
     channel_id: channelId,
+    channel_url: document.getElementById('f_channel_url')?.value || '',
   };
   const data = tid
     ? await adminApi('/tasks/' + tid, 'PUT', body)
