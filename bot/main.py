@@ -193,11 +193,15 @@ app.add_middleware(
 UPLOAD_DIR = "/opt/taskhub/uploads"
 import os
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-try:
-    from fastapi.staticfiles import StaticFiles
-    app.mount("/api/app/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-except Exception:
-    pass
+
+
+@app.get("/api/app/uploads/{filename}")
+async def serve_upload(filename: str):
+    from fastapi.responses import FileResponse, Response
+    filepath = os.path.normpath(os.path.join(UPLOAD_DIR, filename))
+    if not filepath.startswith(UPLOAD_DIR) or not os.path.exists(filepath):
+        return Response(status_code=404)
+    return FileResponse(filepath)
 
 app.include_router(admin_router)
 
