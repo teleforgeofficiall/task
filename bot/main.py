@@ -776,6 +776,44 @@ async def app_verify_channel_task(task_id: int, request: Request):
 
 
 @app.post("/api/app/task/{task_id}/submit")
+async def _notify_admins_proof(proof_id: int, user_id: int, task_id: int, task_desc: str, reward: float, proof_image: str):
+    """Notify all admins about a new proof submission via Telegram bot."""
+    import base64, io
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    from bot.admin.panel import get_admin_ids
+    admin_ids = get_admin_ids()
+    if not admin_ids:
+        return
+    caption = (
+        f"📝 <b>New Proof Submission — #{proof_id}</b>\n"
+        f"─────────────────────\n"
+        f"👤 <b>User:</b> ID <code>{user_id}</code>\n"
+        f"💸 <b>Task:</b> {task_desc[:100]} (#{task_id})\n"
+        f"💰 <b>Reward:</b> <code>₹{reward:.2f}</code>\n"
+        f"─────────────────────\n"
+        f"<i>Review the screenshot below and take action.</i>"
+    )
+    kb = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Approve", callback_data=f"admin:proof_decide:approve:{proof_id}:0"),
+            InlineKeyboardButton("❌ Reject", callback_data=f"admin:proof_decide:reject:{proof_id}:0"),
+        ],
+        [
+            InlineKeyboardButton("❌ Reject with Reason", callback_data=f"admin:proof_reason:{proof_id}:0"),
+        ]
+    ])
+    for aid in admin_ids:
+        try:
+            if proof_image.startswith('data:'):
+                _h, encoded = proof_image.split(',', 1)
+                buf = io.BytesIO(base64.b64decode(encoded))
+            else:
+                buf = proof_image
+            await ptb_app.bot.send_photo(chat_id=aid, photo=buf, caption=caption, reply_markup=kb, parse_mode="HTML")
+        except Exception as e:
+            logger.warning("Failed to send proof notification to admin %s: %s", aid, e)
+
+
 async def app_submit_proof(task_id: int, request: Request):
     """Submit task proof from Mini App - admin will review before marking complete."""
     from bot.database import get_session, Repository
@@ -804,10 +842,17 @@ async def app_submit_proof(task_id: int, request: Request):
         if await repo.has_pending_proof(user_id, task_id):
             return {"ok": False, "error": "Proof already submitted, awaiting review"}
         try:
-            await repo.add_proof(user_id, task_id, proof_image, "photo")
+            proof = await repo.add_proof(user_id, task_id, proof_image, "photo")
         except Exception as exc:
             logger.exception("add_proof failed for user %s task %s: %s", user_id, task_id, exc)
             return {"ok": False, "error": "Failed to save proof. Try a smaller image."}
+        # Notify admins about new proof
+        if proof_image:
+            asyncio.create_task(_notify_admins_proof(
+                proof.id if hasattr(proof, 'id') else 0,
+                user_id, task_id, task.description if task else "",
+                float(task.reward) if task else 0, proof_image
+            ))
         # Save UPI for payout if provided
         if upi:
             meta = dict(user.user_meta or {})

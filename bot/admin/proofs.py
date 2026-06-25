@@ -265,6 +265,23 @@ async def admin_proof_decision_handler(update: Update, context: ContextTypes.DEF
         )
         await query.answer("Rejected submission successfully.")
 
+    # Update the admin notification message caption to show decision status
+    try:
+        status_icon = "✅" if decision == "approve" else "❌"
+        status_text = "Approved" if decision == "approve" else "Rejected"
+        if decision == "reject" and reason:
+            status_text += f" — {reason[:50]}"
+        new_caption = query.message.caption or ""
+        new_caption = (
+            f"{status_icon} <b>Proof #{proof_id}: {status_text}</b>\n\n"
+            f"👤 User: <code>{user_id}</code>\n"
+            f"💸 Task: #{task_id}\n"
+            f"💰 Reward: <code>₹{reward:.2f}</code>"
+        )
+        await query.edit_message_caption(caption=new_caption, reply_markup=None, parse_mode="HTML")
+    except Exception:
+        pass
+
     # Re-send queue panel
     await send_queue_panel(query.from_user.id, page, context, repository)
 
