@@ -279,8 +279,14 @@ async function adminEditTask(tid) {
 }
 
 async function adminSaveTask(tid) {
+  const taskType = document.getElementById('f_task_type')?.value || 'manual';
+  const channelId = document.getElementById('f_channel_id')?.value || '';
+  if (taskType === 'channel' && !channelId.trim()) {
+    toast('Channel ID is required for channel tasks');
+    return;
+  }
   const body = {
-    task_type: document.getElementById('f_task_type')?.value || 'manual',
+    task_type: taskType,
     description: document.getElementById('f_description')?.value || '',
     guide: document.getElementById('f_guide')?.value || '',
     reward: parseFloat(document.getElementById('f_reward')?.value || 0),
@@ -292,7 +298,7 @@ async function adminSaveTask(tid) {
     referrer_reward: parseFloat(document.getElementById('f_referrer_reward')?.value || 0),
     completer_reward: parseFloat(document.getElementById('f_completer_reward')?.value || 0),
     max_completers: parseInt(document.getElementById('f_max_completers')?.value || 0),
-    channel_id: document.getElementById('f_channel_id')?.value || '',
+    channel_id: channelId,
   };
   const data = tid
     ? await adminApi('/tasks/' + tid, 'PUT', body)
