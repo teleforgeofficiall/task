@@ -1450,12 +1450,31 @@ async def app_image(key: str):
         logger.warning("Image proxy: no value for key=%s", key)
         return Response(status_code=404)
     import httpx
+    import re
     try:
         if image_ref.startswith("http://") or image_ref.startswith("https://"):
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(image_ref)
                 if resp.status_code != 200:
                     logger.warning("Image proxy: URL fetch failed status=%d for key=%s", resp.status_code, key)
+                    return Response(status_code=404)
+                ct = resp.headers.get("content-type", "text/plain").split(";")[0].strip().lower()
+                # If response is HTML (e.g. Telegram post URL), extract image from og:image meta tag
+                if ct == "text/html":
+                    html_text = resp.text
+                    og_match = re.search(r'<meta\s+property="og:image"\s+content="([^"]+)"', html_text, re.IGNORECASE)
+                    if og_match:
+                        image_url = og_match.group(1)
+                        logger.info("Image proxy: extracted og:image for key=%s: %s", key, image_url)
+                        img_resp = await client.get(image_url)
+                        if img_resp.status_code == 200:
+                            img_ct = img_resp.headers.get("content-type", "image/jpeg")
+                            return Response(
+                                content=img_resp.content,
+                                media_type=img_ct,
+                                headers={"Cache-Control": "public, max-age=3600"}
+                            )
+                    logger.warning("Image proxy: no og:image found in HTML for key=%s", key)
                     return Response(status_code=404)
                 ct = resp.headers.get("content-type", "image/jpeg")
                 logger.info("Image proxy: URL success key=%s ct=%s size=%d", key, ct, len(resp.content))
