@@ -49,6 +49,7 @@
 .admin-form input:focus, .admin-form textarea:focus { border-color: var(--primary); }
 .admin-form textarea { min-height: 80px; resize: vertical; }
 .admin-form .btn { margin-top: 8px; }
+.admin-form .help-text { font-size: 11px; color: var(--text-secondary); margin-top: 3px; opacity: 0.7; }
 
 .admin-settings { padding: 0 16px 16px; }
 .admin-settings .setting-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--card);

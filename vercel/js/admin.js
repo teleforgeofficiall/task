@@ -246,7 +246,7 @@ function adminCreateTask() {
       <div id="f_manual_fields">
         <div class="form-group"><label>Description</label><textarea id="f_description" placeholder="Task description"></textarea></div>
         <div class="form-group"><label>Guide</label><textarea id="f_guide" placeholder="How to complete this task"></textarea></div>
-        <div class="form-group"><label>Image</label><input id="f_image" placeholder="Telegram post link or image URL"></div>
+        <div class="form-group"><label>Image</label><input id="f_image" placeholder="e.g. https://t.me/channelname/123"><div class="help-text">Send image to public channel → copy post link → paste here</div></div>
         <div class="form-group"><label>Video URL</label><input id="f_video_url" placeholder="https://..."></div>
         <div class="form-group"><label>Color</label><input id="f_color" type="color" value="#7b5ef8"></div>
         <div class="form-group"><label>Duration Text</label><input id="f_duration" value="15 min"></div>
@@ -274,7 +274,7 @@ async function adminEditTask(tid) {
       <div class="form-group"><label>Channel URL</label><input id="f_channel_url" value="${task.channel_url || ''}" placeholder="https://t.me/channelname"></div>
       ` : `
       <div class="form-group"><label>Guide</label><textarea id="f_guide">${task.guide || ''}</textarea></div>
-      <div class="form-group"><label>Image</label><input id="f_image" value="${escHtml(task.image || '')}" placeholder="Telegram post link or image URL"></div>
+      <div class="form-group"><label>Image</label><input id="f_image" value="${escHtml(task.image || '')}" placeholder="e.g. https://t.me/channelname/123"><div class="help-text">Send image to public channel → copy post link → paste here</div></div>
       <div class="form-group"><label>Video URL</label><input id="f_video_url" value="${task.video_url || ''}"></div>
       <div class="form-group"><label>Color</label><input id="f_color" type="color" value="${task.color || '#7b5ef8'}"></div>
       <div class="form-group"><label>Duration Text</label><input id="f_duration" value="${task.duration_text || '15 min'}"></div>
