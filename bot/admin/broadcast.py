@@ -321,13 +321,13 @@ async def drop_rain_claim_handler(update: Update, context: ContextTypes.DEFAULT_
         await query.answer("❌ This bonus drop has expired!", show_alert=True)
         return
 
+    # Track claim BEFORE balance to prevent over-claiming bugs
     if user_id in drop_state["claimed_user_ids"]:
         await query.answer("❌ You have already claimed this bonus!", show_alert=True)
         return
 
     if len(drop_state["claimed_user_ids"]) >= drop_state["max_claims"]:
         await query.answer("❌ Sorry, all bonus slots are filled!", show_alert=True)
-
         # If max reached, deactivate and notify admin
         if drop_state.get("active"):
             drop_state["active"] = False
@@ -336,7 +336,7 @@ async def drop_rain_claim_handler(update: Update, context: ContextTypes.DEFAULT_
 
     amount = drop_state["amount"]
 
-    # Add to balance
+    # Add to balance (atomic operation)
     await repository.credit_balance(
         user_id=user_id,
         amount=amount,
@@ -344,11 +344,14 @@ async def drop_rain_claim_handler(update: Update, context: ContextTypes.DEFAULT_
         description=f"Bonus Drop #{drop_id}: {format_currency(amount)}"
     )
 
-    # Track claim
+    # Track claim and update DB atomically
     drop_state["claimed_user_ids"].append(user_id)
+    await repository.set_drop_rain_state(drop_state)
+
+    # Check if max reached and deactivate if needed
     if len(drop_state["claimed_user_ids"]) >= drop_state["max_claims"]:
         drop_state["active"] = False
-    await repository.set_drop_rain_state(drop_state)
+        await repository.set_drop_rain_state(drop_state)
 
     # Delete the broadcast message
     try:

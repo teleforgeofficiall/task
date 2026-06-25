@@ -20,7 +20,7 @@ async function loadReferral() {
     <!-- Hero Card with Link -->
     <div class="ref-hero">
       <h2>🚀 Invite & Earn</h2>
-      <p>Share your link with friends. Earn commission when they complete tasks!</p>
+      <p>Share your link with friends. Earn rewards when they complete tasks!</p>
 
       <div class="ref-link-box">
         <div class="link-label">Your Invite Link</div>

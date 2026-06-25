@@ -4,6 +4,8 @@ Includes batch-processing, custom rejection reasons, and automatic referral eval
 """
 from __future__ import annotations
 
+import base64
+import io
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, InputMediaVideo
 from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters
@@ -130,29 +132,50 @@ async def admin_proof_view_handler(update: Update, context: ContextTypes.DEFAULT
     except Exception:
         pass
 
-    try:
-        if file_type == "video":
-            await context.bot.send_video(
-                chat_id=query.from_user.id,
-                video=file_id,
-                caption=caption,
-                reply_markup=kb,
-                parse_mode="HTML"
-            )
-        else:
-            await context.bot.send_photo(
-                chat_id=query.from_user.id,
-                photo=file_id,
-                caption=caption,
-                reply_markup=kb,
-                parse_mode="HTML"
-            )
-    except Exception as exc:
-        logger.error("Failed to send proof media to admin: %s", exc)
-        # Fallback to text message
+    # Helper to send media, handling base64 data URLs
+    async def _send_media():
+        if file_id and file_id.startswith('data:'):
+            # Base64 data URL — decode and send as file upload
+            try:
+                _header, encoded = file_id.split(',', 1)
+                bytes_data = base64.b64decode(encoded)
+                buf = io.BytesIO(bytes_data)
+                buf.seek(0)
+                if file_type == "video":
+                    await context.bot.send_video(
+                        chat_id=query.from_user.id, video=buf,
+                        caption=caption, reply_markup=kb, parse_mode="HTML",
+                        filename="proof." + ("mp4" if file_type == "video" else "jpg")
+                    )
+                else:
+                    await context.bot.send_photo(
+                        chat_id=query.from_user.id, photo=buf,
+                        caption=caption, reply_markup=kb, parse_mode="HTML"
+                    )
+                return True
+            except Exception as exc:
+                logger.error("Failed to send proof base64 data: %s", exc)
+                return False
+        try:
+            if file_type == "video":
+                await context.bot.send_video(
+                    chat_id=query.from_user.id, video=file_id,
+                    caption=caption, reply_markup=kb, parse_mode="HTML"
+                )
+            else:
+                await context.bot.send_photo(
+                    chat_id=query.from_user.id, photo=file_id,
+                    caption=caption, reply_markup=kb, parse_mode="HTML"
+                )
+            return True
+        except Exception:
+            return False
+
+    sent = await _send_media()
+    if not sent:
         await context.bot.send_message(
             chat_id=query.from_user.id,
-            text=f"{caption}\n\n⚠️ <i>Failed to load media (file_id: {file_id})</i>",
+            text=f"{caption}\n\n⚠️ <i>Failed to load media. File was stored as base64 data URL.</i>",
             reply_markup=kb,
             parse_mode="HTML"
         )

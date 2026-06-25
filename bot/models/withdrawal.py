@@ -38,7 +38,7 @@ class WithdrawalModel(BaseModel):
         data.setdefault("approved_by", None)
         data.setdefault("approved_at", None)
         data.setdefault("method", "upi")
-        data.setdefault("up_id", None)
+        data.setdefault("upi_id", None)
         data.setdefault("redeem_code", None)
         data.setdefault("stars", 0)
         data.setdefault("channel_link", "")

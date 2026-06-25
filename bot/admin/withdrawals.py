@@ -419,6 +419,13 @@ async def admin_star_view_handler(update: Update, context: ContextTypes.DEFAULT_
     stars = w.get("stars", 0)
     channel_link = w.get("channel_link", "")
 
+    is_username = channel_link.startswith("@")
+    link_display = channel_link if channel_link else "Not provided"
+    contact_line = ""
+    if is_username:
+        contact_line = f"👤 <b>Telegram Username:</b> {escape_html(channel_link)}\n"
+    else:
+        contact_line = f"📍 <b>Channel Post:</b>\n<a href=\"{escape_html(channel_link)}\">{escape_html(link_display)}</a>\n"
     text = (
         f"⭐ <b>Star Withdrawal — ID: #{wid}</b>\n"
         f"─────────────────────\n"
@@ -426,15 +433,17 @@ async def admin_star_view_handler(update: Update, context: ContextTypes.DEFAULT_
         f"⭐ <b>Stars:</b> <code>{stars}⭐</code>\n"
         f"💰 <b>Amount:</b> <b>{format_currency(w['amount'])}</b>\n"
         f"📅 <b>Submitted:</b> <code>{w['date'].split('T')[0]}</code>\n\n"
-        f"📍 <b>React Here:</b>\n"
-        f"<code>{channel_link}</code>\n"
+        f"{contact_line}"
         f"─────────────────────\n"
-        f"<i>Go to the channel post, add ⭐ reactions, then approve below.</i>"
+        f"<i>Send ⭐ stars to user, then approve below.</i>"
     )
 
-    keyboard = [
-        [InlineKeyboardButton("🔗 Open Post", url=channel_link)],
-    ]
+    keyboard = []
+    if is_username:
+        contact_url = f"https://t.me/{channel_link.lstrip('@')}"
+        keyboard.append([InlineKeyboardButton("💬 Contact User", url=contact_url)])
+    elif channel_link:
+        keyboard.append([InlineKeyboardButton("🔗 Open Post", url=channel_link)])
     from bot.keyboards.admin_kb import star_withdrawal_action_keyboard
     action_kb = star_withdrawal_action_keyboard(wid, page).inline_keyboard
     keyboard.extend(action_kb)

@@ -68,6 +68,11 @@ function showError(msg, detail, buttons) {
   screen.innerHTML = html;
 }
 
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function getInitials(name) {
   if (!name) return 'U';
   return name.charAt(0).toUpperCase();

@@ -85,7 +85,7 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "daily_withdraw_limit": 3,
     "star_withdraw_tiers": {"15": 25.0, "30": 50.0},
     "star_withdraw_enabled": True,
-    "min_star_withdraw": 1,
+    "min_star_withdraw": 15,
     "max_star_withdraw": 500,
     "refer_min_tasks": 1,
     "refer_paused": False,
@@ -953,6 +953,16 @@ class Repository:
             if avail <= threshold:
                 low.append({"amount": amt, "available": avail, "threshold": threshold})
         return low
+
+    async def get_all_redeem_codes(self, limit: int = 200, offset: int = 0) -> List[dict]:
+        session = await self._session()
+        rows = await session.execute(
+            select(RedeemCodeTable)
+            .order_by(RedeemCodeTable.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return [_row_to_dict(r) for r in rows.scalars().all()]
 
     async def delete_redeem_code(self, code: str) -> bool:
         session = await self._session()

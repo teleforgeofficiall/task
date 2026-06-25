@@ -112,15 +112,35 @@ async function loadTaskDetail(taskId) {
         <span>👥 ${t.completions || 0} users</span>
       </div>
     </div>
-    ${t.description ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">${t.description}</p>` : ''}
+    ${t.description ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;white-space:pre-wrap">${escHtml(t.description)}</p>` : ''}
     ${stepsHtml}
     ${t.max_completers > 0 ? renderAffiliateSection(t) : ''}
+    ${t.ref_link && t.max_completers > 0 ? renderTaskReferSection(t) : ''}
     ${t.video_url ? `<div style="margin-top:12px"><button class="btn btn-outline btn-block" style="font-size:13px" onclick="openLink('${t.video_url}')">▶ Offer Video</button></div>` : ''}
+    ${t.channel_url ? `<div style="margin-top:12px"><button class="btn btn-outline btn-block" style="font-size:13px" onclick="openLink('${t.channel_url}')">📢 Join Channel</button></div>` : ''}
     <div style="margin-top:12px">
       ${isDone
         ? '<div style="text-align:center;padding:12px;background:rgba(0,229,160,0.1);border-radius:10px;color:var(--success);font-weight:700">✅ Task Completed</div>'
-        : `<button class="btn btn-primary btn-block btn-lg" onclick="startTask(${taskId})">🚀 Start Task</button>`
+        : t.type === 'channel'
+          ? `<button class="btn btn-primary btn-block btn-lg" onclick="verifyChannelTask(${taskId})">✅ Verify & Claim</button>`
+          : `<button class="btn btn-primary btn-block btn-lg" onclick="startTask(${taskId})">🚀 Start Task</button>`
       }
+    </div>
+  `;
+}
+
+function renderTaskReferSection(t) {
+  return `
+    <div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-weight:600;font-size:13px">🔗 Share & Earn</span>
+        <span style="font-size:11px;color:var(--text-secondary)">₹${t.referrer_reward} per referral</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="taskRefLink" value="${t.ref_link}" readonly style="flex:1;font-size:11px;padding:8px">
+        <button class="btn btn-sm btn-primary" onclick="copyToClipboard(document.getElementById('taskRefLink').value, '✅ Referral link copied!')" style="white-space:nowrap">📋 Copy</button>
+      </div>
+      <div style="font-size:10px;color:var(--text-secondary);margin-top:4px">Share this link — when someone joins via it and completes this task, you earn ₹${t.referrer_reward}</div>
     </div>
   `;
 }
@@ -195,13 +215,17 @@ function startTask(taskId) {
 function handleProofFile(event) {
   const file = event.target.files[0];
   if (!file) return;
+  const maxFileSize = 3 * 1024 * 1024;
+  if (file.size > maxFileSize) { toast('File too large. Max 3MB.'); return; }
   const el = document.getElementById('proofFileName');
   if (el) el.textContent = '📎 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+  const btn = document.querySelector('.proof-submit .btn-success');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Compressing...'; }
   const img = new Image();
   img.onload = function() {
     const canvas = document.createElement('canvas');
     let w = img.width, h = img.height;
-    const maxDim = 800;
+    const maxDim = 600;
     if (w > maxDim || h > maxDim) {
       if (w > h) { h = (h / w) * maxDim; w = maxDim; }
       else { w = (w / h) * maxDim; h = maxDim; }
@@ -209,13 +233,47 @@ function handleProofFile(event) {
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0, w, h);
-    const quality = file.size > 500 * 1024 ? 0.5 : 0.7;
-    const compressed = canvas.toDataURL('image/jpeg', quality);
+    let quality = 0.6;
+    let compressed = canvas.toDataURL('image/jpeg', quality);
+    while (compressed.length > 450000 && quality > 0.2) {
+      quality -= 0.1;
+      compressed = canvas.toDataURL('image/jpeg', quality);
+    }
     const input = document.getElementById('proofImage');
     if (input) input.value = compressed;
-    if (el) el.textContent += ' (compressed)';
+    if (el) el.textContent += ' (' + (compressed.length / 1024).toFixed(0) + 'KB base64)';
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Proof'; }
+  };
+  img.onerror = function() {
+    toast('Failed to load image');
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Proof'; }
   };
   img.src = URL.createObjectURL(file);
+}
+
+async function verifyChannelTask(taskId) {
+  const btn = document.querySelector('.btn-primary.btn-lg');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Verifying...'; }
+  const data = await api('/api/app/task/' + taskId + '/verify-channel', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: USER.id }),
+    timeout: 15000
+  });
+  if (data.ok) {
+    toast('✅ ' + (data.message || 'Task completed! ₹' + data.reward + ' credited!'));
+    if (data.balance !== undefined) updateBalance(data.balance);
+    closeModal();
+    loadTasks();
+  } else {
+    if (data.channel_url) {
+      if (confirm(data.error + '\n\nOpen channel to join?')) {
+        openLink(data.channel_url);
+      }
+    } else {
+      toast(data.error || 'Verification failed');
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Verify & Claim'; }
+  }
 }
 
 async function submitProof(taskId) {
@@ -418,6 +476,7 @@ async function promoGoStep2() {
   const cfg = await api('/api/app/promo-config?' + new URLSearchParams({ user_id: USER.id }).toString());
   const price = cfg?.promo_price || 50;
   const qr = cfg?.promo_qr_image || '';
+  const promoDesc = cfg?.promo_description || 'One-time payment for featured promotion';
 
   promoStep = 2;
   const modalBody = document.getElementById('modalBody');
@@ -437,9 +496,9 @@ async function promoGoStep2() {
         </div>
       </div>
       <div style="text-align:center;padding:16px;background:linear-gradient(135deg,#7b5ef8,#a78bfa);border-radius:12px;color:#fff;margin-bottom:12px">
-        <div style="font-size:12px;opacity:0.8">Promotion Price</div>
+        <div style="font-size:12px;opacity:0.8">${promoDesc}</div>
         <div style="font-size:36px;font-weight:800">₹${price}</div>
-        <div style="font-size:11px;opacity:0.7">One-time payment for featured promotion</div>
+        <div style="font-size:11px;opacity:0.7">Price for featured promotion</div>
       </div>
       ${qr ? `<div style="text-align:center;margin-bottom:12px">
         <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">📱 Scan QR to pay</p>

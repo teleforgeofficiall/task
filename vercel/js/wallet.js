@@ -1,4 +1,5 @@
 var REDEEM_AMOUNTS = [10, 25, 50, 100, 250, 500];
+var MIN_STAR_WITHDRAW = 15;
 
 async function loadWallet() {
   var el = document.getElementById('walletSection');
@@ -8,6 +9,8 @@ async function loadWallet() {
   var data = await api('/api/app/wallet?' + new URLSearchParams({ user_id: USER.id }).toString());
   var w = data.wallet || { balance: 0, pending: 0, withdrawn: 0, upi: '' };
   var min_withdraw = data.min_withdraw || 10;
+  if (data.min_star_withdraw) MIN_STAR_WITHDRAW = data.min_star_withdraw;
+  if (w.balance !== undefined) updateBalance(w.balance);
 
   var redeemData = await api('/api/app/redeem-codes?' + new URLSearchParams({ user_id: USER.id }).toString());
   var redeemCodes = (redeemData.ok && redeemData.codes) || [];
@@ -87,8 +90,8 @@ function startWithdraw(method) {
     `;
   } else if (method === 'stars') {
     html = `
-      <div class="form-group"><label>Amount (Stars) — 1⭐ = ₹2</label><input class="form-input" id="wStarsAmount" type="number" placeholder="Min 5 Stars"></div>
-      <div class="form-group"><label>Post Link</label><input class="form-input" id="wPostLink" placeholder="https://t.me/yourpost"></div>
+      <div class="form-group"><label>Amount (Stars) — 1⭐ = ₹2</label><input class="form-input" id="wStarsAmount" type="number" placeholder="Min ${MIN_STAR_WITHDRAW} Stars"></div>
+      <div class="form-group"><label>Telegram Username</label><input class="form-input" id="wPostLink" placeholder="@username"></div>
       <button class="btn btn-success btn-block" onclick="submitWithdraw('stars')">Withdraw via Stars</button>
     `;
   } else if (method === 'redeem') {
@@ -135,7 +138,7 @@ async function submitWithdraw(method) {
     return;
   }
   if (!body.amount || body.amount <= 0) { toast('Enter valid amount'); return; }
-  if (method === 'stars' && !body.post_link) { toast('Post link is required'); return; }
+  if (method === 'stars' && !body.post_link) { toast('Telegram username is required'); return; }
 
   var data = await api('/api/app/withdraw', { method: 'POST', body: JSON.stringify(body) });
   if (data.ok) {

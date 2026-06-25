@@ -24,6 +24,11 @@ function loadAdmin() {
         <div class="info"><h4>Withdrawals</h4><p>Approve/reject withdrawals</p></div>
         <span class="arrow">›</span>
       </div>
+      <div class="admin-item" onclick="adminRedeemCodes()">
+        <svg viewBox="0 0 24 24"><rect x="2" y="8" width="20" height="14" rx="2"/><path d="M12 2v6"/><path d="M8 2l4 6 4-6"/></svg>
+        <div class="info"><h4>Google Redeem</h4><p>Manage redeem codes & stock</p></div>
+        <span class="arrow">›</span>
+      </div>
       <div class="admin-item" onclick="adminPromoted()">
         <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         <div class="info"><h4>Promoted</h4><p>Manage promoted tasks</p></div>
@@ -509,9 +514,91 @@ async function adminDeletePromoted(id) {
   if (data.ok) { toast('Deleted'); adminPromoted(); }
 }
 
-function escHtml(str) {
-  if (!str) return '';
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// ─── Redeem Codes ────────────────────────────────────────────────────────
+
+async function adminRedeemCodes() {
+  const el = document.getElementById('adminSection');
+  el.innerHTML = '<div style="padding:0 16px"><div class="admin-back" onclick="adminGoBack()">← Back to Menu</div><button class="btn btn-primary btn-block" style="margin-bottom:12px" onclick="adminRedeemAdd()">➕ Add Redeem Codes</button></div><div id="adminRedeemList" class="admin-list">' + showAdminLoading() + '</div>';
+  const [invData, setData] = await Promise.all([
+    adminApi('/redeem-codes', 'GET'),
+    adminApi('/redeem-settings', 'GET')
+  ]);
+  const list = document.getElementById('adminRedeemList');
+  if (!invData.ok) { list.innerHTML = '<div class="empty-state">Failed to load</div>'; return; }
+  const inv = invData.codes || [];
+  const enabled = setData.ok ? setData.enabled : true;
+  const threshold = setData.ok ? setData.threshold : 5;
+  list.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:8px;margin-bottom:8px;border:1px solid var(--border)">
+      <span style="font-weight:600;font-size:13px">Stock: ${enabled ? '🟢 ON' : '🔴 OFF'}</span>
+      <button class="btn btn-sm ${enabled ? 'btn-danger' : 'btn-success'}" onclick="adminToggleRedeemStock()">${enabled ? 'Disable' : 'Enable'}</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:8px;margin-bottom:12px;border:1px solid var(--border)">
+      <span style="font-size:13px">Low stock alert: <b>${threshold}</b></span>
+      <button class="btn btn-sm btn-primary" onclick="adminRedeemSetThreshold()">Change</button>
+    </div>
+    ${inv.length === 0 ? '<div class="empty-state">No redeem codes in inventory</div>' : inv.map(i => `
+      <div class="admin-list-item">
+        <div class="info">
+          <div class="title">₹${i.amount}</div>
+          <div class="subtitle">${i.available} available · ${i.used} used · ${i.total} total</div>
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();adminRedeemAddToAmount(${i.amount})">➕ Add</button>
+      </div>
+    `).join('')}
+  `;
+}
+
+async function adminRedeemAdd() {
+  const amt = prompt('Enter amount for redeem codes (₹):', '10');
+  if (amt === null) return;
+  const amount = parseFloat(amt);
+  if (amount <= 0) { toast('Invalid amount'); return; }
+  adminRedeemAddToAmount(amount);
+}
+
+function adminRedeemAddToAmount(amount) {
+  showModal('Add ₹' + amount + ' Redeem Codes', `
+    <div class="admin-form">
+      <div class="form-group">
+        <label>Enter Codes (one per line, or comma separated)</label>
+        <textarea id="f_redeem_codes" rows="8" placeholder="CODE-001&#10;CODE-002&#10;CODE-003"></textarea>
+      </div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px">Each code will be created for ₹${amount}</div>
+      <button class="btn btn-primary btn-block" onclick="adminRedeemSave(${amount})">Add Codes</button>
+    </div>
+  `);
+}
+
+async function adminRedeemSave(amount) {
+  const codes = document.getElementById('f_redeem_codes')?.value || '';
+  if (!codes.trim()) { toast('Enter at least one code'); return; }
+  const btn = document.querySelector('.admin-form .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Adding...'; }
+  const data = await adminApi('/redeem-codes', 'POST', { codes, amount });
+  if (data.ok) {
+    toast(data.message || data.added + ' codes added!');
+    closeModal();
+    adminRedeemCodes();
+  } else {
+    toast('Failed: ' + data.error);
+    if (btn) { btn.disabled = false; btn.textContent = 'Add Codes'; }
+  }
+}
+
+async function adminToggleRedeemStock() {
+  const data = await adminApi('/redeem-settings', 'GET');
+  if (!data.ok) return;
+  const newVal = !data.enabled;
+  const res = await adminApi('/redeem-settings', 'PUT', { enabled: newVal });
+  if (res.ok) { toast(newVal ? 'Stock enabled' : 'Stock disabled'); adminRedeemCodes(); }
+}
+
+async function adminRedeemSetThreshold() {
+  const val = prompt('Low stock threshold:', '5');
+  if (val === null) return;
+  const res = await adminApi('/redeem-settings', 'PUT', { threshold: parseInt(val) || 5 });
+  if (res.ok) { toast('Threshold updated'); adminRedeemCodes(); }
 }
 
 // ─── Ads ──────────────────────────────────────────────────────────────────
@@ -666,6 +753,9 @@ async function adminSettings() {
     { key: 'referral_min_reward', label: 'Referral Min Reward (₹)', type: 'float' },
     { key: 'referral_max_reward', label: 'Referral Max Reward (₹)', type: 'float' },
     { key: 'promo_price', label: 'Promo Price (₹)', type: 'float' },
+    { key: 'promo_description', label: 'Promo Description', type: 'text' },
+    { key: 'min_star_withdraw', label: 'Min Stars Withdraw (₹)', type: 'float' },
+    { key: 'max_star_withdraw', label: 'Max Stars Withdraw (₹)', type: 'float' },
   ];
   list.innerHTML = settingsToShow.map(st => {
     const val = s[st.key];

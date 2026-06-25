@@ -700,6 +700,66 @@ async def admin_reject_submission(request: Request, sub_id: int):
     return {"ok": True}
 
 
+# ─── Redeem Code Management ────────────────────────────────────────────────
+
+@router.get("/redeem-codes")
+async def admin_redeem_codes_list(request: Request):
+    admin_id = await require_admin(request)
+    async with get_session() as session:
+        repo = Repository(session)
+        codes = await repo.get_all_redeem_codes()
+    return {"ok": True, "codes": codes}
+
+
+@router.post("/redeem-codes")
+async def admin_redeem_codes_add(request: Request):
+    admin_id = await require_admin(request)
+    data = await request.json()
+    codes_str = data.get("codes", "")
+    amount = float(data.get("amount", 0))
+    if amount <= 0:
+        return {"ok": False, "error": "Invalid amount"}
+    code_list = [c.strip() for c in codes_str.replace(",", "\n").split("\n") if c.strip()]
+    if not code_list:
+        return {"ok": False, "error": "No codes provided"}
+    async with get_session() as session:
+        repo = Repository(session)
+        count = await repo.add_redeem_codes(code_list, amount)
+    return {"ok": True, "added": count, "message": f"{count} redeem codes added for ₹{amount:.0f}"}
+
+
+@router.delete("/redeem-codes/{code_id}")
+async def admin_redeem_codes_delete(request: Request, code_id: int):
+    admin_id = await require_admin(request)
+    async with get_session() as session:
+        repo = Repository(session)
+        await repo.delete_redeem_code(code_id)
+    return {"ok": True}
+
+
+@router.get("/redeem-settings")
+async def admin_redeem_settings(request: Request):
+    admin_id = await require_admin(request)
+    async with get_session() as session:
+        repo = Repository(session)
+        threshold = int(await repo.get_setting("redeem_low_stock_threshold", 5))
+        enabled = bool(await repo.get_setting("redeem_stock_enabled", True))
+    return {"ok": True, "threshold": threshold, "enabled": enabled}
+
+
+@router.put("/redeem-settings")
+async def admin_update_redeem_settings(request: Request):
+    admin_id = await require_admin(request)
+    data = await request.json()
+    async with get_session() as session:
+        repo = Repository(session)
+        if "threshold" in data:
+            await repo.update_setting("redeem_low_stock_threshold", int(data["threshold"]))
+        if "enabled" in data:
+            await repo.update_setting("redeem_stock_enabled", bool(data["enabled"]))
+    return {"ok": True}
+
+
 # ─── Promo Config (price + QR) ────────────────────────────────────────────
 
 @router.get("/promo-config")
@@ -709,7 +769,8 @@ async def admin_promo_config(request: Request):
         repo = Repository(session)
         price = await repo.get_setting("promo_price", 50)
         qr = await repo.get_setting("promo_qr_image", "")
-    return {"ok": True, "promo_price": float(price), "promo_qr_image": qr}
+        desc = await repo.get_setting("promo_description", "One-time payment for featured promotion")
+    return {"ok": True, "promo_price": float(price), "promo_qr_image": qr, "promo_description": desc}
 
 
 @router.put("/promo-config")
@@ -722,6 +783,8 @@ async def admin_update_promo_config(request: Request):
             await repo.update_setting("promo_price", float(data["promo_price"]))
         if "promo_qr_image" in data:
             await repo.update_setting("promo_qr_image", data["promo_qr_image"])
+        if "promo_description" in data:
+            await repo.update_setting("promo_description", data["promo_description"])
     return {"ok": True}
 
 

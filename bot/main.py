@@ -637,13 +637,14 @@ async def app_tasks(user_id: int):
                     "reward": float(t.reward),
                     "type": t.task_type or "manual",
                     "icon": "📋",
-                    "image": t.image or "",
+                    "image": f"/api/app/task-image/{t.id}" if t.image and not t.image.startswith("http") else t.image or "",
                     "color": t.color or "#7b5ef8",
                     "color2": t.color2 or "#5a3fd6",
                     "duration": t.duration_text or "15 min",
                     "completions": t.completion_count or 0,
                     "is_completed": t.id in completed_tasks,
                     "guide": t.guide or "",
+                    "channel_url": t.channel_url or "",
                     "channel_title": t.channel_title or "",
                     "video_url": t.video_url or "",
                     "steps": t.steps or [],
@@ -680,7 +681,7 @@ async def app_task_detail(task_id: int, user_id: int):
                 "reward": float(t.reward),
                 "type": t.task_type or "manual",
                 "icon": "📋",
-                "image": t.image or "",
+                "image": f"/api/app/task-image/{t.id}" if t.image and not t.image.startswith("http") else t.image or "",
                 "color": t.color or "#7b5ef8",
                 "color2": t.color2 or "#5a3fd6",
                 "duration": t.duration_text or "15 min",
@@ -688,6 +689,7 @@ async def app_task_detail(task_id: int, user_id: int):
                 "is_completed": t.id in completed_tasks,
                 "guide": t.guide or "",
                 "channel_title": t.channel_title or "",
+                "channel_url": t.channel_url or "",
                 "video_url": t.video_url or "",
                 "steps": t.steps or [],
                 "is_multi_reward": t.is_multi_reward or False,
@@ -701,6 +703,49 @@ async def app_task_detail(task_id: int, user_id: int):
                 "current_completers": t.current_completers or 0,
             }
         }
+
+
+@app.post("/api/app/task/{task_id}/verify-channel")
+async def app_verify_channel_task(task_id: int, request: Request):
+    """Auto-verify channel task membership and credit reward instantly."""
+    from bot.database import get_session, Repository
+    from bot.middlewares.auth import check_channel_membership
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON"}
+    user_id = data.get("user_id")
+    if not user_id:
+        return {"ok": False, "error": "Missing user_id"}
+    async with get_session() as session:
+        repo = Repository(session)
+        task = await repo.get_task(task_id)
+        if not task:
+            return {"ok": False, "error": "Task not found"}
+        if task.task_type != "channel":
+            return {"ok": False, "error": "Not a channel task"}
+        user = await repo.get_user(user_id)
+        completed_tasks = list(user.completed_tasks or [])
+        if task_id in completed_tasks:
+            return {"ok": False, "error": "Already completed"}
+        if not task.is_active:
+            return {"ok": False, "error": "Task is not active"}
+        joined = await check_channel_membership(ptb_app.bot, user_id, task.channel_id)
+        if not joined:
+            return {"ok": False, "error": "You must join the channel first", "channel_url": task.channel_url or ""}
+        await repo.credit_balance(
+            user_id=user_id, amount=task.reward,
+            tx_type="task_reward", description=f"Completed Channel Task #{task.id}",
+            ref_id=str(task.id)
+        )
+        c = list(user.completed_tasks or [])
+        if task_id not in c:
+            c.append(task_id)
+        await repo.update_user_fields(user_id, completed_tasks=c)
+        user = await repo.get_user(user_id)
+        from bot.services.referral import check_referral_success
+        await check_referral_success(repo, user_id, ptb_app.bot)
+        return {"ok": True, "balance": float(user.balance or 0), "reward": float(task.reward), "message": f"Task completed! ₹{float(task.reward)} credited!"}
 
 
 @app.post("/api/app/task/{task_id}/submit")
@@ -1359,6 +1404,40 @@ async def app_watch_ad(request: Request):
         return {"ok": True, "amount": per_ad, "balance": float(user.balance or 0), "completed": completed}
 
 
+@app.get("/api/app/task-image/{task_id}")
+async def app_task_image(task_id: int):
+    """Proxy task image — resolves Telegram file_ids to actual image bytes."""
+    from bot.database import get_session, Repository
+    import httpx
+    async with get_session() as session:
+        repo = Repository(session)
+        task = await repo.get_task(task_id)
+        if not task or not task.image:
+            return Response(status_code=404)
+        image_ref = task.image
+    token = settings.BOT_TOKEN
+    if image_ref.startswith("http://") or image_ref.startswith("https://"):
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(image_ref)
+            if resp.status_code != 200:
+                return Response(status_code=404)
+            return Response(content=resp.content, media_type=resp.headers.get("content-type", "image/jpeg"), headers={"Cache-Control": "public, max-age=3600"})
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(f"https://api.telegram.org/bot{token}/getFile", json={"file_id": image_ref})
+            d = r.json()
+            if not d.get("ok"):
+                return Response(status_code=404)
+            file_path = d["result"]["file_path"]
+            url = f"https://api.telegram.org/file/bot{token}/{file_path}"
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                return Response(status_code=404)
+            return Response(content=resp.content, media_type=resp.headers.get("content-type", "image/jpeg"), headers={"Cache-Control": "public, max-age=3600"})
+    except Exception:
+        return Response(status_code=404)
+
+
 @app.get("/api/app/image/{key}")
 async def app_image(key: str):
     """Proxy withdraw images — resolves Telegram file_ids or URLs to actual image bytes."""
@@ -1433,6 +1512,7 @@ async def app_wallet(user_id: int):
             },
             "transactions": await repo.get_user_transactions(user_id, 20),
             "min_withdraw": float(await repo.get_setting("min_withdraw", 10)),
+            "min_star_withdraw": int(await repo.get_setting("min_star_withdraw", 15)),
             "img_withdraw_upi": str(await repo.get_setting("img_withdraw_upi", "")),
             "img_withdraw_stars": str(await repo.get_setting("img_withdraw_stars", "")),
             "img_withdraw_redeem": str(await repo.get_setting("img_withdraw_redeem", "")),
@@ -1465,12 +1545,22 @@ async def app_withdraw(request: Request):
     post_link = data.get("post_link", "")
     if not user_id or amount <= 0:
         return {"ok": False, "error": "Invalid request"}
-    min_amt = {"upi": 10, "stars": 10, "redeem": 10}
-    max_amt = {"upi": 10000, "stars": 10000, "redeem": 500}
-    if amount < min_amt.get(method, 10):
-        return {"ok": False, "error": f"Minimum ₹{min_amt.get(method, 10)} for {method}"}
-    if amount > max_amt.get(method, 10000):
-        return {"ok": False, "error": f"Maximum ₹{max_amt.get(method, 10000)} for {method}"}
+    async with get_session() as session:
+        repo_for_settings = Repository(session)
+        min_star_withdraw = int(await repo_for_settings.get_setting("min_star_withdraw", 15))
+        max_star_withdraw = int(await repo_for_settings.get_setting("max_star_withdraw", 500))
+    if method == "stars":
+        if stars < min_star_withdraw:
+            return {"ok": False, "error": f"Minimum {min_star_withdraw}⭐ for stars withdrawal"}
+        if stars > max_star_withdraw:
+            return {"ok": False, "error": f"Maximum {max_star_withdraw}⭐ for stars withdrawal"}
+    else:
+        min_amt = {"upi": 10, "redeem": 10}
+        max_amt = {"upi": 10000, "redeem": 500}
+        if amount < min_amt.get(method, 10):
+            return {"ok": False, "error": f"Minimum ₹{min_amt.get(method, 10)} for {method}"}
+        if amount > max_amt.get(method, 10000):
+            return {"ok": False, "error": f"Maximum ₹{max_amt.get(method, 10000)} for {method}"}
     async with get_session() as session:
         repo = Repository(session)
         user = await repo.get_user(user_id)
@@ -1591,7 +1681,8 @@ async def app_promo_config(user_id: int = 0):
         repo = Repository(session)
         price = await repo.get_setting("promo_price", 50)
         qr = await repo.get_setting("promo_qr_image", "")
-    return {"ok": True, "promo_price": float(price), "promo_qr_image": qr}
+        desc = await repo.get_setting("promo_description", "One-time payment for featured promotion")
+    return {"ok": True, "promo_price": float(price), "promo_qr_image": qr, "promo_description": desc}
 
 
 @app.post("/api/app/promote/submit")
