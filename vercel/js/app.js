@@ -198,7 +198,9 @@ function enterApp(data) {
   navigateTab('Tasks');
 
   // Auto-navigate to referred task if coming from referral link
-  const autoTask = urlParams.get('start') || startParam || '';
+  const _urlParams = new URLSearchParams(window.location.search);
+  const _startParam = TG?.initDataUnsafe?.start_param || '';
+  const autoTask = _startParam || _urlParams.get('start') || '';
   if (autoTask.startsWith('ref_')) {
     const parts = autoTask.split('_');
     if (parts.length >= 4 && parts[2] === 'task') {
