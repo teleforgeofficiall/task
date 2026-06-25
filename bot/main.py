@@ -748,6 +748,7 @@ async def app_verify_channel_task(task_id: int, request: Request):
         if task_id not in c:
             c.append(task_id)
         await repo.update_user_fields(user_id, completed_tasks=c)
+        await repo.increment_task_completion(task_id)
         user = await repo.get_user(user_id)
         # Referral reward — credit referrer if task has reward set
         if task.referrer_reward and task.referrer_reward > 0:

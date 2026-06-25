@@ -524,6 +524,7 @@ async def admin_add_promoted(request: Request):
             "image": data.get("image", ""),
             "url": data.get("url", ""),
             "badge": data.get("badge", ""),
+            "color": data.get("color", "#7b5ef8"),
             "active": data.get("active", True),
         }
         items.append(item)
@@ -728,15 +729,6 @@ async def admin_redeem_codes_add(request: Request):
     return {"ok": True, "added": count, "message": f"{count} redeem codes added for ₹{amount:.0f}"}
 
 
-@router.delete("/redeem-codes/{code_id}")
-async def admin_redeem_codes_delete(request: Request, code_id: int):
-    admin_id = await require_admin(request)
-    async with get_session() as session:
-        repo = Repository(session)
-        await repo.delete_redeem_code(code_id)
-    return {"ok": True}
-
-
 @router.get("/redeem-settings")
 async def admin_redeem_settings(request: Request):
     admin_id = await require_admin(request)
@@ -791,23 +783,3 @@ async def admin_update_promo_config(request: Request):
     return {"ok": True}
 
 
-# ─── Broadcast ─────────────────────────────────────────────────────────────
-
-@router.get("/broadcast/stats")
-async def admin_broadcast_stats(request: Request):
-    admin_id = await require_admin(request)
-    async with get_session() as session:
-        repo = Repository(session)
-        total = await session.execute(select(func.count(UserTable.id)))
-        total = total.scalar() or 0
-        active = await session.execute(
-            select(func.count(UserTable.id))
-            .where(UserTable.last_active_date >= (datetime.now() - timedelta(days=7)).isoformat())
-        )
-        active = active.scalar() or 0
-        inactive = max(0, total - active)
-        with_balance = await session.execute(
-            select(func.count(UserTable.id)).where(UserTable.balance > 0)
-        )
-        with_balance = with_balance.scalar() or 0
-    return {"ok": True, "total": total, "active_7d": active, "inactive": inactive, "with_balance": with_balance}

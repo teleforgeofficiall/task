@@ -115,7 +115,7 @@ async function loadTaskDetail(taskId) {
     ${t.description ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;white-space:pre-wrap">${escHtml(t.description)}</p>` : ''}
     ${stepsHtml}
     ${t.max_completers > 0 ? renderAffiliateSection(t) : ''}
-    ${t.ref_link && t.max_completers > 0 ? renderTaskReferSection(t) : ''}
+    ${t.ref_link ? renderTaskReferSection(t) : ''}
     ${t.video_url ? `<div style="margin-top:12px"><button class="btn btn-outline btn-block" style="font-size:13px" onclick="openLink('${t.video_url}')">▶ Offer Video</button></div>` : ''}
     <div style="margin-top:12px">
       ${isDone

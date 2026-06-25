@@ -256,6 +256,7 @@ async function adminEditTask(tid) {
   if (!task) { toast('Task not found'); return; }
   showModal('Admin › Edit Task', `
     <div class="admin-form">
+      <input type="hidden" id="f_task_type" value="${task.task_type}">
       <div class="form-group"><label>Description</label><textarea id="f_description">${task.description || ''}</textarea></div>
       <div class="form-group"><label>Guide</label><textarea id="f_guide">${task.guide || ''}</textarea></div>
       <div class="form-group"><label>Channel ID (e.g. -1001234567890)</label><input id="f_channel_id" value="${task.channel_id || ''}" placeholder="-100... or @username"></div>
@@ -466,12 +467,12 @@ async function adminEditPromoted(id) {
   const color = item.color || '#7b5ef8';
   showModal('Admin › Edit Promoted #' + id, `
     <div class="admin-form">
-      <div class="form-group"><label>Title</label><input id="f_p_title" value="${escHtml(item.title || '')}" oninput="adminEditPreview(${id})"></div>
-      <div class="form-group"><label>Description</label><textarea id="f_p_desc" oninput="adminEditPreview(${id})" rows="3">${escHtml(item.description || '')}</textarea></div>
-      <div class="form-group"><label>Accent Color</label><input id="f_p_color" type="color" value="${color}" oninput="adminEditPreview(${id})" style="height:44px;padding:4px"></div>
-      <div class="form-group"><label>Image URL</label><input id="f_p_image" value="${escHtml(item.image || '')}" placeholder="https://..." oninput="adminEditPreview(${id})"></div>
+      <div class="form-group"><label>Title</label><input id="f_p_title" value="${escHtml(item.title || '')}" oninput="adminUpdatePromoPreview()"></div>
+      <div class="form-group"><label>Description</label><textarea id="f_p_desc" oninput="adminUpdatePromoPreview()" rows="3">${escHtml(item.description || '')}</textarea></div>
+      <div class="form-group"><label>Accent Color</label><input id="f_p_color" type="color" value="${color}" oninput="adminUpdatePromoPreview()" style="height:44px;padding:4px"></div>
+      <div class="form-group"><label>Image URL</label><input id="f_p_image" value="${escHtml(item.image || '')}" placeholder="https://..." oninput="adminUpdatePromoPreview()"></div>
       <div class="form-group"><label>Link URL</label><input id="f_p_url" value="${escHtml(item.url || '')}" placeholder="https://..."></div>
-      <div class="form-group"><label>Badge Text</label><input id="f_p_badge" value="${escHtml(item.badge || '')}" placeholder="AD, PROMO, etc." oninput="adminEditPreview(${id})"></div>
+      <div class="form-group"><label>Badge Text</label><input id="f_p_badge" value="${escHtml(item.badge || '')}" placeholder="AD, PROMO, etc." oninput="adminUpdatePromoPreview()"></div>
       <div id="promoPreview"></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" style="flex:1" onclick="adminUpdatePromoted(${id})">💾 Save</button>
@@ -479,28 +480,7 @@ async function adminEditPromoted(id) {
       </div>
     </div>
   `);
-  adminEditPreview(id);
-}
-
-function adminEditPreview(id) {
-  const title = document.getElementById('f_p_title')?.value || 'Untitled';
-  const desc = document.getElementById('f_p_desc')?.value || '';
-  const color = document.getElementById('f_p_color')?.value || '#7b5ef8';
-  const img = document.getElementById('f_p_image')?.value || '';
-  const badge = document.getElementById('f_p_badge')?.value || 'AD';
-  const prEl = document.getElementById('promoPreview');
-  if (!prEl) return;
-  prEl.innerHTML = `
-    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">👁 Preview</div>
-    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--card);border-radius:8px;border:1px solid var(--border)">
-      <div style="width:40px;height:40px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0">${img ? '<img src="' + img + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px">' : '📢'}</div>
-      <div style="flex:1;text-align:left;min-width:0">
-        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${title}</div>
-        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${desc || 'No description'}</div>
-      </div>
-      <div style="display:inline-flex;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:${color};color:#fff;flex-shrink:0">${badge || 'AD'}</div>
-    </div>
-  `;
+  adminUpdatePromoPreview();
 }
 
 async function adminUpdatePromoted(id) {
