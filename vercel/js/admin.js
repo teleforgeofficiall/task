@@ -229,22 +229,31 @@ async function adminTasks() {
   `).join('');
 }
 
+function adminToggleTaskType() {
+  const type = document.getElementById('f_task_type')?.value || 'manual';
+  document.getElementById('f_channel_fields').style.display = type === 'channel' ? '' : 'none';
+  document.getElementById('f_manual_fields').style.display = type === 'manual' ? '' : 'none';
+}
+
 function adminCreateTask() {
   showModal('Admin › Create Task', `
     <div class="admin-form">
-      <div class="form-group"><label>Type</label><select id="f_task_type" onchange="document.getElementById('f_channel_id_group').style.display=this.value==='channel'?'':'none'"><option value="manual">Manual</option><option value="channel">Channel</option></select></div>
-      <div class="form-group" id="f_channel_id_group" style="display:none"><label>Channel ID (e.g. -1001234567890)</label><input id="f_channel_id" placeholder="-100... or @username"></div>
-      <div class="form-group"><label>Description</label><textarea id="f_description" placeholder="Task description"></textarea></div>
-      <div class="form-group"><label>Guide</label><textarea id="f_guide" placeholder="How to complete this task"></textarea></div>
+      <div class="form-group"><label>Type</label><select id="f_task_type" onchange="adminToggleTaskType()"><option value="manual">Manual</option><option value="channel">Channel</option></select></div>
+      <div id="f_channel_fields" style="display:none">
+        <div class="form-group"><label>Channel ID (required)</label><input id="f_channel_id" placeholder="-100... or @channel_username"></div>
+      </div>
+      <div id="f_manual_fields">
+        <div class="form-group"><label>Description</label><textarea id="f_description" placeholder="Task description"></textarea></div>
+        <div class="form-group"><label>Guide</label><textarea id="f_guide" placeholder="How to complete this task"></textarea></div>
+        <div class="form-group"><label>Image URL</label><input id="f_image" placeholder="https://..."></div>
+        <div class="form-group"><label>Video URL</label><input id="f_video_url" placeholder="https://..."></div>
+        <div class="form-group"><label>Color</label><input id="f_color" type="color" value="#7b5ef8"></div>
+        <div class="form-group"><label>Duration Text</label><input id="f_duration" value="15 min"></div>
+        <div class="form-group"><label>Offer URL</label><input id="f_offer_url" placeholder="https://..."></div>
+      </div>
       <div class="form-group"><label>Reward (₹)</label><input id="f_reward" type="number" step="0.01" value="1"></div>
-      <div class="form-group"><label>Image URL</label><input id="f_image" placeholder="https://..."></div>
-      <div class="form-group"><label>Video URL</label><input id="f_video_url" placeholder="https://..."></div>
-      <div class="form-group"><label>Color</label><input id="f_color" type="color" value="#7b5ef8"></div>
-      <div class="form-group"><label>Duration Text</label><input id="f_duration" value="15 min"></div>
-      <div class="form-group"><label>Offer URL</label><input id="f_offer_url" placeholder="https://..."></div>
       <div class="form-group"><label>Referrer Reward (₹ per referral)</label><input id="f_referrer_reward" type="number" step="0.01" value="0"></div>
       <div class="form-group"><label>Completer Bonus (₹)</label><input id="f_completer_reward" type="number" step="0.01" value="0"></div>
-      <div class="form-group"><label>Max Completers (0 = unlimited)</label><input id="f_max_completers" type="number" value="0"></div>
       <button class="btn btn-primary btn-block" onclick="adminSaveTask(0)">Create Task</button>
     </div>
   `);
@@ -254,21 +263,24 @@ async function adminEditTask(tid) {
   const data = await adminApi('/tasks', 'GET');
   const task = data.tasks?.find(t => t.id === tid);
   if (!task) { toast('Task not found'); return; }
+  const isChannel = task.task_type === 'channel';
   showModal('Admin › Edit Task', `
     <div class="admin-form">
       <input type="hidden" id="f_task_type" value="${task.task_type}">
       <div class="form-group"><label>Description</label><textarea id="f_description">${task.description || ''}</textarea></div>
+      ${isChannel ? `
+      <div class="form-group"><label>Channel ID</label><input id="f_channel_id" value="${task.channel_id || ''}" placeholder="-100... or @username"></div>
+      ` : `
       <div class="form-group"><label>Guide</label><textarea id="f_guide">${task.guide || ''}</textarea></div>
-      <div class="form-group"><label>Channel ID (e.g. -1001234567890)</label><input id="f_channel_id" value="${task.channel_id || ''}" placeholder="-100... or @username"></div>
-      <div class="form-group"><label>Reward (₹)</label><input id="f_reward" type="number" step="0.01" value="${task.reward}"></div>
       <div class="form-group"><label>Image URL</label><input id="f_image" value="${task.image || ''}"></div>
       <div class="form-group"><label>Video URL</label><input id="f_video_url" value="${task.video_url || ''}"></div>
       <div class="form-group"><label>Color</label><input id="f_color" type="color" value="${task.color || '#7b5ef8'}"></div>
       <div class="form-group"><label>Duration Text</label><input id="f_duration" value="${task.duration_text || '15 min'}"></div>
       <div class="form-group"><label>Offer URL</label><input id="f_offer_url" value="${task.offer_url || ''}"></div>
+      `}
+      <div class="form-group"><label>Reward (₹)</label><input id="f_reward" type="number" step="0.01" value="${task.reward}"></div>
       <div class="form-group"><label>Referrer Reward (₹ per referral)</label><input id="f_referrer_reward" type="number" step="0.01" value="${task.referrer_reward || 0}"></div>
       <div class="form-group"><label>Completer Bonus (₹)</label><input id="f_completer_reward" type="number" step="0.01" value="${task.completer_reward || 0}"></div>
-      <div class="form-group"><label>Max Completers</label><input id="f_max_completers" type="number" value="${task.max_completers || 0}"></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" onclick="adminSaveTask(${tid})">Save</button>
         <button class="btn btn-warning" onclick="adminToggleTask(${tid})">${task.is_active ? '⏸️ Pause' : '▶️ Resume'}</button>
