@@ -190,6 +190,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import os
+os.makedirs("uploads", exist_ok=True)
+try:
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/api/app/uploads", StaticFiles(directory="uploads"), name="uploads")
+except Exception:
+    pass
+
 app.include_router(admin_router)
 
 @app.get("/")

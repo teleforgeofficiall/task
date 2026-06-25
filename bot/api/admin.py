@@ -2,10 +2,12 @@
 
 import json
 import logging
+import os
+import uuid
 from datetime import date, datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Request, Query, UploadFile, File
 from sqlalchemy import select, func, desc
 
 from bot.database import get_session, Repository
@@ -22,8 +24,12 @@ async def require_admin(request: Request) -> int:
         if request.method == "GET":
             user_id = request.query_params.get("user_id")
         else:
-            body = await request.json()
-            user_id = body.get("user_id")
+            ct = request.headers.get("content-type", "")
+            if "multipart/form-data" in ct or "application/x-www-form-urlencoded" in ct:
+                user_id = request.query_params.get("user_id")
+            else:
+                body = await request.json()
+                user_id = body.get("user_id")
     except Exception:
         raise HTTPException(status_code=401, detail="Unauthorized")
     if not user_id:
@@ -781,5 +787,20 @@ async def admin_update_promo_config(request: Request):
         if "promo_description" in data:
             await repo.update_setting("promo_description", data["promo_description"])
     return {"ok": True}
+
+
+@router.post("/upload")
+async def admin_upload_file(request: Request, file: UploadFile = File(...)):
+    admin_id = await require_admin(request)
+    ext = os.path.splitext(file.filename or "image.jpg")[1] or ".jpg"
+    filename = f"{uuid.uuid4().hex}{ext}"
+    os.makedirs("uploads", exist_ok=True)
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        return {"ok": False, "error": "File too large. Max 5MB."}
+    with open(os.path.join("uploads", filename), "wb") as f:
+        f.write(content)
+    base_url = str(request.base_url).rstrip("/")
+    return {"ok": True, "url": f"{base_url}/api/app/uploads/{filename}"}
 
 

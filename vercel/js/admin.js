@@ -79,6 +79,29 @@ async function adminApi(path, method, body) {
   }
 }
 
+async function adminUploadImage(inputId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast('File too large. Max 5MB.'); return; }
+    const fd = new FormData();
+    fd.append('file', file);
+    const btn = document.querySelector(`[data-upload="${inputId}"]`);
+    if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+    try {
+      const res = await fetch(`/api/admin/upload?user_id=${USER.id}`, { method: 'POST', body: fd });
+      const d = await res.json();
+      if (d.ok) { document.getElementById(inputId).value = d.url; toast('✅ Image uploaded!'); }
+      else { toast('Upload failed: ' + (d.error || 'unknown')); }
+    } catch(e) { toast('Upload error'); }
+    if (btn) { btn.disabled = false; btn.textContent = '📁'; }
+  };
+  input.click();
+}
+
 // ─── Dashboard ───────────────────────────────────────────────────────────
 
 async function adminDashboard() {
@@ -246,7 +269,7 @@ function adminCreateTask() {
       <div id="f_manual_fields">
         <div class="form-group"><label>Description</label><textarea id="f_description" placeholder="Task description"></textarea></div>
         <div class="form-group"><label>Guide</label><textarea id="f_guide" placeholder="How to complete this task"></textarea></div>
-        <div class="form-group"><label>Image URL</label><input id="f_image" placeholder="https://..."></div>
+        <div class="form-group"><label>Image</label><div style="display:flex;gap:6px"><input id="f_image" placeholder="https://..." style="flex:1"><button type="button" class="btn btn-sm" data-upload="f_image" onclick="adminUploadImage('f_image')" title="Upload">📁</button></div></div>
         <div class="form-group"><label>Video URL</label><input id="f_video_url" placeholder="https://..."></div>
         <div class="form-group"><label>Color</label><input id="f_color" type="color" value="#7b5ef8"></div>
         <div class="form-group"><label>Duration Text</label><input id="f_duration" value="15 min"></div>
@@ -274,7 +297,7 @@ async function adminEditTask(tid) {
       <div class="form-group"><label>Channel URL</label><input id="f_channel_url" value="${task.channel_url || ''}" placeholder="https://t.me/channelname"></div>
       ` : `
       <div class="form-group"><label>Guide</label><textarea id="f_guide">${task.guide || ''}</textarea></div>
-      <div class="form-group"><label>Image URL</label><input id="f_image" value="${task.image || ''}"></div>
+      <div class="form-group"><label>Image</label><div style="display:flex;gap:6px"><input id="f_image" value="${task.image || ''}" style="flex:1"><button type="button" class="btn btn-sm" data-upload="f_image" onclick="adminUploadImage('f_image')" title="Upload">📁</button></div></div>
       <div class="form-group"><label>Video URL</label><input id="f_video_url" value="${task.video_url || ''}"></div>
       <div class="form-group"><label>Color</label><input id="f_color" type="color" value="${task.color || '#7b5ef8'}"></div>
       <div class="form-group"><label>Duration Text</label><input id="f_duration" value="${task.duration_text || '15 min'}"></div>
@@ -457,7 +480,7 @@ function adminAddPromoted() {
       <div class="form-group"><label>Title</label><input id="f_p_title" oninput="adminUpdatePromoPreview()"></div>
       <div class="form-group"><label>Description</label><textarea id="f_p_desc" oninput="adminUpdatePromoPreview()" rows="3"></textarea></div>
       <div class="form-group"><label>Accent Color</label><input id="f_p_color" type="color" value="#7b5ef8" oninput="adminUpdatePromoPreview()" style="height:44px;padding:4px"></div>
-      <div class="form-group"><label>Image URL</label><input id="f_p_image" placeholder="https://..." oninput="adminUpdatePromoPreview()"></div>
+      <div class="form-group"><label>Image</label><div style="display:flex;gap:6px"><input id="f_p_image" placeholder="https://..." oninput="adminUpdatePromoPreview()" style="flex:1"><button type="button" class="btn btn-sm" data-upload="f_p_image" onclick="adminUploadImage('f_p_image')" title="Upload">📁</button></div></div>
       <div class="form-group"><label>Link URL</label><input id="f_p_url" placeholder="https://..."></div>
       <div class="form-group"><label>Badge Text</label><input id="f_p_badge" placeholder="AD, PROMO, etc." oninput="adminUpdatePromoPreview()"></div>
       <div id="promoPreview"></div>
@@ -491,7 +514,7 @@ async function adminEditPromoted(id) {
       <div class="form-group"><label>Title</label><input id="f_p_title" value="${escHtml(item.title || '')}" oninput="adminUpdatePromoPreview()"></div>
       <div class="form-group"><label>Description</label><textarea id="f_p_desc" oninput="adminUpdatePromoPreview()" rows="3">${escHtml(item.description || '')}</textarea></div>
       <div class="form-group"><label>Accent Color</label><input id="f_p_color" type="color" value="${color}" oninput="adminUpdatePromoPreview()" style="height:44px;padding:4px"></div>
-      <div class="form-group"><label>Image URL</label><input id="f_p_image" value="${escHtml(item.image || '')}" placeholder="https://..." oninput="adminUpdatePromoPreview()"></div>
+      <div class="form-group"><label>Image</label><div style="display:flex;gap:6px"><input id="f_p_image" value="${escHtml(item.image || '')}" placeholder="https://..." oninput="adminUpdatePromoPreview()" style="flex:1"><button type="button" class="btn btn-sm" data-upload="f_p_image" onclick="adminUploadImage('f_p_image')" title="Upload">📁</button></div></div>
       <div class="form-group"><label>Link URL</label><input id="f_p_url" value="${escHtml(item.url || '')}" placeholder="https://..."></div>
       <div class="form-group"><label>Badge Text</label><input id="f_p_badge" value="${escHtml(item.badge || '')}" placeholder="AD, PROMO, etc." oninput="adminUpdatePromoPreview()"></div>
       <div id="promoPreview"></div>
@@ -636,7 +659,7 @@ function adminAddAd() {
     <div class="admin-form">
       <div class="form-group"><label>Title</label><input id="f_a_title"></div>
       <div class="form-group"><label>Description</label><textarea id="f_a_desc"></textarea></div>
-      <div class="form-group"><label>Image URL</label><input id="f_a_image" placeholder="https://..."></div>
+      <div class="form-group"><label>Image</label><div style="display:flex;gap:6px"><input id="f_a_image" placeholder="https://..." style="flex:1"><button type="button" class="btn btn-sm" data-upload="f_a_image" onclick="adminUploadImage('f_a_image')" title="Upload">📁</button></div></div>
       <div class="form-group"><label>Video URL</label><input id="f_a_video" placeholder="https://youtube.com/watch?v=..."></div>
       <div class="form-group"><label>Link URL</label><input id="f_a_url" placeholder="https://..."></div>
       <div class="form-group"><label>Reward per View (₹)</label><input id="f_a_reward" type="number" step="0.01" value="0.05"></div>
@@ -783,7 +806,7 @@ async function adminSettings() {
     <div class="setting-item" style="margin-top:12px;flex-direction:column;align-items:stretch;gap:8px">
       <div class="label" style="font-size:14px">📱 Promo QR Code</div>
       ${s.promo_qr_image ? `<img src="${window.location.origin}/api/app/image/promo_qr_image" style="width:120px;height:120px;border-radius:8px;border:1px solid var(--border);object-fit:contain;margin:4px 0" onerror="fetchImageAsBlob(this,'${window.location.origin}/api/app/image/promo_qr_image','${s.promo_qr_image}')">` : '<div style="font-size:12px;color:var(--text-secondary);padding:8px 0">No QR code set</div>'}
-      <input id="promoQrInput" placeholder="Paste QR image URL" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px" value="${s.promo_qr_image || ''}">
+      <div style="display:flex;gap:6px"><input id="promoQrInput" placeholder="Paste QR image URL" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px" value="${s.promo_qr_image || ''}"><button type="button" class="btn btn-sm" data-upload="promoQrInput" onclick="adminUploadImage('promoQrInput')" title="Upload">📁</button></div>
       <button class="btn btn-sm btn-primary" onclick="adminSavePromoQr()">Save QR Code</button>
     </div>
   `;
