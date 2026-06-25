@@ -32,7 +32,7 @@ function renderTaskCard(t, index) {
   const isDone = t.is_completed;
   const hasImage = t.image && t.image.length > 5;
   const imgContent = hasImage
-    ? `<img src="${t.image}" alt="${t.title}" loading="lazy" onerror="fetchImageAsBlob(this,window.location.origin+'${t.image}','${t.image}')">`
+    ? `<img src="${t.image}" alt="${t.title}" loading="lazy" onerror="this.onerror=null;var vps='http://153.75.246.79:8001${t.image}';var s=this;fetch(vps).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(b=>{s.src=URL.createObjectURL(b)}).catch(()=>{s.style.display='none'})">`
     : (t.icon || '📋');
   const badgeClass = t.type === 'channel' ? 'badge-channel' : 'badge-manual';
   const badgeText = t.type === 'channel' ? 'Channel' : 'Manual';
@@ -99,7 +99,7 @@ async function loadTaskDetail(taskId) {
   body.innerHTML = `
     <div class="task-detail-header">
       <div class="task-icon" style="background:linear-gradient(135deg,${t.color || '#7b5ef8'},${t.color2 || '#5a3fd6'})">
-        ${hasImage ? `<img src="${t.image}" style="width:100%;height:100%;object-fit:cover" onerror="fetchImageAsBlob(this,window.location.origin+'${t.image}','${t.image}')">` : (t.icon || '📋')}
+        ${hasImage ? `<img src="${t.image}" style="width:100%;height:100%;object-fit:cover" onerror="this.onerror=null;var vps='http://153.75.246.79:8001${t.image}';var s=this;fetch(vps).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(b=>{s.src=URL.createObjectURL(b)}).catch(()=>{s.style.display='none'})">` : (t.icon || '📋')}
       </div>
       <h3 style="font-size:17px;font-weight:700">${t.title}</h3>
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px">

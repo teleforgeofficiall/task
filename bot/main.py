@@ -702,7 +702,7 @@ async def app_task_detail(task_id: int, user_id: int):
                 "offer_url": t.offer_url or "",
                 "ref_enabled": True,
                 "ref_code": f"T{user_id}T{task_id}",
-                "ref_link": f"https://t.me/{settings.BOT_USERNAME}?start=ref_{user_id}_task_{task_id}",
+                "ref_link": f"https://t.me/{settings.BOT_USERNAME}/app?startapp=ref_{user_id}_task_{task_id}",
                 "referrer_reward": float(t.referrer_reward or 0),
                 "completer_reward": float(t.completer_reward or 0),
                 "max_completers": t.max_completers or 0,
@@ -738,7 +738,7 @@ async def app_verify_channel_task(task_id: int, request: Request):
             return {"ok": False, "error": "Task is not active"}
         joined = await check_channel_membership(ptb_app.bot, user_id, task.channel_id)
         if not joined:
-            return {"ok": False, "error": "You must join the channel first", "channel_url": task.channel_url or ""}
+            return {"ok": False, "error": "Join the channel first. Bot must be added as admin in the channel.", "channel_url": task.channel_url or ""}
         await repo.credit_balance(
             user_id=user_id, amount=task.reward,
             tx_type="task_reward", description=f"Completed Channel Task #{task.id}",
@@ -749,6 +749,20 @@ async def app_verify_channel_task(task_id: int, request: Request):
             c.append(task_id)
         await repo.update_user_fields(user_id, completed_tasks=c)
         user = await repo.get_user(user_id)
+        # Referral reward — credit referrer if task has reward set
+        if task.referrer_reward and task.referrer_reward > 0:
+            if user.referrer and user.referrer != user_id:
+                ref_user = await repo.get_user(user.referrer)
+                if ref_user and not ref_user.banned:
+                    try:
+                        await repo.credit_balance(
+                            user_id=user.referrer, amount=task.referrer_reward,
+                            tx_type="referral_reward", description=f"Referral reward for Task #{task.id} by User #{user_id}",
+                            ref_id=str(task.id)
+                        )
+                        logger.info("Referral reward ₹%.2f credited to user %d for task %d", task.referrer_reward, user.referrer, task.id)
+                    except Exception as e:
+                        logger.error("Failed to credit referral reward: %s", e)
         from bot.services.referral import check_referral_success
         await check_referral_success(repo, user_id, ptb_app.bot)
         return {"ok": True, "balance": float(user.balance or 0), "reward": float(task.reward), "message": f"Task completed! ₹{float(task.reward)} credited!"}
