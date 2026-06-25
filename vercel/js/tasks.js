@@ -117,13 +117,10 @@ async function loadTaskDetail(taskId) {
     ${t.max_completers > 0 ? renderAffiliateSection(t) : ''}
     ${t.ref_link && t.max_completers > 0 ? renderTaskReferSection(t) : ''}
     ${t.video_url ? `<div style="margin-top:12px"><button class="btn btn-outline btn-block" style="font-size:13px" onclick="openLink('${t.video_url}')">▶ Offer Video</button></div>` : ''}
-    ${t.channel_url ? `<div style="margin-top:12px"><button class="btn btn-outline btn-block" style="font-size:13px" onclick="openLink('${t.channel_url}')">📢 Join Channel</button></div>` : ''}
     <div style="margin-top:12px">
       ${isDone
         ? '<div style="text-align:center;padding:12px;background:rgba(0,229,160,0.1);border-radius:10px;color:var(--success);font-weight:700">✅ Task Completed</div>'
-        : t.type === 'channel'
-          ? `<button class="btn btn-primary btn-block btn-lg" onclick="verifyChannelTask(${taskId})">✅ Verify & Claim</button>`
-          : `<button class="btn btn-primary btn-block btn-lg" onclick="startTask(${taskId})">🚀 Start Task</button>`
+        : `<button class="btn btn-primary btn-block btn-lg" onclick="startTask(${taskId})">${t.type === 'channel' ? '📢' : '🚀'} Start Task</button>`
       }
     </div>
   `;
@@ -172,6 +169,28 @@ function startTask(taskId) {
 
     if (t.offer_url) {
       openLink(t.offer_url);
+    }
+
+    if (t.type === 'channel') {
+      let channelOpened = false;
+      if (t.channel_url) {
+        openLink(t.channel_url);
+        channelOpened = true;
+      }
+      showModal('Join Channel', `
+        <div class="proof-submit">
+          <div style="text-align:center;margin-bottom:16px">
+            <div style="width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,${t.color||'#7b5ef8'},${t.color2||'#5a3fd6'});display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;margin:0 auto 8px">${t.icon||'📋'}</div>
+            <h3 style="font-size:16px;font-weight:700">${t.title}</h3>
+            <div style="color:var(--success);font-weight:700;font-size:20px;margin-top:4px">₹${t.reward}</div>
+          </div>
+          <div class="proof-warning">⚠️ Join the channel above, then click verify to claim your reward.</div>
+          ${t.channel_url ? `<button class="btn btn-outline btn-block" style="margin-bottom:8px" onclick="openLink('${t.channel_url}')">📢 Open Channel</button>` : ''}
+          <button class="btn btn-primary btn-block btn-lg" onclick="verifyChannelTask(${taskId})">✅ Verify & Claim</button>
+          <button class="btn btn-outline btn-block" style="margin-top:8px;font-size:12px" onclick="submitProof(${taskId})">📤 Submit Screenshot Instead</button>
+        </div>
+      `);
+      return;
     }
 
     const steps = t.steps || (t.guide ? t.guide.split('\n').filter(s => s.trim()) : []);
@@ -496,7 +515,7 @@ async function promoGoStep2() {
       </div>
       ${qr ? `<div style="text-align:center;margin-bottom:12px">
         <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">📱 Scan QR to pay</p>
-        <img src="/api/app/image/promo_qr_image" style="width:180px;height:180px;border-radius:10px;border:1px solid var(--border);object-fit:contain" onerror="this.parentElement.innerHTML='<div style=\'padding:16px;font-size:12px;color:var(--text-secondary)\'>QR image failed to load. Contact admin.</div>'">
+        <img src="${cfg.promo_qr_proxy_url}" style="width:180px;height:180px;border-radius:10px;border:1px solid var(--border);object-fit:contain" onerror="this.onerror=null;if('${qr}'.startsWith('http'))this.src='${qr}'">
       </div>` : `<div style="text-align:center;padding:16px;background:var(--bg);border-radius:10px;margin-bottom:12px;border:1px solid var(--border)">
         <div style="font-size:32px;margin-bottom:4px">📱</div>
         <div style="font-size:12px;color:var(--text-secondary)">QR code not set yet. Contact admin to pay.</div>

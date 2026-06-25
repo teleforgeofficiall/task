@@ -770,7 +770,10 @@ async def admin_promo_config(request: Request):
         price = await repo.get_setting("promo_price", 50)
         qr = await repo.get_setting("promo_qr_image", "")
         desc = await repo.get_setting("promo_description", "One-time payment for featured promotion")
-    return {"ok": True, "promo_price": float(price), "promo_qr_image": qr, "promo_description": desc}
+    proxy_url = ""
+    if qr:
+        proxy_url = "https://taskhub-app-ten.vercel.app/api/app/image/promo_qr_image"
+    return {"ok": True, "promo_price": float(price), "promo_qr_image": qr, "promo_qr_proxy_url": proxy_url, "promo_description": desc}
 
 
 @router.put("/promo-config")
