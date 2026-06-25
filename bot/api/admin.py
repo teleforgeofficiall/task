@@ -19,17 +19,20 @@ router = APIRouter(prefix="/api/admin")
 
 
 async def require_admin(request: Request) -> int:
-    """Extract user_id from request and verify admin access."""
+    """Extract user_id from request and verify admin access. Never consumes request body."""
     try:
-        if request.method == "GET":
-            user_id = request.query_params.get("user_id")
-        else:
+        user_id = request.query_params.get("user_id")
+        if not user_id:
+            if request.method == "GET":
+                raise HTTPException(status_code=401, detail="Missing user_id")
             ct = request.headers.get("content-type", "")
             if "multipart/form-data" in ct or "application/x-www-form-urlencoded" in ct:
-                user_id = request.query_params.get("user_id")
+                raise HTTPException(status_code=401, detail="Missing user_id")
             else:
                 body = await request.json()
                 user_id = body.get("user_id")
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=401, detail="Unauthorized")
     if not user_id:
@@ -791,7 +794,10 @@ async def admin_update_promo_config(request: Request):
 
 @router.post("/upload")
 async def admin_upload_file(request: Request):
-    admin_id = await require_admin(request)
+    try:
+        admin_id = await require_admin(request)
+    except HTTPException:
+        return {"ok": False, "error": "Not authorized"}
     try:
         body = await request.json()
     except Exception:
@@ -816,11 +822,15 @@ async def admin_upload_file(request: Request):
         return {"ok": True, "url": file_id}
     except Exception as e:
         logger.warning("Telegram upload failed (%s), falling back to filesystem", e)
-        filename = f"{uuid.uuid4().hex}.jpg"
-        upload_dir = "/opt/taskhub/uploads"
-        os.makedirs(upload_dir, exist_ok=True)
-        with open(os.path.join(upload_dir, filename), "wb") as f:
-            f.write(content)
-        return {"ok": True, "url": f"/api/app/uploads/{filename}"}
+        try:
+            filename = f"{uuid.uuid4().hex}.jpg"
+            upload_dir = "/opt/taskhub/uploads"
+            os.makedirs(upload_dir, exist_ok=True)
+            with open(os.path.join(upload_dir, filename), "wb") as f:
+                f.write(content)
+            return {"ok": True, "url": f"/api/app/uploads/{filename}"}
+        except Exception as fs_err:
+            logger.error("Filesystem fallback also failed: %s", fs_err)
+            return {"ok": False, "error": "Upload failed"}
 
 
