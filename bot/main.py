@@ -191,82 +191,9 @@ app.add_middleware(
 )
 
 UPLOAD_DIR = "/opt/taskhub/uploads"
-import os
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-
-@app.get("/api/app/uploads/{filename}")
-async def serve_upload(filename: str):
-    from fastapi.responses import FileResponse, Response
-    filepath = os.path.normpath(os.path.join(UPLOAD_DIR, filename))
-    if not filepath.startswith(UPLOAD_DIR) or not os.path.exists(filepath):
-        return Response(status_code=404)
-    return FileResponse(filepath)
-
-async def _upload_to_telegram(content: bytes, chat_id: int) -> str:
-    from telegram import Bot
-    from config.settings import settings
-    bot = Bot(token=settings.BOT_TOKEN)
-    message = await bot.send_photo(chat_id=chat_id, photo=content)
-    return message.photo[-1].file_id
-
-@app.post("/api/admin/upload")
-async def admin_upload_file(request: Request):
-    from bot.database import get_session, Repository
-    from bot.admin.panel import get_admin_ids
-    user_id = request.query_params.get("user_id")
-    if not user_id:
-        return {"ok": False, "error": "Not authorized"}
-    try:
-        user_id = int(user_id)
-    except Exception:
-        return {"ok": False, "error": "Not authorized"}
-    if user_id not in get_admin_ids():
-        return {"ok": False, "error": "Not authorized"}
-    content = None
-    ct = request.headers.get("content-type", "")
-    if "multipart/form-data" in ct:
-        try:
-            form = await request.form()
-            f = form.get("file")
-            if f:
-                content = await f.read()
-        except Exception:
-            pass
-    elif "application/json" in ct:
-        try:
-            body = await request.json()
-            data_url = body.get("data", "")
-            if data_url and "," in data_url:
-                import base64
-                content = base64.b64decode(data_url.split(",", 1)[1])
-        except Exception:
-            pass
-    if not content:
-        return {"ok": False, "error": "No image data"}
-    if len(content) > 5 * 1024 * 1024:
-        return {"ok": False, "error": "File too large. Max 5MB."}
-    try:
-        file_id = await _upload_to_telegram(content, user_id)
-        return {"ok": True, "url": file_id}
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning("Telegram upload failed (%s), falling back to filesystem", e)
-        try:
-            import uuid
-            import os
-            filename = f"{uuid.uuid4().hex}.jpg"
-            upload_dir = "/opt/taskhub/uploads"
-            os.makedirs(upload_dir, exist_ok=True)
-            with open(os.path.join(upload_dir, filename), "wb") as f:
-                f.write(content)
-            return {"ok": True, "url": f"/api/app/uploads/{filename}"}
-        except Exception as fs_err:
-            logger.error("Filesystem fallback also failed: %s", fs_err)
-            return {"ok": False, "error": "Upload failed"}
 
 app.include_router(admin_router)
+
 
 @app.get("/")
 async def root():
@@ -719,7 +646,7 @@ async def app_tasks(user_id: int):
                     "reward": float(t.reward),
                     "type": t.task_type or "manual",
                     "icon": "📋",
-                    "image": t.image if t.image and (t.image.startswith("http") or t.image.startswith("/api/")) else f"/api/app/task-image/{t.id}" if t.image else "",
+                    "image": f"/api/app/task-image/{t.id}" if t.image else "",
                     "color": t.color or "#7b5ef8",
                     "color2": t.color2 or "#5a3fd6",
                     "duration": t.duration_text or "15 min",
@@ -763,7 +690,7 @@ async def app_task_detail(task_id: int, user_id: int):
                 "reward": float(t.reward),
                 "type": t.task_type or "manual",
                 "icon": "📋",
-                "image": f"/api/app/task-image/{t.id}" if t.image and not t.image.startswith("http") else t.image or "",
+                "image": f"/api/app/task-image/{t.id}" if t.image else "",
                 "color": t.color or "#7b5ef8",
                 "color2": t.color2 or "#5a3fd6",
                 "duration": t.duration_text or "15 min",
@@ -1523,9 +1450,23 @@ async def app_task_image(task_id: int):
             return FileResponse(filepath)
         return Response(status_code=404)
     if image_ref.startswith("http://") or image_ref.startswith("https://"):
+        import re
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(image_ref)
             if resp.status_code != 200:
+                return Response(status_code=404)
+            ct = resp.headers.get("content-type", "text/plain").split(";")[0].strip().lower()
+            if ct == "text/html":
+                html_text = resp.text
+                og_match = re.search(r'<meta\s+(?:property="og:image"[^>]*?\s+content="([^"]+)"|content="([^"]+)"[^>]*?\s+property="og:image")', html_text, re.IGNORECASE)
+                if not og_match:
+                    og_match = re.search(r"<meta\s+(?:property='og:image'[^>]*?\s+content='([^']+)'|content='([^']+)'[^>]*?\s+property='og:image')", html_text, re.IGNORECASE)
+                if og_match:
+                    image_url = og_match.group(1) or og_match.group(2)
+                    img_resp = await client.get(image_url)
+                    if img_resp.status_code == 200:
+                        img_ct = img_resp.headers.get("content-type", "image/jpeg")
+                        return Response(content=img_resp.content, media_type=img_ct, headers={"Cache-Control": "public, max-age=3600"})
                 return Response(status_code=404)
             return Response(content=resp.content, media_type=resp.headers.get("content-type", "image/jpeg"), headers={"Cache-Control": "public, max-age=3600"})
     try:
