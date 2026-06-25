@@ -794,13 +794,13 @@ async def admin_upload_file(request: Request, file: UploadFile = File(...)):
     admin_id = await require_admin(request)
     ext = os.path.splitext(file.filename or "image.jpg")[1] or ".jpg"
     filename = f"{uuid.uuid4().hex}{ext}"
-    os.makedirs("uploads", exist_ok=True)
+    upload_dir = "/opt/taskhub/uploads"
+    os.makedirs(upload_dir, exist_ok=True)
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:
         return {"ok": False, "error": "File too large. Max 5MB."}
-    with open(os.path.join("uploads", filename), "wb") as f:
+    with open(os.path.join(upload_dir, filename), "wb") as f:
         f.write(content)
-    base_url = str(request.base_url).rstrip("/")
-    return {"ok": True, "url": f"{base_url}/api/app/uploads/{filename}"}
+    return {"ok": True, "url": f"/api/app/uploads/{filename}"}
 
 

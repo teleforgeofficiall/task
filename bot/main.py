@@ -190,11 +190,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+UPLOAD_DIR = "/opt/taskhub/uploads"
 import os
-os.makedirs("uploads", exist_ok=True)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 try:
     from fastapi.staticfiles import StaticFiles
-    app.mount("/api/app/uploads", StaticFiles(directory="uploads"), name="uploads")
+    app.mount("/api/app/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 except Exception:
     pass
 
@@ -651,7 +652,7 @@ async def app_tasks(user_id: int):
                     "reward": float(t.reward),
                     "type": t.task_type or "manual",
                     "icon": "📋",
-                    "image": f"/api/app/task-image/{t.id}" if t.image and not t.image.startswith("http") else t.image or "",
+                    "image": t.image if t.image and (t.image.startswith("http") or t.image.startswith("/api/")) else f"/api/app/task-image/{t.id}" if t.image else "",
                     "color": t.color or "#7b5ef8",
                     "color2": t.color2 or "#5a3fd6",
                     "duration": t.duration_text or "15 min",
