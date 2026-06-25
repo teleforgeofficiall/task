@@ -83,21 +83,27 @@ async function adminUploadImage(inputId) {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
-  input.onchange = async function(e) {
+  input.onchange = function(e) {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { toast('File too large. Max 5MB.'); return; }
-    const fd = new FormData();
-    fd.append('file', file);
     const btn = document.querySelector(`[data-upload="${inputId}"]`);
     if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
-    try {
-      const res = await fetch(`/api/admin/upload?user_id=${USER.id}`, { method: 'POST', body: fd });
-      const d = await res.json();
-      if (d.ok) { document.getElementById(inputId).value = d.url; toast('✅ Image uploaded!'); }
-      else { toast('Upload failed: ' + (d.error || 'unknown')); }
-    } catch(e) { toast('Upload error'); }
-    if (btn) { btn.disabled = false; btn.textContent = '📁'; }
+    const reader = new FileReader();
+    reader.onload = async function(ev) {
+      try {
+        const res = await fetch(`/api/admin/upload?user_id=${USER.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: ev.target.result })
+        });
+        const d = await res.json();
+        if (d.ok) { document.getElementById(inputId).value = d.url; toast('✅ Image uploaded!'); }
+        else { toast('Upload failed: ' + (d.error || 'unknown')); }
+      } catch(e) { toast('Upload error'); }
+      if (btn) { btn.disabled = false; btn.textContent = '📁'; }
+    };
+    reader.readAsDataURL(file);
   };
   input.click();
 }

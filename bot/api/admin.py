@@ -7,7 +7,7 @@ import uuid
 from datetime import date, datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, Query, UploadFile, File
+from fastapi import APIRouter, HTTPException, Request, Query
 from sqlalchemy import select, func, desc
 
 from bot.database import get_session, Repository
@@ -790,17 +790,37 @@ async def admin_update_promo_config(request: Request):
 
 
 @router.post("/upload")
-async def admin_upload_file(request: Request, file: UploadFile = File(...)):
+async def admin_upload_file(request: Request):
     admin_id = await require_admin(request)
-    ext = os.path.splitext(file.filename or "image.jpg")[1] or ".jpg"
-    filename = f"{uuid.uuid4().hex}{ext}"
-    upload_dir = "/opt/taskhub/uploads"
-    os.makedirs(upload_dir, exist_ok=True)
-    content = await file.read()
+    try:
+        body = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON"}
+    data_url = body.get("data", "")
+    if not data_url or "," not in data_url:
+        return {"ok": False, "error": "No image data"}
+    import base64
+    base64_data = data_url.split(",", 1)[1]
+    try:
+        content = base64.b64decode(base64_data)
+    except Exception:
+        return {"ok": False, "error": "Invalid base64"}
     if len(content) > 5 * 1024 * 1024:
         return {"ok": False, "error": "File too large. Max 5MB."}
-    with open(os.path.join(upload_dir, filename), "wb") as f:
-        f.write(content)
-    return {"ok": True, "url": f"/api/app/uploads/{filename}"}
+    from telegram import Bot
+    from config.settings import settings
+    try:
+        bot = Bot(token=settings.BOT_TOKEN)
+        message = await bot.send_photo(chat_id=admin_id, photo=content)
+        file_id = message.photo[-1].file_id
+        return {"ok": True, "url": file_id}
+    except Exception as e:
+        logger.warning("Telegram upload failed (%s), falling back to filesystem", e)
+        filename = f"{uuid.uuid4().hex}.jpg"
+        upload_dir = "/opt/taskhub/uploads"
+        os.makedirs(upload_dir, exist_ok=True)
+        with open(os.path.join(upload_dir, filename), "wb") as f:
+            f.write(content)
+        return {"ok": True, "url": f"/api/app/uploads/{filename}"}
 
 
