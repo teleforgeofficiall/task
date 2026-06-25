@@ -1453,6 +1453,12 @@ async def app_task_image(task_id: int):
             return Response(status_code=404)
         image_ref = task.image
     token = settings.BOT_TOKEN
+    if image_ref.startswith("/api/app/uploads/"):
+        from fastapi.responses import FileResponse
+        filepath = os.path.normpath(os.path.join(UPLOAD_DIR, os.path.basename(image_ref)))
+        if filepath.startswith(UPLOAD_DIR) and os.path.exists(filepath):
+            return FileResponse(filepath)
+        return Response(status_code=404)
     if image_ref.startswith("http://") or image_ref.startswith("https://"):
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(image_ref)
@@ -1489,6 +1495,12 @@ async def app_image(key: str):
     import httpx
     import re
     try:
+        if image_ref.startswith("/api/app/uploads/"):
+            from fastapi.responses import FileResponse
+            filepath = os.path.normpath(os.path.join(UPLOAD_DIR, os.path.basename(image_ref)))
+            if filepath.startswith(UPLOAD_DIR) and os.path.exists(filepath):
+                return FileResponse(filepath)
+            return Response(status_code=404)
         if image_ref.startswith("http://") or image_ref.startswith("https://"):
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(image_ref)
