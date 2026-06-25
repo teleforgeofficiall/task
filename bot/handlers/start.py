@@ -145,7 +145,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await repository.create_user(
             user_id=user_id,
             username=user.username,
-            first_name=user.first_name,
+            first_name=user.first_name or "User",
             referrer=referrer_id
         )
 

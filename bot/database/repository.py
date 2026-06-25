@@ -325,7 +325,7 @@ class Repository:
         row = UserTable(
             user_id=user_id,
             username=username,
-            first_name=first_name,
+            first_name=first_name or "User",
             referrer=referrer,
         )
         session.add(row)

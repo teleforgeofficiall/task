@@ -232,7 +232,8 @@ async function adminTasks() {
 function adminCreateTask() {
   showModal('Admin › Create Task', `
     <div class="admin-form">
-      <div class="form-group"><label>Type</label><select id="f_task_type"><option value="manual">Manual</option><option value="channel">Channel</option></select></div>
+      <div class="form-group"><label>Type</label><select id="f_task_type" onchange="document.getElementById('f_channel_id_group').style.display=this.value==='channel'?'':'none'"><option value="manual">Manual</option><option value="channel">Channel</option></select></div>
+      <div class="form-group" id="f_channel_id_group" style="display:none"><label>Channel ID (e.g. -1001234567890)</label><input id="f_channel_id" placeholder="-100... or @username"></div>
       <div class="form-group"><label>Description</label><textarea id="f_description" placeholder="Task description"></textarea></div>
       <div class="form-group"><label>Guide</label><textarea id="f_guide" placeholder="How to complete this task"></textarea></div>
       <div class="form-group"><label>Reward (₹)</label><input id="f_reward" type="number" step="0.01" value="1"></div>
@@ -257,6 +258,7 @@ async function adminEditTask(tid) {
     <div class="admin-form">
       <div class="form-group"><label>Description</label><textarea id="f_description">${task.description || ''}</textarea></div>
       <div class="form-group"><label>Guide</label><textarea id="f_guide">${task.guide || ''}</textarea></div>
+      <div class="form-group"><label>Channel ID (e.g. -1001234567890)</label><input id="f_channel_id" value="${task.channel_id || ''}" placeholder="-100... or @username"></div>
       <div class="form-group"><label>Reward (₹)</label><input id="f_reward" type="number" step="0.01" value="${task.reward}"></div>
       <div class="form-group"><label>Image URL</label><input id="f_image" value="${task.image || ''}"></div>
       <div class="form-group"><label>Video URL</label><input id="f_video_url" value="${task.video_url || ''}"></div>
@@ -289,6 +291,7 @@ async function adminSaveTask(tid) {
     referrer_reward: parseFloat(document.getElementById('f_referrer_reward')?.value || 0),
     completer_reward: parseFloat(document.getElementById('f_completer_reward')?.value || 0),
     max_completers: parseInt(document.getElementById('f_max_completers')?.value || 0),
+    channel_id: document.getElementById('f_channel_id')?.value || '',
   };
   const data = tid
     ? await adminApi('/tasks/' + tid, 'PUT', body)
