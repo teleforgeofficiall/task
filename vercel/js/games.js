@@ -1,4 +1,3 @@
-var GAME_BETS = [5, 10, 25, 50, 100];
 var _gameBet = 10;
 var _minesGameId = null;
 var _crashGameId = null;
@@ -60,20 +59,15 @@ function backToGames() {
 }
 
 function betSelector() {
-  return '<div class="bet-selector">' + GAME_BETS.map(function (b) {
-    var sel = b === _gameBet ? ' selected' : '';
-    return '<button class="bet-btn' + sel + '" onclick="selectBet(' + b + ', this)">₹' + b + '</button>';
-  }).join('') + '</div>';
+  return '<div class="bet-selector"><input type="number" class="bet-input" id="betInput" min="2" max="50" step="1" value="' + _gameBet + '" onchange="updateBet(this)"><span class="bet-label">Min ₹2 · Max ₹50</span></div>';
 }
 
-function selectBet(amount, btn) {
-  _gameBet = amount;
-  var parent = btn.parentElement;
-  if (parent) {
-    var btns = parent.querySelectorAll('.bet-btn');
-    for (var i = 0; i < btns.length; i++) btns[i].classList.remove('selected');
-  }
-  btn.classList.add('selected');
+function updateBet(el) {
+  var v = parseInt(el.value) || 2;
+  if (v < 2) v = 2;
+  if (v > 50) v = 50;
+  el.value = v;
+  _gameBet = v;
 }
 
 function gameBackBtn() {

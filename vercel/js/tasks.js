@@ -114,8 +114,6 @@ async function loadTaskDetail(taskId) {
     </div>
     ${t.description ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;white-space:pre-wrap">${escHtml(t.description)}</p>` : ''}
     ${stepsHtml}
-    ${t.max_completers > 0 ? renderAffiliateSection(t) : ''}
-    ${t.ref_link ? renderTaskReferSection(t) : ''}
     ${t.video_url ? `<div style="margin-top:12px"><button class="btn btn-outline btn-block" style="font-size:13px" onclick="openLink('${t.video_url}')">▶ Offer Video</button></div>` : ''}
     <div style="margin-top:12px">
       ${isDone
@@ -126,41 +124,7 @@ async function loadTaskDetail(taskId) {
   `;
 }
 
-function renderTaskReferSection(t) {
-  return `
-    <div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="font-weight:600;font-size:13px">🔗 Share & Earn</span>
-        <span style="font-size:11px;color:var(--text-secondary)">₹${t.referrer_reward} per referral</span>
-      </div>
-      <div style="display:flex;gap:8px">
-        <input class="form-input" id="taskRefLink" value="${t.ref_link}" readonly style="flex:1;font-size:11px;padding:8px">
-        <button class="btn btn-sm btn-primary" onclick="copyToClipboard(document.getElementById('taskRefLink').value, '✅ Referral link copied!')" style="white-space:nowrap">📋 Copy</button>
-      </div>
-      <div style="font-size:10px;color:var(--text-secondary);margin-top:4px">Share this link — when someone joins via it and completes this task, you earn ₹${t.referrer_reward}</div>
-    </div>
-  `;
-}
 
-function renderAffiliateSection(t) {
-  return `
-    <div class="affiliate-card">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <span style="font-size:12px;color:var(--text-secondary);font-weight:600">💰 Affiliate Reward</span>
-        <span style="font-size:11px;color:var(--text-secondary)">${t.current_completers}/${t.max_completers} slots</span>
-      </div>
-      <div style="display:flex;gap:12px;font-size:12px">
-        <div style="flex:1;text-align:center;padding:8px;background:var(--card);border-radius:8px;border:1px solid var(--border)">
-          <div style="color:var(--success);font-weight:800;font-size:15px">₹${t.referrer_reward}</div>
-          <div style="color:var(--text-secondary);font-size:10px">You earn</div>
-        </div>
-        <div style="flex:1;text-align:center;padding:8px;background:var(--card);border-radius:8px;border:1px solid var(--border)">
-          <div style="color:var(--primary);font-weight:800;font-size:15px">₹${t.completer_reward}</div>
-          <div style="color:var(--text-secondary);font-size:10px">Completer earns</div>
-        </div>
-      </div>
-    </div>`;
-}
 
 function startTask(taskId) {
   api('/api/app/task/' + taskId + '?' + new URLSearchParams({ user_id: USER.id }).toString()).then(data => {

@@ -703,13 +703,6 @@ async def app_task_detail(task_id: int, user_id: int):
                 "steps": t.steps or [],
                 "is_multi_reward": t.is_multi_reward or False,
                 "offer_url": t.offer_url or "",
-                "ref_enabled": True,
-                "ref_code": f"T{user_id}T{task_id}",
-                "ref_link": f"https://t.me/{settings.BOT_USERNAME}?start=ref_{user_id}_task_{task_id}",
-                "referrer_reward": float(t.referrer_reward or 0),
-                "completer_reward": float(t.completer_reward or 0),
-                "max_completers": t.max_completers or 0,
-                "current_completers": t.current_completers or 0,
             }
         }
 
@@ -941,13 +934,14 @@ def _new_game_id() -> str:
     return ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
 
 
-BET_AMOUNTS = [5, 10, 25, 50, 100]
+BET_MIN = 2
+BET_MAX = 50
 
 
 @app.get("/api/app/game/config")
 async def app_game_config():
     """Return game configuration for the Mini App."""
-    return {"ok": True, "bet_amounts": BET_AMOUNTS}
+    return {"ok": True, "bet_min": BET_MIN, "bet_max": BET_MAX}
 
 
 async def _process_game_bet(user_id: int, bet: float, game: str, repo: Repository) -> dict | None:
@@ -957,8 +951,8 @@ async def _process_game_bet(user_id: int, bet: float, game: str, repo: Repositor
         return {"ok": False, "error": "User not found"}
     if user.banned:
         return {"ok": False, "error": "You are banned"}
-    if bet not in BET_AMOUNTS:
-        return {"ok": False, "error": "Invalid bet amount"}
+    if bet < BET_MIN or bet > BET_MAX:
+        return {"ok": False, "error": f"Bet must be between ₹{BET_MIN} and ₹{BET_MAX}"}
     balance = float(user.balance or 0)
     if balance < bet:
         return {"ok": False, "error": f"Insufficient balance. Need ₹{bet}"}
