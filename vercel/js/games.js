@@ -59,7 +59,7 @@ function backToGames() {
 }
 
 function betSelector() {
-  return '<div class="bet-selector"><input type="number" class="bet-input" id="betInput" min="2" max="50" step="1" value="' + _gameBet + '" onchange="updateBet(this)"><span class="bet-label">Min ₹2 · Max ₹50</span></div>';
+  return '<div class="bet-selector"><input type="number" class="bet-input" id="betInput" min="2" max="50" step="1" value="' + _gameBet + '" oninput="updateBet(this)"><span class="bet-label">Min ₹2 · Max ₹50</span></div>';
 }
 
 function updateBet(el) {
@@ -68,6 +68,11 @@ function updateBet(el) {
   if (v > 50) v = 50;
   el.value = v;
   _gameBet = v;
+}
+
+function syncBet() {
+  var el = document.getElementById('betInput');
+  if (el) updateBet(el);
 }
 
 function gameBackBtn() {
@@ -98,6 +103,7 @@ function renderDice(el) {
 }
 
 async function rollDice() {
+  syncBet();
   var btn = document.getElementById('diceRollBtn');
   if (!btn) return;
   btn.disabled = true;
@@ -154,6 +160,7 @@ function renderSlots(el) {
 }
 
 async function spinSlots() {
+  syncBet();
   var btn = document.getElementById('slotsSpinBtn');
   if (!btn) return;
   btn.disabled = true;
@@ -245,6 +252,7 @@ function resetMinesGrid() {
 }
 
 async function minesStart() {
+  syncBet();
   var btn = document.getElementById('minesStartBtn');
   if (!btn) return;
   btn.disabled = true;
@@ -335,6 +343,7 @@ function stopCrash() {
 }
 
 async function crashStart() {
+  syncBet();
   var startBtn = document.getElementById('crashStartBtn');
   if (!startBtn) return;
   startBtn.disabled = true;
