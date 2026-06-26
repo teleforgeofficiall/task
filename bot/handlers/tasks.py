@@ -201,7 +201,7 @@ async def task_verify_channel_handler(update: Update, context: ContextTypes.DEFA
             user_id=user_id,
             amount=task.reward,
             tx_type="task_reward",
-            description=f"Completed Channel Task #{task.id}",
+            description=f"Task #{task.id} completed",
             ref_id=str(task.id)
         )
 

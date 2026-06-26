@@ -641,7 +641,7 @@ async def app_tasks(user_id: int):
             for t in tasks:
                 result.append({
                     "id": t.id,
-                    "title": t.description[:50] if isinstance(t.description, str) else "Task",
+                    "title": (t.description.split('\n')[0][:80] if t.description else "Task") if isinstance(t.description, str) else "Task",
                     "description": t.description or "",
                     "reward": float(t.reward),
                     "type": t.task_type or "manual",
@@ -685,7 +685,7 @@ async def app_task_detail(task_id: int, user_id: int):
             "ok": True,
             "task": {
                 "id": t.id,
-                "title": t.description[:50] if isinstance(t.description, str) else "Task",
+                "title": (t.description.split('\n')[0][:80] if t.description else "Task") if isinstance(t.description, str) else "Task",
                 "description": t.description or "",
                 "reward": float(t.reward),
                 "type": t.task_type or "manual",
@@ -740,7 +740,7 @@ async def app_verify_channel_task(task_id: int, request: Request):
             return {"ok": False, "error": "You haven't joined the channel yet, or the bot needs admin access. Please join and try again.", "channel_url": task.channel_url or ""}
         await repo.credit_balance(
             user_id=user_id, amount=task.reward,
-            tx_type="task_reward", description=f"Completed Channel Task #{task.id}",
+            tx_type="task_reward", description=f"Task #{task.id} completed",
             ref_id=str(task.id)
         )
         c = list(user.completed_tasks or [])

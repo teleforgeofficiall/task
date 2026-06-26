@@ -224,7 +224,7 @@ async def admin_proof_decision_handler(update: Update, context: ContextTypes.DEF
             user_id=user_id,
             amount=reward,
             tx_type="task_reward",
-            description=f"Completed Task #{task_id}: {task.description if task else ''}",
+            description=f"Task #{task_id} completed",
             ref_id=str(task_id)
         )
         # 4. Increment task completion count
