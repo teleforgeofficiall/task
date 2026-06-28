@@ -776,7 +776,6 @@ async def app_verify_channel_task(task_id: int, request: Request):
         return {"ok": True, "balance": float(user.balance or 0), "reward": float(task.reward), "message": f"Task completed! ₹{float(task.reward)} credited!"}
 
 
-@app.post("/api/app/task/{task_id}/submit")
 async def _notify_admins_proof(proof_id: int, user_id: int, task_id: int, task_desc: str, reward: float, proof_image: str):
     """Notify all admins about a new proof submission via Telegram bot."""
     import base64, io
@@ -815,6 +814,7 @@ async def _notify_admins_proof(proof_id: int, user_id: int, task_id: int, task_d
             logger.warning("Failed to send proof notification to admin %s: %s", aid, e)
 
 
+@app.post("/api/app/task/{task_id}/submit")
 async def app_submit_proof(task_id: int, request: Request):
     """Submit task proof from Mini App - admin will review before marking complete."""
     from bot.database import get_session, Repository
@@ -830,7 +830,7 @@ async def app_submit_proof(task_id: int, request: Request):
         return {"ok": False, "error": "Missing user_id"}
     if not proof_image and not txn_id:
         return {"ok": False, "error": "Please provide proof screenshot or transaction ID"}
-    proof_image = (proof_image or "")[:500000]
+    proof_image = (proof_image or "")[:1000000]
     async with get_session() as session:
         repo = Repository(session)
         task = await repo.get_task(task_id)

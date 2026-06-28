@@ -242,10 +242,12 @@ function adminCreateTask() {
       <div id="f_channel_fields" style="display:none">
         <div class="form-group"><label>Channel ID (required)</label><input id="f_channel_id" placeholder="-100... or @channel_username"></div>
         <div class="form-group"><label>Channel URL</label><input id="f_channel_url" placeholder="https://t.me/channelname"></div>
+        <div class="form-group"><label>Reference Image</label><input id="f_image" placeholder="e.g. https://t.me/channelname/123"><div class="help-text">Paste Telegram post link — shows as example for users</div></div>
       </div>
       <div id="f_manual_fields">
         <div class="form-group"><label>Description</label><textarea id="f_description" placeholder="Task description"></textarea></div>
         <div class="form-group"><label>Guide</label><textarea id="f_guide" placeholder="How to complete this task"></textarea></div>
+        <div class="form-group"><label>Reference Image</label><input id="f_image" placeholder="e.g. https://t.me/channelname/123"><div class="help-text">Paste Telegram post link — shows as example for users</div></div>
         <div class="form-group"><label>Color</label><input id="f_color" type="color" value="#7b5ef8"></div>
         <div class="form-group"><label>Duration Text</label><input id="f_duration" value="15 min"></div>
         <div class="form-group"><label>Offer URL</label><input id="f_offer_url" placeholder="https://..."></div>
@@ -265,6 +267,7 @@ async function adminEditTask(tid) {
     <div class="admin-form">
       <input type="hidden" id="f_task_type" value="${task.task_type}">
       <div class="form-group"><label>Description</label><textarea id="f_description">${task.description || ''}</textarea></div>
+      <div class="form-group"><label>Reference Image</label><input id="f_image" value="${escHtml(task.image || '')}" placeholder="e.g. https://t.me/channelname/123"><div class="help-text">Paste Telegram post link — shows as example for users</div></div>
       ${isChannel ? `
       <div class="form-group"><label>Channel ID</label><input id="f_channel_id" value="${task.channel_id || ''}" placeholder="-100... or @username"></div>
       <div class="form-group"><label>Channel URL</label><input id="f_channel_url" value="${task.channel_url || ''}" placeholder="https://t.me/channelname"></div>
@@ -296,6 +299,7 @@ async function adminSaveTask(tid) {
     description: document.getElementById('f_description')?.value || '',
     guide: document.getElementById('f_guide')?.value || '',
     reward: parseFloat(document.getElementById('f_reward')?.value || 0),
+    image: document.getElementById('f_image')?.value || '',
     color: document.getElementById('f_color')?.value || '#7b5ef8',
     duration_text: document.getElementById('f_duration')?.value || '15 min',
     offer_url: document.getElementById('f_offer_url')?.value || '',

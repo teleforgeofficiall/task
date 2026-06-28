@@ -115,6 +115,10 @@ async function loadTaskDetail(taskId) {
     ${t.description ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;white-space:pre-wrap">${escHtml(t.description)}</p>` : ''}
     ${stepsHtml}
     ${t.video_url ? `<div style="margin-top:12px"><button class="btn btn-outline btn-block" style="font-size:13px" onclick="openLink('${t.video_url}')">▶ Offer Video</button></div>` : ''}
+    ${hasImage ? `<div style="margin-top:12px;text-align:center">
+      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:6px">📋 Reference Image</div>
+      <img src="/api/app/task-image/${taskId}" style="width:100%;max-width:280px;border-radius:10px;border:1px solid var(--border);object-fit:cover" onerror="this.onerror=null;this.style.display='none'">
+    </div>` : ''}
     <div style="margin-top:12px">
       ${isDone
         ? '<div style="text-align:center;padding:12px;background:rgba(0,229,160,0.1);border-radius:10px;color:var(--success);font-weight:700">✅ Task Completed</div>'
@@ -151,7 +155,7 @@ function startTask(taskId) {
           <div class="proof-warning">⚠️ Join the channel above, then click verify to claim your reward.</div>
           ${t.channel_url ? `<button class="btn btn-outline btn-block" style="margin-bottom:8px" onclick="openLink('${t.channel_url}')">📢 Open Channel</button>` : ''}
           <button class="btn btn-primary btn-block btn-lg" onclick="verifyChannelTask(${taskId})">✅ Verify & Claim</button>
-          <button class="btn btn-outline btn-block" style="margin-top:8px;font-size:12px" onclick="submitProof(${taskId})">📤 Submit Screenshot Instead</button>
+          <button class="btn btn-outline btn-block" style="margin-top:8px;font-size:12px" onclick="showProofModal(${taskId})">📤 Submit Screenshot Instead</button>
         </div>
       `);
       return;
@@ -167,40 +171,62 @@ function startTask(taskId) {
         </div>`
       : '';
 
-    showModal('Submit Proof', `
-      <div class="proof-submit">
-        <div style="text-align:center;margin-bottom:16px">
-          <div style="width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,${t.color||'#7b5ef8'},${t.color2||'#5a3fd6'});display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;margin:0 auto 8px">${t.icon||'📋'}</div>
-          <h3 style="font-size:16px;font-weight:700">${t.title}</h3>
-          <div style="color:var(--success);font-weight:700;font-size:20px;margin-top:4px">₹${t.reward}</div>
-        </div>
-        ${stepsHtml}
-        <div class="proof-warning">⚠️ Complete the task above, then submit screenshot as proof. Admin will verify and credit your reward.</div>
-        <div class="form-group">
-          <label>📸 Screenshot Proof</label>
-          <div style="display:flex;gap:8px">
-            <input class="form-input" id="proofImage" placeholder="Paste image URL or screenshot link" style="flex:1">
-            <button class="btn btn-sm btn-outline" onclick="document.getElementById('proofFileInput').click()" style="white-space:nowrap">📁 Upload</button>
+    showProofModal(taskId, t, stepsHtml);
+  });
+}
+
+function showProofModal(taskId, t, stepsHtml) {
+  const hasImage = t.image && t.image.length > 5;
+  const imageUrl = '/api/app/task-image/' + taskId;
+  const refHtml = hasImage
+    ? `<div class="proof-side proof-ref-side">
+        <div class="proof-side-label">📋 Reference</div>
+        <img src="${imageUrl}" class="proof-ref-img" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=proof-empty>No reference</div>'">
+      </div>`
+    : `<div class="proof-side proof-ref-side">
+        <div class="proof-empty">No reference image</div>
+      </div>`;
+
+  showModal('Submit Proof', `
+    <div class="proof-submit">
+      <div style="text-align:center;margin-bottom:12px">
+        <h3 style="font-size:16px;font-weight:700">${t.title}</h3>
+        <div style="color:var(--success);font-weight:700;font-size:20px;margin-top:4px">₹${t.reward}</div>
+      </div>
+      ${stepsHtml || ''}
+      <div class="proof-warning">⚠️ Complete the task, then submit screenshot as proof. Admin will verify and credit your reward.</div>
+      <div class="proof-layout">
+        ${refHtml}
+        <div class="proof-side proof-upload-side">
+          <div class="proof-side-label">📸 Your Proof</div>
+          <div class="proof-upload-box" onclick="document.getElementById('proofFileInput').click()">
+            <div class="proof-upload-placeholder" id="proofUploadPlaceholder">
+              <div style="font-size:32px;color:var(--text-secondary)">+</div>
+              <div style="font-size:12px;color:var(--text-secondary)">Tap to add screenshot</div>
+            </div>
+            <img id="proofPreview" class="proof-preview" style="display:none">
+            <input type="file" id="proofFileInput" accept="image/*" style="display:none" onchange="handleProofFile(event)">
+            <input type="hidden" id="proofImage">
           </div>
-          <input type="file" id="proofFileInput" accept="image/*" style="display:none" onchange="handleProofFile(event)">
           <div id="proofFileName" style="font-size:11px;color:var(--text-secondary);margin-top:4px"></div>
         </div>
-        <button class="btn btn-success btn-block btn-lg" onclick="submitProof(${taskId})">📤 Submit Proof</button>
       </div>
-    `);
-  });
+      <button class="btn btn-success btn-block btn-lg" onclick="submitProof(${taskId})">📤 Submit Proof</button>
+    </div>
+  `);
 }
 
 function handleProofFile(event) {
   const file = event.target.files[0];
   if (!file) return;
   const maxFileSize = 3 * 1024 * 1024;
-  if (file.size > maxFileSize) { toast('File too large. Max 3MB.'); return; }
+  if (file.size > maxFileSize) { toast('File too large. Max 3MB.'); event.target.value = ''; return; }
   const el = document.getElementById('proofFileName');
   if (el) el.textContent = '📎 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
   const btn = document.querySelector('.proof-submit .btn-success');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Compressing...'; }
   const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
   img.onload = function() {
     const canvas = document.createElement('canvas');
     let w = img.width, h = img.height;
@@ -222,12 +248,19 @@ function handleProofFile(event) {
     if (input) input.value = compressed;
     if (el) el.textContent += ' (' + (compressed.length / 1024).toFixed(0) + 'KB base64)';
     if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Proof'; }
+    // Show preview
+    const preview = document.getElementById('proofPreview');
+    const placeholder = document.getElementById('proofUploadPlaceholder');
+    if (preview) { preview.src = compressed; preview.style.display = 'block'; }
+    if (placeholder) placeholder.style.display = 'none';
+    URL.revokeObjectURL(objectUrl);
   };
   img.onerror = function() {
     toast('Failed to load image');
     if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Proof'; }
+    URL.revokeObjectURL(objectUrl);
   };
-  img.src = URL.createObjectURL(file);
+  img.src = objectUrl;
 }
 
 async function verifyChannelTask(taskId) {

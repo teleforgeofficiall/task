@@ -147,3 +147,13 @@
   padding: 8px 12px; background: rgba(255,79,94,0.08);
   border-radius: 8px; border: 1px solid rgba(255,79,94,0.15);
 }
+
+.proof-layout { display: flex; gap: 12px; margin-bottom: 12px; }
+.proof-side { flex: 1; min-width: 0; }
+.proof-side-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-align: center; }
+.proof-ref-side .proof-ref-img { width: 100%; border-radius: 10px; border: 1px solid var(--border); object-fit: cover; aspect-ratio: 3/4; background: var(--bg); }
+.proof-empty { padding: 24px 12px; text-align: center; font-size: 12px; color: var(--text-secondary); border-radius: 10px; border: 1px dashed var(--border); background: var(--bg); aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; }
+.proof-upload-box { position: relative; border-radius: 10px; border: 2px dashed var(--border); background: var(--bg); aspect-ratio: 3/4; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color 0.2s; overflow: hidden; }
+.proof-upload-box:hover { border-color: var(--primary); }
+.proof-upload-placeholder { text-align: center; }
+.proof-preview { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: none; }
