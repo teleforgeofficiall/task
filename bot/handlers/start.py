@@ -149,6 +149,19 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             referrer=referrer_id
         )
 
+        # Notify referrer that someone joined via their link
+        if referrer_id:
+            from bot.services.notifications import notify_user
+            await notify_user(
+                bot=context.bot,
+                user_id=referrer_id,
+                text=(
+                    f"🤝 <b>New Referral!</b>\n\n"
+                    f"User <b>{user.first_name}</b> joined TaskHub via your invite link!\n\n"
+                    f"💡 They need to complete <b>1 task</b> for you to earn the referral reward."
+                )
+            )
+
     # STEP 1: Check force-subscribe channels
     passed = await check_access(update, context, repository)
     if not passed:

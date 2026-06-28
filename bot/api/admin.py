@@ -307,9 +307,6 @@ async def admin_create_task(request: Request):
             "channel_username": data.get("channel_username"),
             "channel_url": data.get("channel_url"),
             "channel_title": data.get("channel_title"),
-            "referrer_reward": float(data.get("referrer_reward", 0)),
-            "completer_reward": float(data.get("completer_reward", 0)),
-            "max_completers": int(data.get("max_completers", 0)),
         }
         task = await repo.create_task(task_data)
     return {"ok": True, "task": task.to_dict()}
@@ -323,8 +320,7 @@ async def admin_update_task(request: Request, task_id: int):
         "task_type", "description", "guide", "reward", "image", "media_type",
         "video_url", "steps", "color", "color2", "duration_text",
         "is_multi_reward", "offer_url", "channel_id", "channel_username",
-        "channel_url", "channel_title", "referrer_reward", "completer_reward",
-        "max_completers", "is_active",
+        "channel_url", "channel_title", "is_active",
     ]
     kwargs = {k: v for k, v in data.items() if k in allowed and v is not None}
     async with get_session() as session:

@@ -246,15 +246,11 @@ function adminCreateTask() {
       <div id="f_manual_fields">
         <div class="form-group"><label>Description</label><textarea id="f_description" placeholder="Task description"></textarea></div>
         <div class="form-group"><label>Guide</label><textarea id="f_guide" placeholder="How to complete this task"></textarea></div>
-        <div class="form-group"><label>Image</label><input id="f_image" placeholder="e.g. https://t.me/channelname/123"><div class="help-text">Send image to public channel → copy post link → paste here</div></div>
-        <div class="form-group"><label>Video URL</label><input id="f_video_url" placeholder="https://..."></div>
         <div class="form-group"><label>Color</label><input id="f_color" type="color" value="#7b5ef8"></div>
         <div class="form-group"><label>Duration Text</label><input id="f_duration" value="15 min"></div>
         <div class="form-group"><label>Offer URL</label><input id="f_offer_url" placeholder="https://..."></div>
       </div>
       <div class="form-group"><label>Reward (₹)</label><input id="f_reward" type="number" step="0.01" value="1"></div>
-      <div class="form-group"><label>Referrer Reward (₹ per referral)</label><input id="f_referrer_reward" type="number" step="0.01" value="0"></div>
-      <div class="form-group"><label>Completer Bonus (₹)</label><input id="f_completer_reward" type="number" step="0.01" value="0"></div>
       <button class="btn btn-primary btn-block" onclick="adminSaveTask(0)">Create Task</button>
     </div>
   `);
@@ -274,15 +270,11 @@ async function adminEditTask(tid) {
       <div class="form-group"><label>Channel URL</label><input id="f_channel_url" value="${task.channel_url || ''}" placeholder="https://t.me/channelname"></div>
       ` : `
       <div class="form-group"><label>Guide</label><textarea id="f_guide">${task.guide || ''}</textarea></div>
-      <div class="form-group"><label>Image</label><input id="f_image" value="${escHtml(task.image || '')}" placeholder="e.g. https://t.me/channelname/123"><div class="help-text">Send image to public channel → copy post link → paste here</div></div>
-      <div class="form-group"><label>Video URL</label><input id="f_video_url" value="${task.video_url || ''}"></div>
       <div class="form-group"><label>Color</label><input id="f_color" type="color" value="${task.color || '#7b5ef8'}"></div>
       <div class="form-group"><label>Duration Text</label><input id="f_duration" value="${task.duration_text || '15 min'}"></div>
       <div class="form-group"><label>Offer URL</label><input id="f_offer_url" value="${task.offer_url || ''}"></div>
       `}
       <div class="form-group"><label>Reward (₹)</label><input id="f_reward" type="number" step="0.01" value="${task.reward}"></div>
-      <div class="form-group"><label>Referrer Reward (₹ per referral)</label><input id="f_referrer_reward" type="number" step="0.01" value="${task.referrer_reward || 0}"></div>
-      <div class="form-group"><label>Completer Bonus (₹)</label><input id="f_completer_reward" type="number" step="0.01" value="${task.completer_reward || 0}"></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" onclick="adminSaveTask(${tid})">Save</button>
         <button class="btn btn-warning" onclick="adminToggleTask(${tid})">${task.is_active ? '⏸️ Pause' : '▶️ Resume'}</button>
@@ -304,14 +296,9 @@ async function adminSaveTask(tid) {
     description: document.getElementById('f_description')?.value || '',
     guide: document.getElementById('f_guide')?.value || '',
     reward: parseFloat(document.getElementById('f_reward')?.value || 0),
-    image: document.getElementById('f_image')?.value || '',
-    video_url: document.getElementById('f_video_url')?.value || '',
     color: document.getElementById('f_color')?.value || '#7b5ef8',
     duration_text: document.getElementById('f_duration')?.value || '15 min',
     offer_url: document.getElementById('f_offer_url')?.value || '',
-    referrer_reward: parseFloat(document.getElementById('f_referrer_reward')?.value || 0),
-    completer_reward: parseFloat(document.getElementById('f_completer_reward')?.value || 0),
-    max_completers: parseInt(document.getElementById('f_max_completers')?.value || 0),
     channel_id: channelId,
     channel_url: document.getElementById('f_channel_url')?.value || '',
   };
@@ -759,9 +746,7 @@ async function adminSettings() {
     { key: 'redeem_stock_enabled', label: 'Redeem Stock Enabled', type: 'bool' },
     { key: 'ad_goal_target', label: 'Ad Goal Target', type: 'int' },
     { key: 'ad_goal_reward', label: 'Ad Goal Reward (₹)', type: 'float' },
-    { key: 'referral_fixed_reward', label: 'Referral Fixed Reward (₹)', type: 'float' },
-    { key: 'referral_min_reward', label: 'Referral Min Reward (₹)', type: 'float' },
-    { key: 'referral_max_reward', label: 'Referral Max Reward (₹)', type: 'float' },
+    { key: 'referral_fixed_reward', label: 'Per Referral Reward (₹)', type: 'float' },
     { key: 'promo_price', label: 'Promo Price (₹)', type: 'float' },
     { key: 'promo_description', label: 'Promo Description', type: 'text' },
     { key: 'min_star_withdraw', label: 'Min Stars Withdraw (₹)', type: 'float' },

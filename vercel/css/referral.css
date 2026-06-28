@@ -38,22 +38,27 @@
 .ref-stat-card .stat-value { font-size: 22px; font-weight: 800; color: var(--primary); }
 .ref-stat-card .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
 
-.ref-tiers { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; margin-bottom: 16px; }
-.ref-tiers::-webkit-scrollbar { display: none; }
+.ref-per-refer {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px; border-radius: var(--radius-sm);
+  background: var(--card); border: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+.ref-per-refer .per-refer-label { font-size: 13px; color: var(--text-secondary); }
+.ref-per-refer .per-refer-amount { font-size: 18px; font-weight: 800; color: var(--success); }
 
-.tier-card {
-  flex-shrink: 0; width: 120px; padding: 14px 12px; border-radius: var(--radius-sm);
-  text-align: center; border: 1px solid var(--border); background: var(--card);
-  transition: all 0.2s;
+.ref-note {
+  margin: 0 0 14px 0; padding: 10px 14px;
+  background: rgba(123,94,248,0.06); border-left: 3px solid var(--primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 12px; color: var(--text-secondary); line-height: 1.5;
 }
-.tier-card.tier-active {
-  border-color: var(--gold); box-shadow: 0 0 20px rgba(255,215,0,0.15);
-  transform: translateY(-2px);
+
+.ref-paused-banner {
+  background: rgba(255,193,7,0.12); border: 1px solid rgba(255,193,7,0.3);
+  color: #ffc107; padding: 10px 14px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; margin-bottom: 14px;
 }
-.tier-card .tier-icon { font-size: 28px; margin-bottom: 6px; }
-.tier-card .tier-name { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
-.tier-card .tier-range { font-size: 10px; color: var(--text-secondary); }
-.tier-card .tier-reward { font-size: 13px; font-weight: 800; color: var(--primary); margin-top: 4px; }
 
 .ref-list { margin-top: 12px; }
 
@@ -78,13 +83,4 @@
 
 .ref-list-earnings { font-size: 13px; font-weight: 700; color: var(--success); }
 
-.affiliate-section { margin-top: 16px; }
-.affiliate-section .section-title { margin-bottom: 8px; }
 
-.affiliate-task-card { padding: 12px 14px; }
-.affiliate-task-card .task-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.affiliate-task-card .task-title { font-size: 13px; font-weight: 600; }
-.affiliate-task-card .task-progress { font-size: 11px; color: var(--text-secondary); }
-.affiliate-task-card .task-rewards { display: flex; gap: 8px; font-size: 11px; }
-.affiliate-task-card .task-rewards .referrer-reward { color: var(--success); font-weight: 700; }
-.affiliate-task-card .task-rewards .completer-reward { color: var(--primary); font-weight: 700; }

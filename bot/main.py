@@ -659,10 +659,6 @@ async def app_tasks(user_id: int):
                     "steps": t.steps or [],
                     "is_multi_reward": t.is_multi_reward or False,
                     "offer_url": t.offer_url or "",
-                    "referrer_reward": float(t.referrer_reward or 0),
-                    "completer_reward": float(t.completer_reward or 0),
-                    "max_completers": t.max_completers or 0,
-                    "current_completers": t.current_completers or 0,
                 })
             return {"ok": True, "tasks": result}
     except Exception as e:
@@ -749,22 +745,34 @@ async def app_verify_channel_task(task_id: int, request: Request):
         await repo.update_user_fields(user_id, completed_tasks=c)
         await repo.increment_task_completion(task_id)
         user = await repo.get_user(user_id)
-        # Referral reward — credit referrer if task has reward set
-        if task.referrer_reward and task.referrer_reward > 0:
-            if user.referrer and user.referrer != user_id:
+        # Referral reward — credit referrer using global fixed reward (one-time per referred user)
+        if user.referrer and user.referrer != user_id and not user.referral_reward_claimed:
+            refer_paused = await repo.get_setting("refer_paused", False)
+            if not refer_paused:
                 ref_user = await repo.get_user(user.referrer)
                 if ref_user and not ref_user.banned:
-                    try:
-                        await repo.credit_balance(
-                            user_id=user.referrer, amount=task.referrer_reward,
-                            tx_type="referral_reward", description=f"Referral reward for Task #{task.id} by User #{user_id}",
-                            ref_id=str(task.id)
-                        )
-                        logger.info("Referral reward ₹%.2f credited to user %d for task %d", task.referrer_reward, user.referrer, task.id)
-                    except Exception as e:
-                        logger.error("Failed to credit referral reward: %s", e)
-        from bot.services.referral import check_referral_success
-        await check_referral_success(repo, user_id, ptb_app.bot)
+                    ref_amount = float(await repo.get_setting("fixed_referral_reward", 0.5))
+                    if ref_amount > 0:
+                        try:
+                            await repo.credit_balance(
+                                user_id=user.referrer, amount=ref_amount,
+                                tx_type="referral_reward",
+                                description=f"Referral reward from User #{user_id}",
+                                ref_id=str(user_id)
+                            )
+                            await repo.update_user_fields(user_id, referral_reward_claimed=True)
+                            logger.info("Referral reward ₹%.2f credited to user %d for refer %d", ref_amount, user.referrer, user_id)
+                            from bot.services.notifications import notify_user
+                            await notify_user(
+                                bot=ptb_app.bot, user_id=user.referrer,
+                                text=(
+                                    f"🎉 <b>Referral Reward!</b>\n\n"
+                                    f"User <b>{user.first_name}</b> (#{user_id}) completed their first task.\n"
+                                    f"Credited: <b>₹{ref_amount:.2f}</b> to your wallet."
+                                )
+                            )
+                        except Exception as e:
+                            logger.error("Failed to credit referral reward: %s", e)
         return {"ok": True, "balance": float(user.balance or 0), "reward": float(task.reward), "message": f"Task completed! ₹{float(task.reward)} credited!"}
 
 
@@ -1764,9 +1772,13 @@ async def app_refer(user_id: int):
                     "earned": earned,
                     "active": is_active,
                 })
+        per_refer_reward = float(await repo.get_setting("fixed_referral_reward", 0.5))
+        referral_paused = await repo.get_setting("refer_paused", False)
         return {
             "ok": True,
             "bot_username": settings.BOT_USERNAME,
+            "per_refer_reward": per_refer_reward,
+            "referral_paused": bool(referral_paused),
             "referral": {
                 "code": code,
                 "total": len(referral_ids),

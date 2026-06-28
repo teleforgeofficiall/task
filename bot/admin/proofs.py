@@ -14,7 +14,7 @@ from bot.database import get_db, Repository
 from bot.admin.panel import is_admin
 from bot.keyboards.admin_kb import proofs_menu, proof_review_keyboard
 from bot.services.notifications import notify_user
-from bot.services.referral import check_referral_success
+
 from bot.utils import format_currency, escape_html
 
 logger = logging.getLogger(__name__)
@@ -245,8 +245,34 @@ async def admin_proof_decision_handler(update: Update, context: ContextTypes.DEF
         )
         await query.answer("Approved & credited successfully!")
         
-        # 5. Check if referral reward unlocks
-        await check_referral_success(repository, user_id, context.bot)
+        # 5. Check if referral reward unlocks (direct credit, no claim needed)
+        db_user = await repository.get_user(user_id)
+        if db_user and db_user.referrer and db_user.referrer != user_id and not db_user.referral_reward_claimed:
+            refer_paused = await repository.get_setting("refer_paused", False)
+            if not refer_paused:
+                ref_user = await repository.get_user(db_user.referrer)
+                if ref_user and not ref_user.banned:
+                    ref_amount = float(await repository.get_setting("fixed_referral_reward", 0.5))
+                    if ref_amount > 0:
+                        try:
+                            await repository.credit_balance(
+                                user_id=db_user.referrer, amount=ref_amount,
+                                tx_type="referral_reward",
+                                description=f"Referral reward from User #{user_id}",
+                                ref_id=str(user_id)
+                            )
+                            await repository.update_user_fields(user_id, referral_reward_claimed=True)
+                            logger.info("Referral reward ₹%.2f credited to user %d for refer %d", ref_amount, db_user.referrer, user_id)
+                            await notify_user(
+                                bot=context.bot, user_id=db_user.referrer,
+                                text=(
+                                    f"🎉 <b>Referral Reward!</b>\n\n"
+                                    f"User <b>{db_user.first_name}</b> (#{user_id}) completed their first task.\n"
+                                    f"Credited: <b>₹{ref_amount:.2f}</b> to your wallet."
+                                )
+                            )
+                        except Exception as e:
+                            logger.error("Failed to credit referral reward: %s", e)
 
     else:
         # Default rejection reason

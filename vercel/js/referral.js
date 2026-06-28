@@ -4,23 +4,21 @@ async function loadReferral() {
   const el = document.getElementById('inviteSection');
   if (!el) return;
 
-  const [refData, taskData] = await Promise.all([
-    api('/api/app/refer?' + new URLSearchParams({ user_id: USER.id }).toString()),
-    api('/api/app/tasks?' + new URLSearchParams({ user_id: USER.id }).toString())
-  ]);
+  const refData = await api('/api/app/refer?' + new URLSearchParams({ user_id: USER.id }).toString());
 
   const ref = refData.referral || { code: '—', total: 0, active: 0, earned: 0, referrals: [] };
-  const tasks = (taskData.tasks || []).filter(t => t.max_completers > 0);
+  const perReferReward = refData.per_refer_reward || 0;
+  const isPaused = refData.referral_paused || false;
 
-  // Extract bot username from initData or use fallback
   BOT_USERNAME = refData.bot_username || TG?.initDataUnsafe?.bot_username || 'taskhubpocketbot';
   const referralLink = `https://t.me/${BOT_USERNAME}?start=${USER.id}`;
 
   el.innerHTML = `
-    <!-- Hero Card with Link -->
     <div class="ref-hero">
       <h2>🚀 Invite & Earn</h2>
       <p>Share your link with friends. Earn rewards when they complete tasks!</p>
+
+      ${isPaused ? '<div class="ref-paused-banner">⚠️ Referral program is currently paused</div>' : ''}
 
       <div class="ref-link-box">
         <div class="link-label">Your Invite Link</div>
@@ -33,7 +31,13 @@ async function loadReferral() {
       </div>
     </div>
 
-    <!-- Stats Grid -->
+    <div class="ref-per-refer">
+      <span class="per-refer-label">Per Referral Reward:</span>
+      <span class="per-refer-amount">${formatCurrency(perReferReward)}</span>
+    </div>
+
+    <blockquote class="ref-note">Note: Your referred user must complete at least <b>1 task</b> before you receive the referral reward.</blockquote>
+
     <div class="ref-stats-grid">
       <div class="ref-stat-card animate-in fade stagger-1">
         <div class="stat-icon">👥</div>
@@ -57,35 +61,12 @@ async function loadReferral() {
       </div>
     </div>
 
-    <!-- Reward Tiers -->
-    <h3 class="section-title">🏆 Reward Tiers</h3>
-    <div class="ref-tiers">
-      ${renderTier('🥉', 'Bronze', '0-5', '1x', ref.total >= 0 && ref.total < 6)}
-      ${renderTier('🥈', 'Silver', '6-15', '1.5x', ref.total >= 6 && ref.total < 16)}
-      ${renderTier('🥇', 'Gold', '16-30', '2x', ref.total >= 16 && ref.total < 31)}
-      ${renderTier('💎', 'Diamond', '30+', '3x', ref.total >= 31)}
-    </div>
-
-    <!-- Referral List -->
     <h3 class="section-title">👥 Your Friends (${ref.total})</h3>
     <div class="ref-list" id="refList">
       ${(ref.referrals || []).length > 0
         ? ref.referrals.slice(0, 10).map(r => renderReferralItem(r)).join('')
         : '<div class="empty-state">No friends yet. Share your invite link!</div>'
       }
-    </div>
-
-    ${renderAffiliateTasks(tasks)}
-  `;
-}
-
-function renderTier(icon, name, range, reward, isActive) {
-  return `
-    <div class="tier-card ${isActive ? 'tier-active' : ''}">
-      <div class="tier-icon">${icon}</div>
-      <div class="tier-name">${name}</div>
-      <div class="tier-range">${range} referrals</div>
-      <div class="tier-reward">${reward}</div>
     </div>
   `;
 }
@@ -100,29 +81,6 @@ function renderReferralItem(r) {
         <div class="status ${r.active ? 'active' : 'inactive'}">${r.active ? '✅ Active' : '⏳ Pending'}</div>
       </div>
       <div class="ref-list-earnings">+${formatCurrency(r.earned || 0)}</div>
-    </div>
-  `;
-}
-
-function renderAffiliateTasks(tasks) {
-  if (tasks.length === 0) return '';
-  return `
-    <div class="affiliate-section">
-      <h3 class="section-title">🤝 Affiliate Tasks</h3>
-      <p style="font-size:11px;color:var(--text-secondary);margin-bottom:8px">Share these tasks — earn referrer reward when someone completes!</p>
-      ${tasks.map(t => `
-        <div class="card affiliate-task-card animate-in fade">
-          <div class="task-row">
-            <div class="task-title">${t.title}</div>
-            <div class="task-progress">${t.current_completers || 0}/${t.max_completers}</div>
-          </div>
-          <div class="task-rewards">
-            <span class="referrer-reward">You earn: ₹${t.referrer_reward}</span>
-            <span style="color:var(--text-secondary)">|</span>
-            <span class="completer-reward">Completer: ₹${t.completer_reward}</span>
-          </div>
-        </div>
-      `).join('')}
     </div>
   `;
 }
