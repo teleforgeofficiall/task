@@ -637,6 +637,8 @@ async def app_tasks(user_id: int):
             tasks = await repo.get_active_tasks()
             user = await repo.get_user(user_id)
             completed_tasks = list(user.completed_tasks or []) if user else []
+            pending_proofs = await repo.get_user_pending_proofs(user_id)
+            pending_task_ids = {p["task_id"] for p in pending_proofs}
             result = []
             for t in tasks:
                 result.append({
@@ -652,6 +654,7 @@ async def app_tasks(user_id: int):
                     "duration": t.duration_text or "15 min",
                     "completions": t.completion_count or 0,
                     "is_completed": t.id in completed_tasks,
+                    "has_pending_proof": t.id in pending_task_ids,
                     "guide": t.guide or "",
                     "channel_url": t.channel_url or "",
                     "channel_title": t.channel_title or "",
@@ -692,6 +695,7 @@ async def app_task_detail(task_id: int, user_id: int):
                 "duration": t.duration_text or "15 min",
                 "completions": t.completion_count or 0,
                 "is_completed": t.id in completed_tasks,
+                "has_pending_proof": await repo.has_pending_proof(user_id, task_id),
                 "guide": t.guide or "",
                 "channel_title": t.channel_title or "",
                 "channel_url": t.channel_url or "",

@@ -16,6 +16,8 @@ async function loadTasks() {
     tasks = tasks.filter(t => t.type === 'channel');
   } else if (currentTaskFilter === 'manual') {
     tasks = tasks.filter(t => t.type !== 'channel');
+  } else if (currentTaskFilter === 'pending') {
+    tasks = tasks.filter(t => t.has_pending_proof);
   }
 
   if (countEl) countEl.textContent = tasks.length + ' tasks';
@@ -58,7 +60,9 @@ function renderTaskCard(t, index) {
           ${t.video_url ? `<button class="task-btn-video" onclick="event.stopPropagation();openLink('${t.video_url}')">▶ Video</button>` : ''}
           ${isDone
             ? '<span class="task-completed-badge">✓ Done</span>'
-            : `<button class="task-btn-start" onclick="event.stopPropagation();showTaskDetail(${t.id})">Start Task</button>`
+            : t.has_pending_proof
+              ? '<span class="task-pending-badge">⏳ Pending Review</span>'
+              : `<button class="task-btn-start" onclick="event.stopPropagation();showTaskDetail(${t.id})">Start Task</button>`
           }
         </div>
       </div>
@@ -89,7 +93,6 @@ async function loadTaskDetail(taskId) {
 
   const t = data.task;
   const isDone = t.is_completed;
-  const hasImage = t.image && t.image.length > 5;
   const steps = t.steps || (t.guide ? t.guide.split('\n').filter(s => s.trim()) : []);
 
   const stepsHtml = steps.length > 0
@@ -99,7 +102,7 @@ async function loadTaskDetail(taskId) {
   body.innerHTML = `
     <div class="task-detail-header">
       <div class="task-icon" style="background:linear-gradient(135deg,${t.color || '#7b5ef8'},${t.color2 || '#5a3fd6'})">
-        ${hasImage ? `<img src="${t.image}" style="width:100%;height:100%;object-fit:cover" onerror="this.onerror=null;var vps='http://153.75.246.79:8001${t.image}';var s=this;fetch(vps).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(b=>{s.src=URL.createObjectURL(b)}).catch(()=>{s.style.display='none'})">` : (t.icon || '📋')}
+        ${t.icon || '📋'}
       </div>
       <h3 style="font-size:17px;font-weight:700">${t.title}</h3>
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px">
@@ -115,14 +118,12 @@ async function loadTaskDetail(taskId) {
     ${t.description ? `<p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;white-space:pre-wrap">${escHtml(t.description)}</p>` : ''}
     ${stepsHtml}
     ${t.video_url ? `<div style="margin-top:12px"><button class="btn btn-outline btn-block" style="font-size:13px" onclick="openLink('${t.video_url}')">▶ Offer Video</button></div>` : ''}
-    ${hasImage ? `<div style="margin-top:12px;text-align:center">
-      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:6px">📋 Reference Image</div>
-      <img src="/api/app/task-image/${taskId}" style="width:100%;max-width:280px;border-radius:10px;border:1px solid var(--border);object-fit:cover" onerror="this.onerror=null;this.style.display='none'">
-    </div>` : ''}
     <div style="margin-top:12px">
       ${isDone
         ? '<div style="text-align:center;padding:12px;background:rgba(0,229,160,0.1);border-radius:10px;color:var(--success);font-weight:700">✅ Task Completed</div>'
-        : `<button class="btn btn-primary btn-block btn-lg" onclick="startTask(${taskId})">${t.type === 'channel' ? '📢' : '🚀'} Start Task</button>`
+        : t.has_pending_proof
+          ? '<div style="text-align:center;padding:12px;background:rgba(255,193,7,0.1);border-radius:10px;color:#ffc107;font-weight:700">⏳ Pending Review</div>'
+          : `<button class="btn btn-primary btn-block btn-lg" onclick="startTask(${taskId})">${t.type === 'channel' ? '📢' : '🚀'} Start Task</button>`
       }
     </div>
   `;
