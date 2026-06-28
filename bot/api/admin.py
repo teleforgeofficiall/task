@@ -322,7 +322,16 @@ async def admin_update_task(request: Request, task_id: int):
         "is_multi_reward", "offer_url", "channel_id", "channel_username",
         "channel_url", "channel_title", "is_active",
     ]
+    from bot.database.repository import _parse_duration
     kwargs = {k: v for k, v in data.items() if k in allowed and v is not None}
+    if "duration_text" in kwargs:
+        delta = _parse_duration(kwargs["duration_text"] or "")
+        if delta:
+            from datetime import datetime, timedelta, timezone
+            IST = timezone(timedelta(hours=5, minutes=30))
+            kwargs["expires_at"] = (datetime.now(IST) + delta).isoformat()
+        else:
+            kwargs["expires_at"] = ""
     async with get_session() as session:
         repo = Repository(session)
         await repo.update_task_fields(task_id, **kwargs)

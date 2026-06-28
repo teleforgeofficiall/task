@@ -1502,18 +1502,30 @@ async def app_task_image(task_id: int):
         return Response(status_code=404)
     if image_ref.startswith("http://") or image_ref.startswith("https://"):
         import re
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
             resp = await client.get(image_ref)
             if resp.status_code != 200:
                 return Response(status_code=404)
             ct = resp.headers.get("content-type", "text/plain").split(";")[0].strip().lower()
             if ct == "text/html":
                 html_text = resp.text
-                og_match = re.search(r'<meta\s+(?:property="og:image"[^>]*?\s+content="([^"]+)"|content="([^"]+)"[^>]*?\s+property="og:image")', html_text, re.IGNORECASE)
-                if not og_match:
-                    og_match = re.search(r"<meta\s+(?:property='og:image'[^>]*?\s+content='([^']+)'|content='([^']+)'[^>]*?\s+property='og:image')", html_text, re.IGNORECASE)
-                if og_match:
-                    image_url = og_match.group(1) or og_match.group(2)
+                image_url = None
+                # Try multiple patterns to extract og:image
+                for pattern in [
+                    r'property="og:image"\s+content="([^"]+)"',
+                    r'content="([^"]+)"\s+property="og:image"',
+                    r"property='og:image'\s+content='([^']+)'",
+                    r'og:image["\s]+content="([^"]+)"',
+                    r'content="([^"]+)"\s+property="og:image:url"',
+                    r'property="og:image:url"\s+content="([^"]+)"',
+                    r'property="twitter:image"\s+content="([^"]+)"',
+                    r'<img\s+class="tgme_page_photo_image"\s+src="([^"]+)"',
+                ]:
+                    m = re.search(pattern, html_text, re.IGNORECASE)
+                    if m:
+                        image_url = m.group(1)
+                        break
+                if image_url:
                     img_resp = await client.get(image_url)
                     if img_resp.status_code == 200:
                         img_ct = img_resp.headers.get("content-type", "image/jpeg")

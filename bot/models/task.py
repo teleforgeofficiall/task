@@ -37,6 +37,7 @@ class TaskModel(BaseModel):
     color: Optional[str] = None
     color2: Optional[str] = None
     duration_text: Optional[str] = None
+    expires_at: Optional[str] = None
     is_multi_reward: bool = False
     offer_url: Optional[str] = None
 

@@ -143,6 +143,7 @@ class TaskTable(Base):
     color: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     color2: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     duration_text: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    expires_at: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     is_multi_reward: Mapped[bool] = mapped_column(Boolean, default=False)
     offer_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 

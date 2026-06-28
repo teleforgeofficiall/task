@@ -198,6 +198,7 @@ async def _migrate_sqlite_schema(engine) -> None:
             "completer_reward": "FLOAT DEFAULT 0.0",
             "max_completers": "INTEGER DEFAULT 0",
             "current_completers": "INTEGER DEFAULT 0",
+            "expires_at": "VARCHAR(50) DEFAULT NULL",
         }
         def _get_task_cols_sqlite(sync_conn):
             return {c["name"] for c in inspect(sync_conn).get_columns("tasks")}
@@ -291,6 +292,7 @@ async def _migrate_mysql_schema(engine) -> None:
             "completer_reward": "FLOAT DEFAULT 0.0",
             "max_completers": "INTEGER DEFAULT 0",
             "current_completers": "INTEGER DEFAULT 0",
+            "expires_at": "VARCHAR(50) DEFAULT NULL",
         }
         def _get_task_cols(sync_conn):
             return {c["name"] for c in inspect(sync_conn).get_columns("tasks")}
