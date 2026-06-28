@@ -20,6 +20,7 @@ class TaskModel(BaseModel):
     guide: str = ""
     reward: float
     image: str = ""
+    task_image: str = ""
     media_type: str = "photo"       # "photo" | "video"
     is_active: bool = True
     created_at: str = Field(default_factory=_now_ist)

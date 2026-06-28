@@ -242,16 +242,22 @@ function adminCreateTask() {
       <div id="f_channel_fields" style="display:none">
         <div class="form-group"><label>Channel ID (required)</label><input id="f_channel_id" placeholder="-100... or @channel_username"></div>
         <div class="form-group"><label>Channel URL</label><input id="f_channel_url" placeholder="https://t.me/channelname"></div>
-        <div class="form-group"><label>Reference Image</label><input id="f_image" placeholder="e.g. https://t.me/channelname/123"><div class="help-text">Paste Telegram post link — shows as example for users</div></div>
+        <div class="form-group"><label>Task Image (card)</label><div class="admin-img-upload" onclick="document.getElementById('f_task_image_file').click()"><div id="f_task_image_preview">Tap to upload</div><input type="file" id="f_task_image_file" accept="image/*" style="display:none" onchange="adminHandleImage(this,'f_task_image_preview','f_task_image_data')"></div></div>
+        <div class="form-group"><label>Reference Image (proof)</label><div class="admin-img-upload" onclick="document.getElementById('f_image_file').click()"><div id="f_image_preview">Tap to upload</div><input type="file" id="f_image_file" accept="image/*" style="display:none" onchange="adminHandleImage(this,'f_image_preview','f_image_data')"></div></div>
       </div>
       <div id="f_manual_fields">
         <div class="form-group"><label>Description</label><textarea id="f_description" placeholder="Task description"></textarea></div>
         <div class="form-group"><label>Guide</label><textarea id="f_guide" placeholder="How to complete this task"></textarea></div>
-        <div class="form-group"><label>Reference Image</label><input id="f_image" placeholder="e.g. https://t.me/channelname/123"><div class="help-text">Paste Telegram post link — shows as example for users</div></div>
+        <div class="form-group"><label>Task Image (card)</label><div class="admin-img-upload" onclick="document.getElementById('f_task_image_file2').click()"><div id="f_task_image_preview2">Tap to upload</div><input type="file" id="f_task_image_file2" accept="image/*" style="display:none" onchange="adminHandleImage(this,'f_task_image_preview2','f_task_image_data')"></div></div>
+        <div class="form-group"><label>Reference Image (proof)</label><div class="admin-img-upload" onclick="document.getElementById('f_image_file2').click()"><div id="f_image_preview2">Tap to upload</div><input type="file" id="f_image_file2" accept="image/*" style="display:none" onchange="adminHandleImage(this,'f_image_preview2','f_image_data')"></div></div>
         <div class="form-group"><label>Color</label><input id="f_color" type="color" value="#7b5ef8"></div>
-        <div class="form-group"><label>Duration Text</label><input id="f_duration" value="15 min"></div>
+        <div class="form-group"><label>Duration Text</label><input id="f_duration" value="15 min" placeholder="e.g. 15 min, 1 hour, 1 day"></div>
         <div class="form-group"><label>Offer URL</label><input id="f_offer_url" placeholder="https://..."></div>
       </div>
+      <input type="hidden" id="f_task_image" value="">
+      <input type="hidden" id="f_task_image_data" value="">
+      <input type="hidden" id="f_image" value="">
+      <input type="hidden" id="f_image_data" value="">
       <div class="form-group"><label>Reward (₹)</label><input id="f_reward" type="number" step="0.01" value="1"></div>
       <button class="btn btn-primary btn-block" onclick="adminSaveTask(0)">Create Task</button>
     </div>
@@ -263,18 +269,21 @@ async function adminEditTask(tid) {
   const task = data.tasks?.find(t => t.id === tid);
   if (!task) { toast('Task not found'); return; }
   const isChannel = task.task_type === 'channel';
+  const taskImgHtml = task.task_image ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><img src="${task.task_image}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;border:1px solid var(--border)"><span style="font-size:11px;color:var(--text-secondary)">Current</span></div>` : '';
+  const refImgHtml = task.image ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><img src="/api/app/task-image/${tid}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;border:1px solid var(--border)" onerror="this.style.display='none'"><span style="font-size:11px;color:var(--text-secondary)">Current</span></div>` : '';
   showModal('Admin › Edit Task', `
     <div class="admin-form">
       <input type="hidden" id="f_task_type" value="${task.task_type}">
       <div class="form-group"><label>Description</label><textarea id="f_description">${task.description || ''}</textarea></div>
-      <div class="form-group"><label>Reference Image</label><input id="f_image" value="${escHtml(task.image || '')}" placeholder="e.g. https://t.me/channelname/123"><div class="help-text">Paste Telegram post link — shows as example for users</div></div>
+      <div class="form-group"><label>Task Image (card)</label>${taskImgHtml}<div class="admin-img-upload" onclick="document.getElementById('f_task_image_file_edit').click()"><div id="f_task_image_preview_edit">${task.task_image ? 'Tap to replace' : 'Tap to upload'}</div><input type="file" id="f_task_image_file_edit" accept="image/*" style="display:none" onchange="adminHandleImage(this,'f_task_image_preview_edit','f_task_image_data')"></div><input type="hidden" id="f_task_image" value="${escHtml(task.task_image || '')}"><input type="hidden" id="f_task_image_data"></div>
+      <div class="form-group"><label>Reference Image (proof)</label>${refImgHtml}<div class="admin-img-upload" onclick="document.getElementById('f_image_file_edit').click()"><div id="f_image_preview_edit">${task.image ? 'Tap to replace' : 'Tap to upload'}</div><input type="file" id="f_image_file_edit" accept="image/*" style="display:none" onchange="adminHandleImage(this,'f_image_preview_edit','f_image_data')"></div><input type="hidden" id="f_image" value="${escHtml(task.image || '')}"><input type="hidden" id="f_image_data"></div>
       ${isChannel ? `
       <div class="form-group"><label>Channel ID</label><input id="f_channel_id" value="${task.channel_id || ''}" placeholder="-100... or @username"></div>
       <div class="form-group"><label>Channel URL</label><input id="f_channel_url" value="${task.channel_url || ''}" placeholder="https://t.me/channelname"></div>
       ` : `
       <div class="form-group"><label>Guide</label><textarea id="f_guide">${task.guide || ''}</textarea></div>
       <div class="form-group"><label>Color</label><input id="f_color" type="color" value="${task.color || '#7b5ef8'}"></div>
-      <div class="form-group"><label>Duration Text</label><input id="f_duration" value="${task.duration_text || '15 min'}"></div>
+      <div class="form-group"><label>Duration Text</label><input id="f_duration" value="${task.duration_text || '15 min'}" placeholder="e.g. 15 min, 1 hour, 1 day"></div>
       <div class="form-group"><label>Offer URL</label><input id="f_offer_url" value="${task.offer_url || ''}"></div>
       `}
       <div class="form-group"><label>Reward (₹)</label><input id="f_reward" type="number" step="0.01" value="${task.reward}"></div>
@@ -294,23 +303,89 @@ async function adminSaveTask(tid) {
     toast('Channel ID is required for channel tasks');
     return;
   }
-  const body = {
-    task_type: taskType,
-    description: document.getElementById('f_description')?.value || '',
-    guide: document.getElementById('f_guide')?.value || '',
-    reward: parseFloat(document.getElementById('f_reward')?.value || 0),
-    image: document.getElementById('f_image')?.value || '',
-    color: document.getElementById('f_color')?.value || '#7b5ef8',
-    duration_text: document.getElementById('f_duration')?.value || '15 min',
-    offer_url: document.getElementById('f_offer_url')?.value || '',
-    channel_id: channelId,
-    channel_url: document.getElementById('f_channel_url')?.value || '',
+
+  const taskImageData = document.getElementById('f_task_image_data')?.value || '';
+  const refImageData = document.getElementById('f_image_data')?.value || '';
+
+  let taskImage = document.getElementById('f_task_image')?.value || '';
+  let refImage = document.getElementById('f_image')?.value || '';
+
+  const btn = document.querySelector('.btn-primary.btn-block');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving...'; }
+
+  try {
+    // Upload images if base64 data is present
+    if (taskImageData) {
+      const up = await adminApi('/upload-image', 'POST', { image: taskImageData, prefix: 'taskimg' });
+      if (up.ok) taskImage = up.path;
+    }
+    if (refImageData) {
+      const up = await adminApi('/upload-image', 'POST', { image: refImageData, prefix: 'refimg' });
+      if (up.ok) refImage = up.path;
+    }
+
+    const body = {
+      task_type: taskType,
+      description: document.getElementById('f_description')?.value || '',
+      guide: document.getElementById('f_guide')?.value || '',
+      reward: parseFloat(document.getElementById('f_reward')?.value || 0),
+      task_image: taskImage,
+      image: refImage,
+      color: document.getElementById('f_color')?.value || '#7b5ef8',
+      duration_text: document.getElementById('f_duration')?.value || '15 min',
+      offer_url: document.getElementById('f_offer_url')?.value || '',
+      channel_id: channelId,
+      channel_url: document.getElementById('f_channel_url')?.value || '',
+    };
+    const data = tid
+      ? await adminApi('/tasks/' + tid, 'PUT', body)
+      : await adminApi('/tasks', 'POST', body);
+    if (data.ok) { toast(tid ? 'Task updated!' : 'Task created!'); closeModal(); adminTasks(); }
+    else { toast('Failed: ' + data.error); }
+  } catch (e) {
+    toast('Failed: ' + (e.message || 'Error'));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = tid ? 'Save' : 'Create Task'; }
+  }
+}
+
+function adminHandleImage(input, previewId, hiddenId) {
+  const file = input.files[0];
+  if (!file) return;
+  const maxFileSize = 3 * 1024 * 1024;
+  if (file.size > maxFileSize) { toast('File too large. Max 3MB.'); input.value = ''; return; }
+  const preview = document.getElementById(previewId);
+  if (preview) preview.textContent = '⏳ Compressing...';
+  const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  img.onload = function() {
+    const canvas = document.createElement('canvas');
+    let w = img.width, h = img.height;
+    const maxDim = 600;
+    if (w > maxDim || h > maxDim) {
+      if (w > h) { h = (h / w) * maxDim; w = maxDim; }
+      else { w = (w / h) * maxDim; h = maxDim; }
+    }
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    let quality = 0.7;
+    let compressed = canvas.toDataURL('image/jpeg', quality);
+    while (compressed.length > 450000 && quality > 0.2) {
+      quality -= 0.1;
+      compressed = canvas.toDataURL('image/jpeg', quality);
+    }
+    const hidden = document.getElementById(hiddenId);
+    if (hidden) hidden.value = compressed;
+    if (preview) preview.innerHTML = `<img src="${compressed}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`;
+    URL.revokeObjectURL(objectUrl);
   };
-  const data = tid
-    ? await adminApi('/tasks/' + tid, 'PUT', body)
-    : await adminApi('/tasks', 'POST', body);
-  if (data.ok) { toast(tid ? 'Task updated!' : 'Task created!'); closeModal(); adminTasks(); }
-  else { toast('Failed: ' + data.error); }
+  img.onerror = function() {
+    toast('Failed to load image');
+    if (preview) preview.textContent = 'Tap to upload';
+    URL.revokeObjectURL(objectUrl);
+  };
+  img.src = objectUrl;
 }
 
 async function adminToggleTask(tid) {

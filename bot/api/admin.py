@@ -17,6 +17,31 @@ from bot.admin.panel import get_admin_ids, refresh_admin_ids
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin")
 
+UPLOAD_DIR = "/opt/taskhub/uploads"
+
+
+@router.post("/upload-image")
+async def admin_upload_image(request: Request):
+    admin_id = await require_admin(request)
+    data = await request.json()
+    image_data = data.get("image", "")
+    prefix = data.get("prefix", "img")
+    if not image_data:
+        return {"ok": False, "error": "No image data"}
+    import base64
+    if "," in image_data:
+        image_data = image_data.split(",")[1]
+    try:
+        img_bytes = base64.b64decode(image_data)
+    except Exception:
+        return {"ok": False, "error": "Invalid image data"}
+    filename = f"{prefix}_{uuid.uuid4().hex[:12]}.jpg"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(img_bytes)
+    return {"ok": True, "path": f"/api/app/uploads/{filename}"}
+
 
 async def require_admin(request: Request) -> int:
     """Extract user_id from request and verify admin access. Never consumes request body."""
@@ -295,6 +320,7 @@ async def admin_create_task(request: Request):
             "guide": data.get("guide", ""),
             "reward": float(data.get("reward", 0)),
             "image": data.get("image", ""),
+            "task_image": data.get("task_image", ""),
             "media_type": data.get("media_type", "photo"),
             "video_url": data.get("video_url", ""),
             "steps": data.get("steps", []),
@@ -317,7 +343,7 @@ async def admin_update_task(request: Request, task_id: int):
     admin_id = await require_admin(request)
     data = await request.json()
     allowed = [
-        "task_type", "description", "guide", "reward", "image", "media_type",
+        "task_type", "description", "guide", "reward", "image", "task_image", "media_type",
         "video_url", "steps", "color", "color2", "duration_text",
         "is_multi_reward", "offer_url", "channel_id", "channel_username",
         "channel_url", "channel_title", "is_active",

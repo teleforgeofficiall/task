@@ -126,6 +126,7 @@ class TaskTable(Base):
     guide: Mapped[str] = mapped_column(Text, default="")
     reward: Mapped[float] = mapped_column(Float, nullable=False)
     image: Mapped[str] = mapped_column(Text, default="")
+    task_image: Mapped[str] = mapped_column(Text, default="")
     media_type: Mapped[str] = mapped_column(String(10), default="photo")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     created_at: Mapped[str] = mapped_column(String(50), default=lambda: datetime.now(IST).isoformat())

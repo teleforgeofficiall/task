@@ -649,6 +649,7 @@ async def app_tasks(user_id: int):
                     "type": t.task_type or "manual",
                     "icon": "📋",
                     "image": f"/api/app/task-image/{t.id}" if t.image else "",
+                    "task_image": t.task_image or "",
                     "color": t.color or "#7b5ef8",
                     "color2": t.color2 or "#5a3fd6",
                     "duration": t.duration_text or "15 min",
@@ -690,6 +691,7 @@ async def app_task_detail(task_id: int, user_id: int):
                 "type": t.task_type or "manual",
                 "icon": "📋",
                 "image": f"/api/app/task-image/{t.id}" if t.image else "",
+                "task_image": t.task_image or "",
                 "color": t.color or "#7b5ef8",
                 "color2": t.color2 or "#5a3fd6",
                 "duration": t.duration_text or "15 min",
@@ -1480,6 +1482,17 @@ async def app_watch_ad(request: Request):
         user = await repo.get_user(user_id)
         completed = goal_count >= ad_goal_target
         return {"ok": True, "amount": per_ad, "balance": float(user.balance or 0), "completed": completed}
+
+
+@app.get("/api/app/uploads/{filename:path}")
+async def app_uploaded_file(filename: str):
+    """Serve uploaded files from the uploads directory."""
+    import os
+    filepath = os.path.normpath(os.path.join(UPLOAD_DIR, filename))
+    if not filepath.startswith(UPLOAD_DIR) or not os.path.exists(filepath):
+        return Response(status_code=404)
+    from fastapi.responses import FileResponse
+    return FileResponse(filepath)
 
 
 @app.get("/api/app/task-image/{task_id}")
