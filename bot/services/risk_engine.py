@@ -13,8 +13,6 @@ from bot.services.user_profiler import UserProfiler
 from bot.services.exposure_manager import ExposureManager
 from bot.services.retention_engine import RetentionEngine
 from bot.services.anti_abuse import AntiAbuseEngine
-from bot.services.slot_psychology import SlotPsychologyEngine
-from bot.services.crash_engine import CrashEngine
 from bot.services.mines_engine import MinesEngine
 from bot.services.dice_engine import DiceEngine
 
@@ -111,8 +109,6 @@ class RiskEngine:
         self._exposure: Optional[ExposureManager] = None
         self._retention: Optional[RetentionEngine] = None
         self._anti_abuse: Optional[AntiAbuseEngine] = None
-        self._slots_psy: Optional[SlotPsychologyEngine] = None
-        self._crash: Optional[CrashEngine] = None
         self._mines: Optional[MinesEngine] = None
         self._dice: Optional[DiceEngine] = None
 
@@ -181,16 +177,6 @@ class RiskEngine:
         if not self._anti_abuse:
             self._anti_abuse = AntiAbuseEngine(self._repo)
         return self._anti_abuse
-
-    def slots_psy(self) -> SlotPsychologyEngine:
-        if not self._slots_psy:
-            self._slots_psy = SlotPsychologyEngine()
-        return self._slots_psy
-
-    def crash_eng(self) -> CrashEngine:
-        if not self._crash:
-            self._crash = CrashEngine()
-        return self._crash
 
     def mines_eng(self) -> MinesEngine:
         if not self._mines:
@@ -274,24 +260,6 @@ class RiskEngine:
         )
         return result
 
-    async def spin_slots(self, config: dict, user_game_count: int = 0,
-                          user_id: Optional[int] = None,
-                          force_loss: bool = False) -> dict:
-        """Slots spin with psychology engine + optional W-L-L force loss."""
-        cfg = await self.load_config()
-        rtp_info = await self._compute_effective_rtp("slots", cfg, user_id)
-        exposure_info = await self.exposure().get_exposure_level()
-        jackpot_mod = await self.exposure().get_jackpot_probability_modifier()
-
-        return self.slots_psy().spin(
-            config=config,
-            effective_rtp=rtp_info["effective_rtp"],
-            exposure_mod=max(0.1, 1.0 - exposure_info["risk_score"]),
-            user_id=user_id,
-            jackpot_mod=jackpot_mod,
-            force_loss=force_loss,
-        )
-
     async def generate_mines(self, config: dict, mine_count: int = None,
                               user_game_count: int = 0,
                               user_id: Optional[int] = None,
@@ -312,23 +280,6 @@ class RiskEngine:
     def get_mines_multiplier(self, gems_found: int, total_mines: int,
                               grid_size: int = 9) -> float:
         return self.mines_eng().get_multiplier(gems_found, total_mines, grid_size)
-
-    async def generate_crash_point(self, config: dict, user_game_count: int = 0,
-                                    user_id: Optional[int] = None) -> float:
-        """Crash point with adaptive distribution."""
-        cfg = await self.load_config()
-        rtp_info = await self._compute_effective_rtp("crash", cfg, user_id)
-        volatility = cfg.get("global", {}).get("volatility", "normal")
-        mult_limit = await self.exposure().get_multiplier_limit()
-
-        point = self.crash_eng().generate(
-            config=config,
-            effective_rtp=rtp_info["effective_rtp"],
-            exposure_mult_limit=mult_limit,
-            volatility=volatility,
-        )
-        self.crash_eng().record_crash(f"user_{user_id}" if user_id else "global", point)
-        return point
 
     # --- Anti-abuse (backward compatible) ---
 

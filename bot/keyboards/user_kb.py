@@ -111,11 +111,7 @@ def games_hub_keyboard() -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton("🎲 Dice", callback_data="game:play:dice"),
-            InlineKeyboardButton("🎰 Slots", callback_data="game:play:slots"),
-        ],
-        [
             InlineKeyboardButton("💣 Mines", callback_data="game:play:mines"),
-            InlineKeyboardButton("📈 Crash", callback_data="game:play:crash"),
         ],
         [InlineKeyboardButton("🔙 Back to Menu", callback_data="menu:main")],
     ]

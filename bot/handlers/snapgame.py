@@ -53,9 +53,7 @@ async def games_hub_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         "> Pick a game and start playing.\n"
         "> All games use your wallet balance.\n\n"
         "🎲 <b>Dice</b> — Roll & win big\n"
-        "🎰 <b>Slots</b> — Match symbols for rewards\n"
-        "💣 <b>Mines</b> — Find gems, avoid bombs\n"
-        "📈 <b>Crash</b> — Cash out before it crashes"
+        "💣 <b>Mines</b> — Find gems, avoid bombs"
     )
 
     await edit_or_reply(
@@ -77,10 +75,10 @@ async def game_bet_select_handler(update: Update, context: ContextTypes.DEFAULT_
     await query.answer()
     game = query.data.split(":")[2]
     repository = Repository(await get_db())
-    game_names = {"dice": "🎲 Dice", "slots": "🎰 Slots", "mines": "💣 Mines", "crash": "📈 Crash"}
+    game_names = {"dice": "🎲 Dice", "mines": "💣 Mines"}
     name = game_names.get(game, game.capitalize())
 
-    img_key = {"dice": "img_game_dice", "slots": "img_game_slots", "mines": "img_game_mines", "crash": "img_game_crash"}.get(game, "img_game")
+    img_key = {"dice": "img_game_dice", "mines": "img_game_mines"}.get(game, "img_game")
     banner_url = await repository.get_image(img_key)
     descriptions = {
         "dice": (
@@ -94,17 +92,6 @@ async def game_bet_select_handler(update: Update, context: ContextTypes.DEFAULT_
             "• Higher rolls can trigger bigger multipliers.\n\n"
             "<b>💡 Tip:</b> Dice is fast-paced. Set a budget and play smart."
         ),
-        "slots": (
-            "━━━━━━━━━━━━━━━━━━━━\n"
-            f"{name}\n"
-            "━━━━━━━━━━━━━━━━━━━━\n\n"
-            "<b>🎯 How to Play</b>\n"
-            "• Place your bet and spin the reels.\n"
-            "• Match <b>2 or more</b> symbols to win.\n"
-            "• <b>3 identical</b> symbols = Jackpot! 👑\n"
-            "• Symbol values: 🍒 Common → 🔔 Rare → ⭐ Epic → 👑 Legendary\n\n"
-            "<b>💡 Tip:</b> The jackpot can payout big. Every spin counts."
-        ),
         "mines": (
             "━━━━━━━━━━━━━━━━━━━━\n"
             f"{name}\n"
@@ -116,17 +103,6 @@ async def game_bet_select_handler(update: Update, context: ContextTypes.DEFAULT_
             "• <b>Cash out</b> anytime to secure your winnings.\n"
             "• Hit a mine and you lose your bet.\n\n"
             "<b>💡 Tip:</b> Don't get greedy — cash out early for consistent wins."
-        ),
-        "crash": (
-            "━━━━━━━━━━━━━━━━━━━━\n"
-            f"{name}\n"
-            "━━━━━━━━━━━━━━━━━━━━\n\n"
-            "<b>🎯 How to Play</b>\n"
-            "• Place your bet and watch the multiplier rise.\n"
-            "• <b>Cash out</b> before the crash to win.\n"
-            "• If it crashes before you cash out — you lose.\n"
-            "• The longer you wait, the higher the multiplier.\n\n"
-            "<b>💡 Tip:</b> A low multiplier cashout is still a win. Don't be greedy!"
         ),
     }
     text = descriptions.get(game, f"━━━━━━━━━━━━━━━━━━━━\n{name}\n━━━━━━━━━━━━━━━━━━━━\n\n<blockquote>Choose your bet amount and start playing.</blockquote>")
@@ -203,93 +179,6 @@ async def game_dice_play_handler(update: Update, context: ContextTypes.DEFAULT_T
     await context.bot.send_message(chat_id=user_id, text=text, parse_mode="HTML", reply_markup=game_result_keyboard("dice"))
 
 
-# ─── Slots Game ──────────────────────────────────────────────────────────
-
-async def game_slots_play_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Place bet and spin 3 dice for slot machine."""
-    query = update.callback_query
-    if not query:
-        return
-    parts = query.data.split(":")
-    amount = float(parts[3])
-    user_id = query.from_user.id
-
-    repository = Repository(await get_db())
-    engine = RiskEngine(repository)
-    abuse = await engine.check_abuse(user_id, "slots", amount)
-    if not abuse["allowed"]:
-        await query.answer(f"❌ {abuse['reason']}", show_alert=True)
-        return
-
-    if not _check_cooldown(context, "slots"):
-        await query.answer("⏳ Please wait before betting again.", show_alert=True)
-        return
-
-    user = await repository.get_user(user_id)
-    if not user or user.balance < amount:
-        await query.answer("❌ Insufficient balance!", show_alert=True)
-        return
-
-    await repository.record_game_bet_transaction(user_id, "slots", amount)
-    await query.answer()
-
-    await edit_or_reply(update=update, context=context, text="🎰 Spinning...")
-
-    try:
-        cfg = await engine.get_game_config("slots")
-        gc = _get_game_count(context)
-
-        # W-L-L loss streak enforcement
-        streak = context.user_data.get("slots_loss_streak", 0)
-        force_loss = streak > 0
-        spin = await engine.spin_slots(cfg, gc, user_id=user_id, force_loss=force_loss)
-        if force_loss:
-            context.user_data["slots_loss_streak"] = streak - 1
-        elif spin["win"]:
-            context.user_data["slots_loss_streak"] = random.randint(1, 10)
-
-        _increment_game_count(context)
-
-        reels = spin["reels"]
-        emoji_map = {"common": "🍒", "rare": "🔔", "epic": "⭐", "legendary": "👑"}
-        display = " | ".join(emoji_map.get(s, "❓") for s in reels)
-        won = spin["win"]
-
-        if won:
-            mult = spin["multiplier"]
-            payout = amount * mult
-            await repository.record_game_win_transaction(user_id, "slots", payout, mult)
-            await repository.record_game_round(user_id, "slots", amount, payout, mult, won=True, details={"reels": reels, "jackpot": spin.get("jackpot", False)})
-            await engine.record_bet("slots", amount, payout)
-            if spin.get("jackpot"):
-                status = "JACKPOT! 🎉👑"
-            elif len(set(reels)) == 1:
-                status = "JACKPOT! 🎉"
-            else:
-                status = "Nice! ✅"
-        else:
-            mult = 0
-            payout = 0
-            await repository.record_game_round(user_id, "slots", amount, 0, 0, won=False, details={"reels": reels})
-            await engine.record_bet("slots", amount, 0)
-            status = "Lost ❌"
-
-        text = (
-            f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"🎰 <b>Slots</b> — Result\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"<code>  {display}  </code>\n\n"
-            f"<b>{status}</b>\n\n"
-            f"Bet: <code>₹{amount:.2f}</code>\n"
-            f"{f'Payout: <code>₹{payout:.2f} ({mult}x)</code>' if mult > 0 else ''}"
-        )
-
-        is_rage = await engine.is_rage_betting(user_id, amount)
-        await engine.update_session(user_id, "slots", amount, won, is_rage)
-        await context.bot.send_message(chat_id=user_id, text=text, parse_mode="HTML", reply_markup=game_result_keyboard("slots"))
-    except Exception as e:
-        logger.exception("Slots game error for user %s: %s", user_id, e)
-        await context.bot.send_message(chat_id=user_id, text="❌ Game error. Please try again.")
 
 
 # ─── Mines Game ──────────────────────────────────────────────────────────
@@ -448,247 +337,6 @@ async def game_mines_cashout_handler(update: Update, context: ContextTypes.DEFAU
     await edit_or_reply(update=update, context=context, text=text, reply_markup=mines_grid_keyboard(mines["revealed"], True))
 
 
-# ─── Crash Game ──────────────────────────────────────────────────────────
-
-async def game_crash_start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Start a crash game round."""
-    query = update.callback_query
-    if not query:
-        return
-    parts = query.data.split(":")
-    amount = float(parts[3])
-    user_id = query.from_user.id
-
-    repository = Repository(await get_db())
-    engine = RiskEngine(repository)
-    abuse = await engine.check_abuse(user_id, "crash", amount)
-    if not abuse["allowed"]:
-        await query.answer(f"❌ {abuse['reason']}", show_alert=True)
-        return
-
-    user = await repository.get_user(user_id)
-    if not user or user.balance < amount:
-        await query.answer("❌ Insufficient balance!", show_alert=True)
-        return
-
-    await repository.record_game_bet_transaction(user_id, "crash", amount)
-    await query.answer()
-
-    cfg = await engine.get_game_config("crash")
-    gc = _get_game_count(context)
-    game_id = f"crash_{user_id}_{int(time.time())}"
-    crash_point = await engine.generate_crash_point(cfg, gc, user_id=user_id)
-    start_time = time.time()
-
-    try:
-        chat_id = query.message.chat_id
-        try:
-            await query.delete_message()
-        except Exception:
-            pass
-        msg = await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"📈 <b>Crash</b>\n\nMultiplier: <code>1.00x</code>\n\n💰 Tap Cash Out before it crashes!",
-            parse_mode="HTML",
-            reply_markup=crash_game_keyboard(game_id, False)
-        )
-        chat_id = msg.chat_id
-        msg_id = msg.message_id
-    except Exception:
-        chat_id = user_id
-        msg_id = None
-
-    context.user_data["crash"] = {
-        "game_id": game_id,
-        "amount": amount,
-        "multiplier": 1.0,
-        "crash_point": crash_point,
-        "start_time": start_time,
-        "cashed_out": False,
-        "crashed": False,
-        "chat_id": chat_id,
-        "message_id": msg_id,
-        "user_id": user_id,
-    }
-
-    asyncio.create_task(_crash_game_loop(context, game_id, amount, crash_point, start_time, chat_id, msg_id))
-
-
-async def _crash_game_loop(context, game_id: str, amount: float, crash_point: float,
-                           start_time: float, chat_id: int, msg_id: int) -> None:
-    """Background game loop — runs concurrently with cashout handler."""
-    user_data = context.user_data
-    bot = context.bot
-    try:
-        for step in range(200):
-            await asyncio.sleep(0.5)
-
-            cd = user_data.get("crash")
-            if not cd or cd.get("game_id") != game_id or cd["cashed_out"] or cd["crashed"]:
-                return
-
-            elapsed = time.time() - start_time
-            new_mult = round(1.0 + (elapsed * 0.25), 2)
-
-            # Re-read after potential yield during cashout processing
-            cd = user_data.get("crash")
-            if not cd or cd.get("game_id") != game_id or cd["cashed_out"] or cd["crashed"]:
-                return
-
-            cd["multiplier"] = new_mult
-            user_data["crash"] = cd
-
-            if new_mult >= crash_point:
-                cd["crashed"] = True
-                user_data["crash"] = cd
-                try:
-                    repo = Repository(await get_db())
-                    uid = cd.get("user_id") or 0
-                    await repo.record_game_round(uid, "crash", amount, 0, crash_point, won=False)
-                    eng = RiskEngine(repo)
-                    await eng.record_bet("crash", amount, 0)
-                    _increment_game_count(context)
-                    if uid:
-                        await eng.update_session(uid, "crash", amount, False, False)
-                except Exception:
-                    pass
-                if msg_id:
-                    try:
-                        await bot.edit_message_text(
-                            chat_id=chat_id, message_id=msg_id,
-                            text=f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"📈 <b>Crash</b> — Crashed!\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n\n"
-                            f"> 💥 Crashed at <b>{crash_point:.2f}x</b>\n\n"
-                            f"Bet: <code>₹{amount:.2f}</code>\n"
-                            f"Loss: <code>-₹{amount:.2f}</code>",
-                            parse_mode="HTML",
-                            reply_markup=crash_game_keyboard(game_id, True)
-                        )
-                    except Exception:
-                        pass
-                return
-
-            if msg_id:
-                try:
-                    await context.bot.edit_message_text(
-                        chat_id=chat_id, message_id=msg_id,
-                        text=f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"📈 <b>Crash</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n\n"
-                        f"Multiplier: <code>{new_mult:.2f}x</code>\n\n"
-                        f"💰 Cash out before it crashes!",
-                        parse_mode="HTML",
-                        reply_markup=crash_game_keyboard(game_id, False)
-                    )
-                except Exception:
-                    return
-    except Exception as exc:
-        logger.error("Crash game loop error: %s", exc)
-
-
-async def game_crash_cashout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Cash out from crash game."""
-    query = update.callback_query
-    if not query:
-        return
-
-    user_id = query.from_user.id
-    crash_data = context.user_data.get("crash")
-
-    if not crash_data:
-        await query.answer("No active game found. Start a new one!", show_alert=True)
-        return
-
-    if crash_data["crashed"]:
-        await show_crash_result(query, context, crash_data, user_id)
-        return
-
-    if crash_data["cashed_out"]:
-        await query.answer("✅ Already cashed out!", show_alert=True)
-        return
-
-    crash_data["cashed_out"] = True
-    context.user_data["crash"] = crash_data
-
-    mult = crash_data["multiplier"]
-    amount = crash_data["amount"]
-    payout = amount * mult
-
-    await query.answer()
-
-    repository = Repository(await get_db())
-    engine = RiskEngine(repository)
-    await repository.record_game_win_transaction(user_id, "crash", payout, mult)
-    await repository.record_game_round(user_id, "crash", amount, payout, mult, won=True)
-    await engine.record_bet("crash", amount, payout)
-    _increment_game_count(context)
-    is_rage = await engine.is_rage_betting(user_id, amount)
-    await engine.update_session(user_id, "crash", amount, True, is_rage)
-
-    result_text = (
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"📈 <b>Crash</b> — Cashed Out!\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"> Cashed out at <b>{mult:.2f}x</b>\n\n"
-        f"Bet: <code>₹{amount:.2f}</code>\n"
-        f"Payout: <code>₹{payout:.2f}</code>"
-    )
-    result_kb = crash_game_keyboard(crash_data["game_id"], True)
-
-    chat_id = crash_data.get("chat_id") or user_id
-    msg_id = crash_data.get("message_id")
-    if msg_id:
-        try:
-            await context.bot.edit_message_text(
-                chat_id=chat_id, message_id=msg_id,
-                text=result_text, parse_mode="HTML", reply_markup=result_kb
-            )
-            return
-        except Exception as exc:
-            logger.warning("Crash cashout edit failed: %s", exc)
-
-    await context.bot.send_message(
-        chat_id=user_id, text=result_text, parse_mode="HTML", reply_markup=result_kb
-    )
-
-
-async def show_crash_result(
-    query, context, crash_data, user_id, fallback_msg: str = ""
-) -> None:
-    """Show crash result instead of 'already cashed out' error."""
-    if crash_data and crash_data.get("crashed"):
-        amount = crash_data.get("amount", 0)
-        crash_point = crash_data.get("crash_point", 1.0)
-        lost = amount
-        result_text = (
-            f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"📈 <b>Crash</b> — Crashed!\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"> 💥 Crashed at <b>{crash_point:.2f}x</b>\n\n"
-            f"Bet: <code>₹{amount:.2f}</code>\n"
-            f"Loss: <code>-₹{lost:.2f}</code>"
-        )
-        result_kb = crash_game_keyboard(crash_data.get("game_id", ""), True)
-        await query.answer("Game crashed!", show_alert=True)
-        msg_id = crash_data.get("message_id")
-        chat_id = crash_data.get("chat_id") or user_id
-        if msg_id:
-            try:
-                await context.bot.edit_message_text(
-                    chat_id=chat_id, message_id=msg_id,
-                    text=result_text, parse_mode="HTML", reply_markup=result_kb
-                )
-            except Exception:
-                pass
-        return
-
-    await query.answer(
-        fallback_msg or "Game already ended. Start a new one!",
-        show_alert=True
-    )
-
-
 async def game_mines_none_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle taps on already-revealed or game-over mines cells."""
     query = update.callback_query
@@ -704,18 +352,13 @@ def register_handlers(application) -> None:
     application.add_handler(CallbackQueryHandler(games_hub_handler, pattern="^menu:snapgame$"))
 
     # Game selection
-    application.add_handler(CallbackQueryHandler(game_bet_select_handler, pattern="^game:play:(dice|slots|mines|crash)$"))
+    application.add_handler(CallbackQueryHandler(game_bet_select_handler, pattern="^game:play:(dice|mines)$"))
 
     # Bet confirmations
     application.add_handler(CallbackQueryHandler(game_dice_play_handler, pattern=r"^game:bet:dice:\d+(\.\d+)?$"))
-    application.add_handler(CallbackQueryHandler(game_slots_play_handler, pattern=r"^game:bet:slots:\d+(\.\d+)?$"))
     application.add_handler(CallbackQueryHandler(game_mines_start_handler, pattern=r"^game:bet:mines:\d+(\.\d+)?$"))
-    application.add_handler(CallbackQueryHandler(game_crash_start_handler, pattern=r"^game:bet:crash:\d+(\.\d+)?$"))
 
     # Mines interactions
     application.add_handler(CallbackQueryHandler(game_mines_reveal_handler, pattern=r"^mines:reveal:\d$"))
     application.add_handler(CallbackQueryHandler(game_mines_cashout_handler, pattern="^mines:cashout$"))
     application.add_handler(CallbackQueryHandler(game_mines_none_handler, pattern="^mines:none$"))
-
-    # Crash interactions
-    application.add_handler(CallbackQueryHandler(game_crash_cashout_handler, pattern=r"^crash:cashout:crash_\d+_\d+$"))

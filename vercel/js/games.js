@@ -1,10 +1,5 @@
 var _gameBet = 10;
 var _minesGameId = null;
-var _crashGameId = null;
-var _crashInterval = null;
-var _crashPoint = 0;
-var _crashMult = 1.0;
-var _crashActive = false;
 
 function loadGames() {
   var el = document.getElementById('gamesSection');
@@ -17,20 +12,10 @@ function loadGames() {
         <h4>Dice</h4>
         <p>Bet & roll</p>
       </div>
-      <div class="game-card" onclick="showGame('slots')">
-        <div class="game-icon">🎰</div>
-        <h4>Slots</h4>
-        <p>Spin & match</p>
-      </div>
       <div class="game-card" onclick="showGame('mines')">
         <div class="game-icon">💣</div>
         <h4>Mines</h4>
         <p>3x3 grid</p>
-      </div>
-      <div class="game-card" onclick="showGame('crash')">
-        <div class="game-icon">📈</div>
-        <h4>Crash</h4>
-        <p>Cash out timing</p>
       </div>
     </div>
     <div id="gamePlayArea" style="display:none"></div>
@@ -43,15 +28,11 @@ function showGame(game) {
   el.style.display = 'block';
   _gameBet = 10;
   if (game === 'dice') renderDice(el);
-  else if (game === 'slots') renderSlots(el);
   else if (game === 'mines') renderMines(el);
-  else if (game === 'crash') renderCrash(el);
 }
 
 function backToGames() {
-  stopCrash();
   _minesGameId = null;
-  _crashGameId = null;
   document.getElementById('gameGrid').style.display = '';
   var el = document.getElementById('gamePlayArea');
   el.style.display = 'none';
@@ -136,62 +117,7 @@ async function rollDice() {
   if (res.balance !== undefined) updateBalance(res.balance);
 }
 
-// ─── SLOTS ────────────────────────────────────────────────────────────────────
-var SLOTS_EMOJI = { 'common': '🍒', 'rare': '🔔', 'epic': '⭐', 'legendary': '👑' };
 
-function renderSlots(el) {
-  el.innerHTML = `
-    <h3 class="section-title">🎰 Slots</h3>
-    <p class="game-desc">Match 3 symbols to win!</p>
-    <div class="game-play">
-      <div class="slots-display" id="slotsDisplay">
-        <div class="slot-reels" id="slotReels">
-          <span class="slot-sym">🍒</span>
-          <span class="slot-sym">🍒</span>
-          <span class="slot-sym">🍒</span>
-        </div>
-      </div>
-      <div class="game-bets">${betSelector()}</div>
-      <button class="btn btn-primary btn-block" id="slotsSpinBtn" onclick="spinSlots()">Spin 🎰</button>
-      <div id="gameResult" class="game-result"></div>
-      ${gameBackBtn()}
-    </div>
-  `;
-}
-
-async function spinSlots() {
-  syncBet();
-  var btn = document.getElementById('slotsSpinBtn');
-  if (!btn) return;
-  btn.disabled = true;
-  btn.textContent = 'Spinning...';
-  showGameResult('');
-  var reelsEl = document.getElementById('slotReels');
-  if (reelsEl) {
-    reelsEl.innerHTML = '<span class="slot-sym spin-anim">🍒</span><span class="slot-sym spin-anim">🔔</span><span class="slot-sym spin-anim">⭐</span>';
-  }
-  var res = await api('/api/app/game/slots', {
-    method: 'POST',
-    body: JSON.stringify({ user_id: USER.id, bet: _gameBet })
-  });
-  btn.disabled = false;
-  btn.textContent = 'Spin 🎰';
-  if (!res.ok) { toast(res.error || 'Failed'); return; }
-  if (reelsEl && res.reels) {
-    var display = res.reels.map(function (s) { return '<span class="slot-sym">' + (SLOTS_EMOJI[s] || s) + '</span>'; }).join('');
-    reelsEl.innerHTML = display;
-  }
-  if (res.win) {
-    var msg = 'Win! ₹' + res.payout;
-    if (res.jackpot) msg += ' JACKPOT!';
-    showGameResult('<span class="win-text">' + msg + ' (x' + res.multiplier + ')</span>');
-  } else if (res.near_miss) {
-    showGameResult('<span class="near-text">So close! Try again.</span>');
-  } else {
-    showGameResult('<span class="lose-text">No luck this time.</span>');
-  }
-  if (res.balance !== undefined) updateBalance(res.balance);
-}
 
 // ─── MINES ────────────────────────────────────────────────────────────────────
 var _minesRevealed = [];
@@ -315,147 +241,3 @@ async function minesCashout() {
   setTimeout(resetMinesGrid, 2000);
 }
 
-// ─── CRASH ────────────────────────────────────────────────────────────────────
-function renderCrash(el) {
-  el.innerHTML = `
-    <h3 class="section-title">📈 Crash</h3>
-    <p class="game-desc">Cash out before it crashes!</p>
-    <div class="game-play">
-      <div class="crash-display" id="crashDisplay">
-        <div class="crash-mult" id="crashMult">1.00x</div>
-        <div class="crash-status" id="crashStatus">Place your bet</div>
-      </div>
-      <div class="game-bets" id="crashBets">${betSelector()}</div>
-      <div class="crash-actions">
-        <button class="btn btn-primary" id="crashStartBtn" onclick="crashStart()">Bet & Start ▶</button>
-        <button class="btn btn-success" id="crashCashoutBtn" onclick="crashCashout()" style="display:none">Cash Out 💰</button>
-      </div>
-      <div id="gameResult" class="game-result"></div>
-      ${gameBackBtn()}
-    </div>
-  `;
-}
-
-function stopCrash() {
-  if (_crashInterval) { clearInterval(_crashInterval); _crashInterval = null; }
-  _crashActive = false;
-  _crashGameId = null;
-}
-
-async function crashStart() {
-  syncBet();
-  var startBtn = document.getElementById('crashStartBtn');
-  if (!startBtn) return;
-  startBtn.disabled = true;
-  startBtn.textContent = 'Starting...';
-  stopCrash();
-  showGameResult('');
-  var res = await api('/api/app/game/crash/start', {
-    method: 'POST',
-    body: JSON.stringify({ user_id: USER.id, bet: _gameBet })
-  });
-  if (!res.ok) { startBtn.disabled = false; startBtn.textContent = 'Bet & Start ▶'; toast(res.error || 'Failed'); return; }
-  _crashGameId = res.game_id;
-  _crashMult = 1.0;
-  _crashActive = true;
-  document.getElementById('crashBets').style.display = 'none';
-  startBtn.style.display = 'none';
-  document.getElementById('crashCashoutBtn').style.display = '';
-  document.getElementById('crashStatus').textContent = 'Waiting...';
-  document.getElementById('crashMult').textContent = '1.00x';
-  document.getElementById('crashMult').className = 'crash-mult';
-  if (res.balance !== undefined) updateBalance(res.balance);
-  setTimeout(function () {
-    if (_crashActive) crashFetchResult();
-  }, 800);
-}
-
-async function crashFetchResult() {
-  if (!_crashGameId || !_crashActive) return;
-  var res = await api('/api/app/game/crash/result', {
-    method: 'POST',
-    body: JSON.stringify({ game_id: _crashGameId, user_id: USER.id })
-  });
-  if (!res.ok || !res.crash_point) { crashBust(); return; }
-  _crashPoint = res.crash_point;
-  document.getElementById('crashStatus').textContent = 'Running...';
-  _crashInterval = setInterval(function () {
-    if (!_crashActive) return;
-    _crashMult += 0.01 + (_crashMult * 0.003);
-    if (_crashMult >= _crashPoint) {
-      crashBust();
-      return;
-    }
-    var el = document.getElementById('crashMult');
-    if (el) el.textContent = _crashMult.toFixed(2) + 'x';
-  }, 50);
-}
-
-function crashBust() {
-  _crashActive = false;
-  if (_crashInterval) { clearInterval(_crashInterval); _crashInterval = null; }
-  var el = document.getElementById('crashMult');
-  if (el) {
-    el.textContent = _crashPoint.toFixed(2) + 'x';
-    el.className = 'crash-mult busted';
-  }
-  document.getElementById('crashStatus').textContent = 'Crashed! 💥';
-  document.getElementById('crashCashoutBtn').style.display = 'none';
-  showGameResult('<span class="lose-text">Busted at ' + _crashPoint.toFixed(2) + 'x</span>');
-  _crashGameId = null;
-  setTimeout(resetCrash, 2000);
-}
-
-async function crashCashout() {
-  if (!_crashGameId || !_crashActive) return;
-  _crashActive = false;
-  if (_crashInterval) { clearInterval(_crashInterval); _crashInterval = null; }
-  var btn = document.getElementById('crashCashoutBtn');
-  if (btn) btn.disabled = true;
-  var mult = _crashMult;
-  var res = await api('/api/app/game/crash/cashout', {
-    method: 'POST',
-    body: JSON.stringify({ user_id: USER.id, game_id: _crashGameId, cashout_mult: mult })
-  });
-  if (!res.ok) {
-    if (res.crash_point) {
-      var el = document.getElementById('crashMult');
-      if (el) {
-        el.textContent = res.crash_point.toFixed(2) + 'x';
-        el.className = 'crash-mult busted';
-      }
-      document.getElementById('crashStatus').textContent = 'Crashed! 💥';
-      showGameResult('<span class="lose-text">Already crashed at ' + res.crash_point.toFixed(2) + 'x</span>');
-    } else {
-      toast(res.error || 'Failed');
-    }
-    _crashGameId = null;
-    setTimeout(resetCrash, 2000);
-    return;
-  }
-  var el = document.getElementById('crashMult');
-  if (el) {
-    el.textContent = mult.toFixed(2) + 'x';
-    el.className = 'crash-mult won';
-  }
-  document.getElementById('crashStatus').textContent = 'Cashed out!';
-  document.getElementById('crashCashoutBtn').style.display = 'none';
-  showGameResult('<span class="win-text">Cashed out at ' + mult.toFixed(2) + 'x! ₹' + res.payout + '</span>');
-  _crashGameId = null;
-  if (res.balance !== undefined) updateBalance(res.balance);
-  setTimeout(resetCrash, 2000);
-}
-
-function resetCrash() {
-  stopCrash();
-  document.getElementById('crashBets').style.display = '';
-  var startBtn = document.getElementById('crashStartBtn');
-  if (startBtn) { startBtn.style.display = ''; startBtn.disabled = false; startBtn.textContent = 'Bet & Start ▶'; }
-  var cashoutBtn = document.getElementById('crashCashoutBtn');
-  if (cashoutBtn) cashoutBtn.style.display = 'none';
-  var multEl = document.getElementById('crashMult');
-  if (multEl) { multEl.textContent = '1.00x'; multEl.className = 'crash-mult'; }
-  var statusEl = document.getElementById('crashStatus');
-  if (statusEl) statusEl.textContent = 'Place your bet';
-  showGameResult('');
-}
