@@ -151,6 +151,49 @@ async function adminUserDetail(uid) {
   const data = await adminApi('/users/' + uid, 'GET');
   if (!data.ok) { el.innerHTML = '<div style="padding:16px"><div class="admin-back" onclick="adminUsers()">← Back</div><div class="empty-state">User not found</div></div>'; return; }
   const u = data.user;
+  const txMap = {
+    task_reward: { icon: '✅', label: 'Tasks', color: '#00e5a0' },
+    referral_reward: { icon: '👥', label: 'Referrals', color: '#7b5ef8' },
+    daily_bonus: { icon: '🎁', label: 'Daily Bonus', color: '#ffc107' },
+    ad_watch: { icon: '▶️', label: 'Ads', color: '#2196f3' },
+    ad_reward: { icon: '▶️', label: 'Ads', color: '#2196f3' },
+    welcome_bonus: { icon: '🎉', label: 'Welcome', color: '#e91e63' },
+    admin_credit: { icon: '💵', label: 'Admin Credit', color: '#4caf50' },
+    withdrawal_refund: { icon: '↩️', label: 'Refund', color: '#ff9800' },
+    snap_game_win: { icon: '🎮', label: 'Games', color: '#ff6b6b' },
+    game_win: { icon: '🎮', label: 'Games', color: '#ff6b6b' },
+  };
+  const earnings = data.earnings_by_type || {};
+  const earningsHtml = Object.keys(earnings).length > 0
+    ? '<div style="margin:12px 0"><div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px">📊 Earnings Breakdown</div>' +
+      Object.entries(earnings).sort((a,b) => b[1] - a[1]).map(([type, amt]) => {
+        const info = txMap[type] || { icon: '💰', label: type, color: 'var(--text-secondary)' };
+        return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">
+          <span>${info.icon}</span>
+          <span style="flex:1;color:var(--text-secondary)">${info.label}</span>
+          <span style="font-weight:700;color:${info.color}">+₹${amt.toFixed(1)}</span>
+        </div>`;
+      }).join('') + '</div>'
+    : '';
+
+  const txs = (data.transactions || []).filter(t => t.amount > 0).slice(0, 30);
+  const txsHtml = txs.length > 0
+    ? '<div style="margin-top:14px"><div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px">📜 Earning History</div>' +
+      txs.map(t => {
+        const info = txMap[t.type] || { icon: '💰', label: t.type, color: 'var(--text-secondary)' };
+        const date = (t.timestamp || t.date || '').slice(0, 10);
+        const desc = t.description || info.label;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+          <span style="font-size:14px">${info.icon}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600">${desc}</div>
+            <div style="font-size:10px;color:var(--text-secondary)">${date}</div>
+          </div>
+          <span style="font-weight:700;color:${info.color};white-space:nowrap">+₹${(t.amount || 0).toFixed(1)}</span>
+        </div>`;
+      }).join('') + '</div>'
+    : '';
+
   el.innerHTML = `
     <div style="padding:0 16px"><div class="admin-back" onclick="adminUsers()">← Back to Users</div></div>
     <div class="admin-detail">
@@ -183,6 +226,8 @@ async function adminUserDetail(uid) {
           ? `<button class="btn btn-sm btn-success" onclick="adminAction('unlock', ${u.id})">🔓 Unlock</button>`
           : `<button class="btn btn-sm btn-danger" onclick="adminAction('lock', ${u.id})">🔒 Lock</button>`}
       </div>
+      ${earningsHtml}
+      ${txsHtml}
     </div>
   `;
 }

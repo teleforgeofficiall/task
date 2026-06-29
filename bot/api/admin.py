@@ -198,6 +198,13 @@ async def admin_user_detail(request: Request, target_id: int):
         meta = dict(user.user_meta or {})
         proofs = await repo.get_user_pending_proofs(target_id)
         withdrawals = await repo.get_user_withdrawal_history(target_id, 10)
+        transactions = await repo.get_user_transactions(target_id, 100)
+        earnings_by_type = {}
+        for tx in transactions:
+            amt = tx.get("amount", 0)
+            if amt > 0:
+                ttype = tx.get("type", "other")
+                earnings_by_type[ttype] = earnings_by_type.get(ttype, 0) + amt
         return {
             "ok": True,
             "user": {
@@ -223,6 +230,8 @@ async def admin_user_detail(request: Request, target_id: int):
             },
             "pending_proofs": len(proofs),
             "recent_withdrawals": withdrawals,
+            "transactions": transactions,
+            "earnings_by_type": earnings_by_type,
         }
 
 
