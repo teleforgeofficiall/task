@@ -77,7 +77,7 @@ class DiceEngine:
                 elif recent_wins <= 1 and len(streak) >= 6:
                     prob += 3.0
 
-        return max(3.0, min(20.0, prob))
+        return max(0.5, min(2.0, prob))
 
     def _track_result(self, user_id: Optional[int], won: bool) -> None:
         if user_id is None:

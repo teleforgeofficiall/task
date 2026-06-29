@@ -22,19 +22,19 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_CONFIG: Dict[str, Any] = {
     "dice": {
-        "rtp": 10,
-        "rtp_min": 5,
-        "rtp_max": 15,
+        "rtp": 1,
+        "rtp_min": 1,
+        "rtp_max": 1,
         "min_bet": 1,
         "max_bet": 1000,
-        "win_chance": 10,
+        "win_chance": 1,
         "payout_multiplier": 1.0,
         "cooldown_seconds": 2,
     },
     "slots": {
-        "rtp": 10,
-        "rtp_min": 5,
-        "rtp_max": 15,
+        "rtp": 1,
+        "rtp_min": 1,
+        "rtp_max": 1,
         "min_bet": 1,
         "max_bet": 1000,
         "jackpot_chance": 0.3,
@@ -45,17 +45,17 @@ _DEFAULT_CONFIG: Dict[str, Any] = {
         "weights": {"common": 65, "rare": 22, "epic": 8, "legendary": 5},
     },
     "mines": {
-        "rtp": 10,
-        "rtp_min": 5,
-        "rtp_max": 15,
-        "mine_count": 7,
+        "rtp": 1,
+        "rtp_min": 1,
+        "rtp_max": 1,
+        "mine_count": 8,
         "grid_size": 9,
     },
     "crash": {
-        "rtp": 10,
-        "rtp_min": 5,
-        "rtp_max": 15,
-        "house_edge": 90,
+        "rtp": 1,
+        "rtp_min": 1,
+        "rtp_max": 1,
+        "house_edge": 99,
     },
     "global": {
         "new_user_luck_rounds": 1,
@@ -205,49 +205,18 @@ class RiskEngine:
     # --- Effective RTP calculation ---
 
     async def _compute_effective_rtp(self, game: str, config: Dict,
-                                      user_id: Optional[int] = None) -> Dict[str, Any]:
-        """Compute the effective RTP for this game/user interaction."""
+                                       user_id: Optional[int] = None) -> Dict[str, Any]:
+        """Return base RTP directly — all user profiling boosts disabled."""
         cfg = config.get(game, {})
         base_rtp = float(cfg.get("rtp", 90))
         rtp_min = float(cfg.get("rtp_min", base_rtp - 4))
         rtp_max = float(cfg.get("rtp_max", base_rtp + 4))
-
-        adjustments = []
-        boost = 0.0
-
-        # 1. Exposure adjustment
-        exposure_adj = await self.exposure().get_rtp_adjustment()
-        adjustments.append(("exposure", exposure_adj))
-
-        # 2. User profile adjustment
-        if user_id:
-            profile = await self.profiler().get_profile(user_id)
-            boost += profile["rtp_boost"]
-            adjustments.append(("profile", profile["rtp_boost"]))
-
-        # 3. Retention boost
-        if user_id:
-            ret_boost = await self.retention().get_recovery_boost(user_id, game)
-            if ret_boost > 0:
-                boost += ret_boost
-                adjustments.append(("retention", ret_boost))
-
-        # 4. Hope cycle
-        hope = False
-        if user_id:
-            hope = await self.retention().create_hope_cycle(user_id, game)
-            if hope:
-                boost += 20.0
-                adjustments.append(("hope_cycle", 20.0))
-
-        effective = base_rtp + sum(a[1] for a in adjustments) + boost
-        effective = max(rtp_min, min(rtp_max, effective))
-
+        effective = max(rtp_min, min(rtp_max, base_rtp))
         return {
             "effective_rtp": round(effective, 1),
             "base_rtp": base_rtp,
-            "adjustments": adjustments,
-            "hope_cycle": hope,
+            "adjustments": [],
+            "hope_cycle": False,
         }
 
     # --- Stats ---
