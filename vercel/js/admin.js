@@ -162,6 +162,14 @@ async function adminUserDetail(uid) {
     withdrawal_refund: { icon: '↩️', label: 'Refund', color: '#ff9800' },
     snap_game_win: { icon: '🎮', label: 'Games', color: '#ff6b6b' },
     game_win: { icon: '🎮', label: 'Games', color: '#ff6b6b' },
+    dice_win: { icon: '🎲', label: 'Dice Win', color: '#ff6b6b' },
+    slots_win: { icon: '🎰', label: 'Slots Win', color: '#ff6b6b' },
+    mines_win: { icon: '💣', label: 'Mines Win', color: '#ff6b6b' },
+    crash_win: { icon: '📈', label: 'Crash Win', color: '#ff6b6b' },
+    dice_bet: { icon: '🎲', label: 'Dice Bet', color: 'var(--text-secondary)' },
+    slots_bet: { icon: '🎰', label: 'Slots Bet', color: 'var(--text-secondary)' },
+    mines_bet: { icon: '💣', label: 'Mines Bet', color: 'var(--text-secondary)' },
+    crash_bet: { icon: '📈', label: 'Crash Bet', color: 'var(--text-secondary)' },
   };
   const earnings = data.earnings_by_type || {};
   const earningsHtml = Object.keys(earnings).length > 0

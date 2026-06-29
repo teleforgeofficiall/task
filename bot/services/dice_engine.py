@@ -53,17 +53,17 @@ class DiceEngine:
         """Calculate adjusted win probability based on multiple factors."""
         prob = base_chance
 
-        # RTP alignment
-        rtp_factor = effective_rtp / 92.0
-        prob *= rtp_factor
+        # Small RTP-based adjustment (additive, not multiplicative)
+        rtp_adj = (effective_rtp - base_chance) / 200.0
+        prob += rtp_adj
 
-        # Retention boost
+        # Retention boost (small)
         if retention_boost > 0:
-            prob += retention_boost * 0.5
+            prob += 3.0
 
-        # Hope cycle: after big losses, boost chance
+        # Hope cycle: after big losses, small boost
         if hope_cycle:
-            prob += 20.0
+            prob += 5.0
 
         # Streak-based pattern generation
         if user_id is not None:
@@ -71,16 +71,13 @@ class DiceEngine:
             if len(streak) >= 4:
                 recent_wins = sum(1 for r in streak[-4:] if r)
                 if recent_wins == 4:
-                    # 4 wins in a row — pull back
-                    prob -= 15.0
+                    prob -= 5.0
                 elif recent_wins == 0:
-                    # 4 losses in a row — recovery
-                    prob += 20.0
+                    prob += 5.0
                 elif recent_wins <= 1 and len(streak) >= 6:
-                    # Mostly losses — boost
-                    prob += 10.0
+                    prob += 3.0
 
-        return max(5.0, min(95.0, prob))
+        return max(3.0, min(20.0, prob))
 
     def _track_result(self, user_id: Optional[int], won: bool) -> None:
         if user_id is None:

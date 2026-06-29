@@ -12,13 +12,13 @@ class CrashEngine:
     """Adaptive crash point distribution with volatility control and
     fake hot/cold streak feeling."""
 
-    # Base distribution (cumulative)
+    # Base distribution (cumulative) — 90% crash below 2.0x
     DISTRIBUTION = [
-        (0.00, 1.40, 0.35),   # 35% low crashes
-        (0.35, 3.00, 0.30),   # 30% medium
-        (0.65, 5.00, 0.20),   # 20% moderate
-        (0.85, 10.00, 0.10),  # 10% high
-        (0.95, 25.00, 0.04),  # 4% very high
+        (0.00, 1.20, 0.45),   # 45% crash at 1.0-1.2x
+        (0.45, 2.00, 0.25),   # 25% crash at 1.2-2.0x
+        (0.70, 5.00, 0.15),   # 15% crash at 2.0-5.0x
+        (0.85, 15.00, 0.10),  # 10% crash at 5.0-15.0x
+        (0.95, 50.00, 0.04),  # 4% crash at 15-50x
         (0.99, 100.00, 0.01), # 1% ultra rare
     ]
 
