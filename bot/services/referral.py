@@ -90,6 +90,10 @@ async def check_referral_success(
             ref_id=str(user_id)
         )
         await repository.update_user_fields(user_id, referral_reward_claimed=True)
+        await repository.update_user_fields(
+            user_id=referrer_id,
+            referral_earnings=(referrer.referral_earnings or 0.0) + ref_amount
+        )
 
         await notify_user(
             bot=bot,

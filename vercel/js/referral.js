@@ -11,7 +11,7 @@ async function loadReferral() {
   const isPaused = refData.referral_paused || false;
 
   BOT_USERNAME = refData.bot_username || TG?.initDataUnsafe?.bot_username || 'taskhubpocketbot';
-  const referralLink = `https://t.me/${BOT_USERNAME}?start=${USER.id}`;
+  const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${USER.id}`;
 
   el.innerHTML = `
     <div class="ref-hero">
