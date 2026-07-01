@@ -742,9 +742,44 @@ async function adminAds() {
         <div class="title">${a.title || 'Untitled'} ${a.active === false ? '<span class="badge badge-rejected">INACTIVE</span>' : ''} ${a.video_url ? '<span class="badge badge-approved">VIDEO</span>' : ''}</div>
         <div class="subtitle">₹${a.reward || 0} per view · ${a.description?.slice(0, 50) || ''}</div>
       </div>
-      <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();adminDeleteAd(${a.id})">🗑️</button>
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();adminEditAd(${a.id})">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();adminDeleteAd(${a.id})">🗑️</button>
+      </div>
     </div>
   `).join('');
+}
+
+function adminEditAd(id) {
+  adminApi('/ads', 'GET').then(data => {
+    const ad = data.ads?.find(a => a.id === id);
+    if (!ad) { toast('Ad not found'); return; }
+    showModal('Admin › Edit Ad Campaign', `
+      <div class="admin-form">
+        <div class="form-group"><label>Title</label><input id="f_a_edit_title" value="${escHtml(ad.title || '')}"></div>
+        <div class="form-group"><label>Description</label><textarea id="f_a_edit_desc" rows="3">${escHtml(ad.description || '')}</textarea></div>
+        <div class="form-group"><label>Image</label><input id="f_a_edit_image" value="${escHtml(ad.image || '')}" placeholder="Telegram post link or image URL"></div>
+        <div class="form-group"><label>Video URL</label><input id="f_a_edit_video" value="${escHtml(ad.video_url || '')}" placeholder="https://t.me/channel/post_id"></div>
+        <div class="form-group"><label>Link URL</label><input id="f_a_edit_url" value="${escHtml(ad.url || '')}" placeholder="https://..."></div>
+        <div class="form-group"><label>Reward per View (₹)</label><input id="f_a_edit_reward" type="number" step="0.01" value="${ad.reward || 0.05}"></div>
+        <button class="btn btn-primary btn-block" onclick="adminUpdateAd(${id})">Save</button>
+      </div>
+    `);
+  });
+}
+
+async function adminUpdateAd(id) {
+  const body = {
+    title: document.getElementById('f_a_edit_title')?.value || '',
+    description: document.getElementById('f_a_edit_desc')?.value || '',
+    image: document.getElementById('f_a_edit_image')?.value || '',
+    video_url: document.getElementById('f_a_edit_video')?.value || '',
+    url: document.getElementById('f_a_edit_url')?.value || '',
+    reward: parseFloat(document.getElementById('f_a_edit_reward')?.value || 0),
+  };
+  const data = await adminApi('/ads/' + id, 'PUT', body);
+  if (data.ok) { toast('Ad updated!'); closeModal(); adminAds(); }
+  else { toast('Failed'); }
 }
 
 function adminAddAd() {
@@ -753,10 +788,9 @@ function adminAddAd() {
       <div class="form-group"><label>Title</label><input id="f_a_title"></div>
       <div class="form-group"><label>Description</label><textarea id="f_a_desc"></textarea></div>
       <div class="form-group"><label>Image</label><input id="f_a_image" placeholder="Telegram post link or image URL"></div>
-      <div class="form-group"><label>Video URL</label><input id="f_a_video" placeholder="https://youtube.com/watch?v=..."></div>
+      <div class="form-group"><label>Video URL</label><input id="f_a_video" placeholder="https://t.me/channel/post_id"></div>
       <div class="form-group"><label>Link URL</label><input id="f_a_url" placeholder="https://..."></div>
       <div class="form-group"><label>Reward per View (₹)</label><input id="f_a_reward" type="number" step="0.01" value="0.05"></div>
-      <div class="form-group"><label>Max Watches per User</label><input id="f_a_max_watches" type="number" value="5"></div>
       <button class="btn btn-primary btn-block" onclick="adminSaveAd()">Add</button>
     </div>
   `);
@@ -770,7 +804,6 @@ async function adminSaveAd() {
     video_url: document.getElementById('f_a_video')?.value || '',
     url: document.getElementById('f_a_url')?.value || '',
     reward: parseFloat(document.getElementById('f_a_reward')?.value || 0),
-    max_watches: parseInt(document.getElementById('f_a_max_watches')?.value || 5, 10) || 5,
   };
   const data = await adminApi('/ads', 'POST', body);
   if (data.ok) { toast('Ad campaign added!'); closeModal(); adminAds(); }

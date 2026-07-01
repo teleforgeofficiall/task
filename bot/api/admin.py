@@ -626,12 +626,34 @@ async def admin_add_ad(request: Request):
             "video_url": data.get("video_url", ""),
             "url": data.get("url", ""),
             "reward": float(data.get("reward", 0)),
-            "max_watches": int(data.get("max_watches", 5)),
             "active": data.get("active", True),
         }
         campaigns.append(ad)
         await repo.update_setting("ad_campaigns", campaigns)
     return {"ok": True, "ad": ad}
+
+
+@router.put("/ads/{ad_id}")
+async def admin_update_ad(request: Request, ad_id: int):
+    admin_id = await require_admin(request)
+    data = await request.json()
+    async with get_session() as session:
+        repo = Repository(session)
+        campaigns = await repo.get_setting("ad_campaigns", [])
+        if not isinstance(campaigns, list):
+            campaigns = []
+        for ad in campaigns:
+            if ad.get("id") == ad_id:
+                if "title" in data: ad["title"] = data["title"]
+                if "description" in data: ad["description"] = data["description"]
+                if "image" in data: ad["image"] = data["image"]
+                if "video_url" in data: ad["video_url"] = data["video_url"]
+                if "url" in data: ad["url"] = data["url"]
+                if "reward" in data: ad["reward"] = float(data["reward"])
+                if "active" in data: ad["active"] = data["active"]
+                break
+        await repo.update_setting("ad_campaigns", campaigns)
+    return {"ok": True, "ad": next((a for a in campaigns if a.get("id") == ad_id), None)}
 
 
 @router.delete("/ads/{ad_id}")

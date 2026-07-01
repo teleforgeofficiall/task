@@ -1214,7 +1214,7 @@ async def _start_game_cleanup():
 # ─── Earn / Ads ──────────────────────────────────────────────────────────────
 @app.get("/api/app/earn")
 async def app_earn(user_id: int):
-    """Get earn/ads page data — per-ad reward & watch limits, no daily goal."""
+    """Get earn/ads page data — each ad viewable once per user."""
     import json
     from bot.database import get_session, Repository
     async with get_session() as session:
@@ -1230,22 +1230,18 @@ async def app_earn(user_id: int):
             if not ad.get("video_url") or ad.get("active") is False:
                 continue
             ad_id = str(ad.get("id", ""))
-            max_w = int(ad.get("max_watches", 5))
             watched = int(watched_data.get(ad_id, 0))
-            remaining = max(0, max_w - watched)
-            if remaining > 0:
-                available_ads.append({
-                    "id": ad.get("id"),
-                    "title": ad.get("title", ""),
-                    "description": ad.get("description", ""),
-                    "image": ad.get("image", ""),
-                    "video_url": ad.get("video_url", ""),
-                    "url": ad.get("url", ""),
-                    "reward": float(ad.get("reward", 0)),
-                    "max_watches": max_w,
-                    "watched": watched,
-                    "remaining": remaining,
-                })
+            if watched >= 1:
+                continue
+            available_ads.append({
+                "id": ad.get("id"),
+                "title": ad.get("title", ""),
+                "description": ad.get("description", ""),
+                "image": ad.get("image", ""),
+                "video_url": ad.get("video_url", ""),
+                "url": ad.get("url", ""),
+                "reward": float(ad.get("reward", 0)),
+            })
         return {
             "ok": True,
             "ads": available_ads,
@@ -1255,7 +1251,7 @@ async def app_earn(user_id: int):
 
 @app.post("/api/app/ad/watch")
 async def app_watch_ad(request: Request):
-    """Watch an ad and earn — per-ad reward with watch limit."""
+    """Watch an ad and earn — once per user per ad."""
     import json
     from bot.database import get_session, Repository
     try:
@@ -1274,18 +1270,16 @@ async def app_watch_ad(request: Request):
         ad = next((a for a in all_ads if a.get("id") == ad_id), None)
         if not ad or not ad.get("video_url") or ad.get("active") is False:
             return {"ok": False, "error": "Ad not available"}
-        max_w = int(ad.get("max_watches", 5))
         watched_data = await repo.get_setting(f"ad_watched:{user_id}", {})
         if not isinstance(watched_data, dict):
             watched_data = {}
         ad_id_str = str(ad_id)
         watched = int(watched_data.get(ad_id_str, 0))
-        if watched >= max_w:
-            return {"ok": False, "error": "Watch limit reached for this ad"}
+        if watched >= 1:
+            return {"ok": False, "error": "Already watched this ad"}
         reward = float(ad.get("reward", 0))
         await repo.credit_balance(user_id, reward, "ad_watch", f"Watched ad: {ad.get('title', '')}")
-        watched += 1
-        watched_data[ad_id_str] = watched
+        watched_data[ad_id_str] = 1
         await repo.update_setting(f"ad_watched:{user_id}", json.dumps(watched_data))
         user = await repo.get_user(user_id)
         return {"ok": True, "amount": reward, "balance": float(user.balance or 0)}
@@ -1300,6 +1294,56 @@ async def app_uploaded_file(filename: str):
         return Response(status_code=404)
     from fastapi.responses import FileResponse
     return FileResponse(filepath)
+
+
+@app.get("/api/app/ad-video")
+async def app_ad_video(url: str):
+    """Proxy ad video — resolves Telegram post links to actual video bytes."""
+    import httpx, re
+    token = settings.BOT_TOKEN
+    if not url:
+        return Response(status_code=400)
+    is_tg = "t.me/" in url or "telegram.me/" in url
+    try:
+        if is_tg:
+            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+                page_resp = await client.get(url)
+                if page_resp.status_code != 200:
+                    return Response(status_code=404)
+                html = page_resp.text
+                video_url = None
+                for pat in [
+                    r'property="og:video"\s+content="([^"]+)"',
+                    r'content="([^"]+)"\s+property="og:video"',
+                    r'<video[^>]+src="([^"]+)"',
+                    r'<a[^>]+class="tgme_page_video[^"]*"[^>]+href="([^"]+)"',
+                ]:
+                    m = re.search(pat, html, re.IGNORECASE)
+                    if m:
+                        video_url = m.group(1)
+                        break
+                tg_video = re.search(r'tgme_page_video"[^>]+data-video="([^"]+)"', html)
+                if tg_video:
+                    video_url = tg_video.group(1)
+                if video_url:
+                    vid_resp = await client.get(video_url, follow_redirects=True)
+                    if vid_resp.status_code == 200:
+                        ct = vid_resp.headers.get("content-type", "").lower()
+                        if "video" not in ct and "octet-stream" not in ct:
+                            ct = "video/mp4"
+                        return Response(content=vid_resp.content, media_type=ct,
+                                        headers={"Cache-Control": "public, max-age=3600"})
+                return Response(status_code=404)
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                return Response(status_code=404)
+            ct = resp.headers.get("content-type", "video/mp4")
+            return Response(content=resp.content, media_type=ct,
+                            headers={"Cache-Control": "public, max-age=3600"})
+    except Exception as e:
+        logger.error("ad-video proxy failed: %s", e)
+        return Response(status_code=404)
 
 
 @app.get("/api/app/task-image/{task_id}")

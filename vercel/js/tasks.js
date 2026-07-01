@@ -417,6 +417,40 @@ function showPromoteModal() {
 
 function renderPromoStep1() {
   promoStep = 1;
+  renderPromoForm();
+}
+
+function renderPromoForm() {
+  const type = promoData?.type || 'promoted';
+  const title = promoData?.title || '';
+  const desc = promoData?.description || '';
+  const image = promoData?.image || '';
+  const url = promoData?.url || '';
+  const color = promoData?.color || '#7b5ef8';
+  const details = promoData?.details || '';
+  const videoUrl = promoData?.video_url || '';
+  const reward = promoData?.reward || '';
+
+  let extraFields = '';
+  if (type === 'ad') {
+    extraFields = `
+      <div class="form-group"><label>Video URL (Telegram link)</label><input id="promo_video" value="${escHtml(videoUrl)}" placeholder="https://t.me/channel/post_id"></div>
+      <div class="form-group"><label>Reward per View (₹)</label><input id="promo_reward" type="number" step="0.01" value="${reward || 0.05}"></div>
+    `;
+  } else if (type === 'promoted') {
+    extraFields = `
+      <div class="form-group"><label>Image URL</label><input id="promo_image" value="${escHtml(image)}" placeholder="https://..."></div>
+      <div class="form-group"><label>Link URL</label><input id="promo_url" value="${escHtml(url)}" placeholder="https://..."></div>
+      <div class="form-group"><label>Accent Color</label><input id="promo_color" type="color" value="${color}" style="height:44px;padding:4px"></div>
+    `;
+  } else if (type === 'task') {
+    extraFields = `
+      <div class="form-group"><label>Image URL</label><input id="promo_image" value="${escHtml(image)}" placeholder="https://..."></div>
+      <div class="form-group"><label>Reward (₹)</label><input id="promo_reward" type="number" step="0.01" value="${reward || 1}"></div>
+      <div class="form-group"><label>Guide / Steps</label><textarea id="promo_details" placeholder="Task steps, requirements, or additional info" rows="3">${escHtml(details)}</textarea></div>
+    `;
+  }
+
   showModal('✨ Promote Here — Step 1/3', `
     <div class="admin-form">
       <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
@@ -425,36 +459,33 @@ function renderPromoStep1() {
         <div style="width:32px;height:4px;border-radius:2px;background:var(--border)"></div>
       </div>
       <div class="form-group"><label>Type</label>
-        <select id="promo_type">
-          <option value="promoted">Promoted Item</option>
-          <option value="task">Task/Offer</option>
-          <option value="ad">Ad Campaign</option>
+        <select id="promo_type" onchange="promoChangeType()">
+          <option value="promoted" ${type === 'promoted' ? 'selected' : ''}>Promoted Item</option>
+          <option value="task" ${type === 'task' ? 'selected' : ''}>Task/Offer</option>
+          <option value="ad" ${type === 'ad' ? 'selected' : ''}>Ad Campaign</option>
         </select>
       </div>
-      <div class="form-group"><label>Title</label><input id="promo_title" placeholder="Your brand/task name"></div>
-      <div class="form-group"><label>Description</label><textarea id="promo_desc" placeholder="Describe what you want to promote" rows="3"></textarea></div>
-      <div class="form-group"><label>Accent Color</label><input id="promo_color" type="color" value="#7b5ef8" style="height:44px;padding:4px"></div>
-      <div class="form-group"><label>Image URL</label><input id="promo_image" placeholder="https://..."></div>
-      <div class="form-group"><label>Link URL</label><input id="promo_url" placeholder="https://..."></div>
-      <div class="form-group"><label>Details / Steps</label><textarea id="promo_details" placeholder="Task steps, requirements, or additional info" rows="3"></textarea></div>
-      <div id="promoPreview" style="margin:12px 0;padding:14px;border-radius:10px;border:1px solid var(--border);text-align:center">
-        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">👁 Preview</div>
-        <div id="promoPreviewCard" style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--card);border-radius:8px;border:1px solid var(--border)">
-          <div id="promoPreviewIcon" style="width:40px;height:40px;border-radius:8px;background:#7b5ef8;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0">📢</div>
-          <div style="flex:1;text-align:left">
-            <div id="promoPreviewTitle" style="font-weight:600;font-size:13px">Your Title</div>
-            <div id="promoPreviewDesc" style="font-size:11px;color:var(--text-secondary);margin-top:2px">Description will appear here</div>
-          </div>
-          <button class="btn btn-sm btn-primary" style="flex-shrink:0;font-size:10px">OPEN</button>
-        </div>
-      </div>
+      <div class="form-group"><label>Title</label><input id="promo_title" value="${escHtml(title)}" placeholder="Your brand/task name"></div>
+      <div class="form-group"><label>Description</label><textarea id="promo_desc" placeholder="Describe what you want to promote" rows="3">${escHtml(desc)}</textarea></div>
+      ${extraFields}
       <button class="btn btn-primary btn-block" onclick="promoGoStep2()">Next → Payment</button>
     </div>
   `);
-  document.getElementById('promo_title')?.addEventListener('input', updatePromoPreview);
-  document.getElementById('promo_desc')?.addEventListener('input', updatePromoPreview);
-  document.getElementById('promo_color')?.addEventListener('input', updatePromoPreview);
-  document.getElementById('promo_image')?.addEventListener('input', updatePromoPreview);
+}
+
+function promoChangeType() {
+  const g = id => document.getElementById(id);
+  promoData = promoData || {};
+  promoData.type = g('promo_type')?.value || 'promoted';
+  promoData.title = g('promo_title')?.value || '';
+  promoData.description = g('promo_desc')?.value || '';
+  promoData.image = g('promo_image')?.value || '';
+  promoData.url = g('promo_url')?.value || '';
+  promoData.color = g('promo_color')?.value || '#7b5ef8';
+  promoData.details = g('promo_details')?.value || '';
+  promoData.video_url = g('promo_video')?.value || '';
+  promoData.reward = g('promo_reward') ? parseFloat(g('promo_reward').value || 0) : 0;
+  renderPromoForm();
 }
 
 function updatePromoPreview() {
@@ -477,16 +508,21 @@ function updatePromoPreview() {
 async function promoGoStep2() {
   const title = document.getElementById('promo_title')?.value?.trim();
   if (!title) { toast('Title is required'); return; }
+  const ptype = document.getElementById('promo_type')?.value || 'promoted';
+  const rewardEl = document.getElementById('promo_reward');
+  const videoEl = document.getElementById('promo_video');
   promoData = {
-    type: document.getElementById('promo_type')?.value || 'promoted',
+    type: ptype,
     title,
     description: document.getElementById('promo_desc')?.value || '',
-    details: document.getElementById('promo_details')?.value || '',
     image: document.getElementById('promo_image')?.value || '',
     url: document.getElementById('promo_url')?.value || '',
     color: document.getElementById('promo_color')?.value || '#7b5ef8',
-    reward: 0,
+    details: document.getElementById('promo_details')?.value || '',
+    video_url: videoEl ? videoEl.value : '',
+    reward: rewardEl ? parseFloat(rewardEl.value || 0) : 0,
   };
+  if (ptype === 'ad' && !promoData.video_url) { toast('Video URL is required for ads'); return; }
 
   const cfg = await api('/api/app/promo-config?' + new URLSearchParams({ user_id: USER.id }).toString());
   const price = cfg?.promo_price || 50;
@@ -643,15 +679,14 @@ async function loadAdvertise() {
     adsHtml = `<div style="text-align:center;padding:24px 16px;font-size:14px;color:rgba(255,255,255,0.6)">No ads available</div>`;
   } else {
     adsHtml = ads.map(a => `
-      <div class="card" style="padding:14px;margin-bottom:10px">
+      <div class="card" style="padding:14px;margin-bottom:10px;cursor:pointer" onclick="watchAdVideo(${a.id})">
         <div style="display:flex;align-items:center;gap:12px">
           <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#7b5ef8,#5a3fd6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0">🎬</div>
           <div style="flex:1;min-width:0">
             <h4 style="font-size:14px;font-weight:600;margin-bottom:2px">${escHtml(a.title)}</h4>
             <div style="font-size:11px;color:var(--text-secondary)">${a.description ? escHtml(a.description.slice(0, 60)) : 'Watch full video to earn'}</div>
-            <div style="font-size:11px;color:var(--success);margin-top:2px">₹${parseFloat(a.reward).toFixed(2)} per view · ${a.remaining}/${a.max_watches} left</div>
+            <div style="font-size:11px;color:var(--success);margin-top:2px">₹${parseFloat(a.reward).toFixed(2)} per view</div>
           </div>
-          <button class="btn btn-sm btn-primary" onclick="watchAdVideo(${a.id})">▶ Watch</button>
         </div>
       </div>
     `).join('');
@@ -707,7 +742,7 @@ async function watchAdVideo(adId) {
     <div id="adTimer" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;z-index:10">Loading...</div>
     <div style="width:100%;max-width:480px;aspect-ratio:16/9;background:#111;border-radius:8px;overflow:hidden;position:relative">
       <video id="adVideoPlayer" style="width:100%;height:100%;object-fit:contain" playsinline webkit-playsinline controlsList="nodownload noplaybackrate">
-        <source src="${escHtml(videoUrl)}" type="video/mp4">
+        <source src="/api/app/ad-video?url=${encodeURIComponent(videoUrl)}" type="video/mp4">
       </video>
       <div id="adProgressBar" style="position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,0.2)">
         <div id="adProgressFill" style="height:100%;background:#00e5a0;width:0%;transition:width 0.3s"></div>
