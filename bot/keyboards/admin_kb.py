@@ -313,7 +313,6 @@ def settings_menu(require_contact: bool = True, refer_paused: bool = False, main
             InlineKeyboardButton("🎰 Game Config", callback_data="admin:game_cfg_menu"),
         ],
         [
-            InlineKeyboardButton("📊 Ad Goal Config", callback_data="admin:set_ad_goal"),
             InlineKeyboardButton("🏷️ Promo Config", callback_data="admin:set_promo"),
         ],
         [

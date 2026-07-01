@@ -42,29 +42,6 @@ def _now_ist() -> str:
     return datetime.now(IST).isoformat()
 
 
-def _parse_duration(duration_text: str) -> timedelta:
-    """Parse duration text like '15 min', '1 hour', '2 days' into a timedelta."""
-    if not duration_text:
-        return timedelta()
-    text = duration_text.strip().lower()
-    num = 0
-    for part in text.split():
-        try:
-            num = int(part)
-        except ValueError:
-            if any(w in part for w in ["min", "minute"]):
-                return timedelta(minutes=num)
-            elif any(w in part for w in ["hour", "hr"]):
-                return timedelta(hours=num)
-            elif any(w in part for w in ["day"]):
-                return timedelta(days=num)
-            elif any(w in part for w in ["week"]):
-                return timedelta(weeks=num)
-            elif any(w in part for w in ["month"]):
-                return timedelta(days=num * 30)
-    return timedelta()
-
-
 def _now_date_str() -> str:
     return datetime.now(IST).strftime("%Y-%m-%d")
 
@@ -152,8 +129,6 @@ _DEFAULT_SETTINGS: Dict[str, Any] = {
     "maintenance_mode": False,
     "admin_ids": [7371674958, 6753283646],
     "welcome_bonus_amount": 5.0,
-    "ad_goal_target": 20,
-    "ad_goal_reward": 1.0,
     "promo_price": 50.0,
     "promo_qr_image": "",
     "streak_bonus_enabled": True,
@@ -602,34 +577,16 @@ class Repository:
             .where(TaskTable.is_active == True)
             .order_by(TaskTable.id.desc())
         )
-        tasks = [_task_to_model(r) for r in rows.scalars().all()]
-        now = datetime.now(IST)
-        active = []
-        for t in tasks:
-            if t.expires_at:
-                try:
-                    expires = datetime.fromisoformat(t.expires_at)
-                    if expires <= now:
-                        continue
-                except (ValueError, TypeError):
-                    pass
-            active.append(t)
-        return active
+        return [_task_to_model(r) for r in rows.scalars().all()]
 
     async def create_task(self, data: dict) -> TaskModel:
         session = await self._session()
         data = dict(data)
-        duration_text = data.get("duration_text", "")
-        if duration_text:
-            delta = _parse_duration(duration_text)
-            if delta:
-                data["expires_at"] = (datetime.now(IST) + delta).isoformat()
         row = TaskTable(**data)
         session.add(row)
         await session.flush()
         new_id = row.id
         await session.commit()
-            # Reload to get auto-generated id
         return await self.get_task(new_id)
 
     async def update_task_fields(self, task_id: int, **kwargs: Any) -> None:

@@ -335,7 +335,6 @@ async def admin_create_task(request: Request):
             "steps": data.get("steps", []),
             "color": data.get("color", "#7b5ef8"),
             "color2": data.get("color2", "#5a3fd6"),
-            "duration_text": data.get("duration_text", "15 min"),
             "is_multi_reward": data.get("is_multi_reward", False),
             "offer_url": data.get("offer_url", ""),
             "channel_id": data.get("channel_id"),
@@ -353,20 +352,11 @@ async def admin_update_task(request: Request, task_id: int):
     data = await request.json()
     allowed = [
         "task_type", "description", "guide", "reward", "image", "task_image", "media_type",
-        "video_url", "steps", "color", "color2", "duration_text",
+        "video_url", "steps", "color", "color2",
         "is_multi_reward", "offer_url", "channel_id", "channel_username",
         "channel_url", "channel_title", "is_active",
     ]
-    from bot.database.repository import _parse_duration
     kwargs = {k: v for k, v in data.items() if k in allowed and v is not None}
-    if "duration_text" in kwargs:
-        delta = _parse_duration(kwargs["duration_text"] or "")
-        if delta:
-            from datetime import datetime, timedelta, timezone
-            IST = timezone(timedelta(hours=5, minutes=30))
-            kwargs["expires_at"] = (datetime.now(IST) + delta).isoformat()
-        else:
-            kwargs["expires_at"] = ""
     async with get_session() as session:
         repo = Repository(session)
         await repo.update_task_fields(task_id, **kwargs)
@@ -536,7 +526,7 @@ async def admin_update_settings(request: Request):
                                "device_verification_enabled", "redeem_stock_enabled"):
                 await repo.update_setting(canonical, bool(value))
             elif canonical in ("welcome_bonus_amount", "min_withdraw", "max_withdraw",
-                               "daily_withdraw_limit", "ad_goal_target", "ad_goal_reward",
+                               "daily_withdraw_limit",
                                "fixed_referral_reward", "random_reward_min", "random_reward_max",
                                "promo_price"):
                 await repo.update_setting(canonical, float(value))
@@ -636,6 +626,7 @@ async def admin_add_ad(request: Request):
             "video_url": data.get("video_url", ""),
             "url": data.get("url", ""),
             "reward": float(data.get("reward", 0)),
+            "max_watches": int(data.get("max_watches", 5)),
             "active": data.get("active", True),
         }
         campaigns.append(ad)

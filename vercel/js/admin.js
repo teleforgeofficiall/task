@@ -304,7 +304,6 @@ function adminCreateTask() {
         <div class="form-group"><label>Task Image (card)</label><div class="admin-img-upload" onclick="document.getElementById('f_task_image_file2').click()"><div id="f_task_image_preview2">Tap to upload</div><input type="file" id="f_task_image_file2" accept="image/*" style="display:none" onchange="adminHandleImage(this,'f_task_image_preview2','f_task_image_data')"></div></div>
         <div class="form-group"><label>Reference Image (proof)</label><div class="admin-img-upload" onclick="document.getElementById('f_image_file2').click()"><div id="f_image_preview2">Tap to upload</div><input type="file" id="f_image_file2" accept="image/*" style="display:none" onchange="adminHandleImage(this,'f_image_preview2','f_image_data')"></div></div>
         <div class="form-group"><label>Color</label><input id="f_color" type="color" value="#7b5ef8"></div>
-        <div class="form-group"><label>Duration Text</label><input id="f_duration" value="15 min" placeholder="e.g. 15 min, 1 hour, 1 day"></div>
         <div class="form-group"><label>Offer URL</label><input id="f_offer_url" placeholder="https://..."></div>
       </div>
       <input type="hidden" id="f_task_image" value="">
@@ -336,7 +335,6 @@ async function adminEditTask(tid) {
       ` : `
       <div class="form-group"><label>Guide</label><textarea id="f_guide">${task.guide || ''}</textarea></div>
       <div class="form-group"><label>Color</label><input id="f_color" type="color" value="${task.color || '#7b5ef8'}"></div>
-      <div class="form-group"><label>Duration Text</label><input id="f_duration" value="${task.duration_text || '15 min'}" placeholder="e.g. 15 min, 1 hour, 1 day"></div>
       <div class="form-group"><label>Offer URL</label><input id="f_offer_url" value="${task.offer_url || ''}"></div>
       `}
       <div class="form-group"><label>Reward (₹)</label><input id="f_reward" type="number" step="0.01" value="${task.reward}"></div>
@@ -385,7 +383,6 @@ async function adminSaveTask(tid) {
       task_image: taskImage,
       image: refImage,
       color: document.getElementById('f_color')?.value || '#7b5ef8',
-      duration_text: document.getElementById('f_duration')?.value || '15 min',
       offer_url: document.getElementById('f_offer_url')?.value || '',
       channel_id: channelId,
       channel_url: document.getElementById('f_channel_url')?.value || '',
@@ -759,6 +756,7 @@ function adminAddAd() {
       <div class="form-group"><label>Video URL</label><input id="f_a_video" placeholder="https://youtube.com/watch?v=..."></div>
       <div class="form-group"><label>Link URL</label><input id="f_a_url" placeholder="https://..."></div>
       <div class="form-group"><label>Reward per View (₹)</label><input id="f_a_reward" type="number" step="0.01" value="0.05"></div>
+      <div class="form-group"><label>Max Watches per User</label><input id="f_a_max_watches" type="number" value="5"></div>
       <button class="btn btn-primary btn-block" onclick="adminSaveAd()">Add</button>
     </div>
   `);
@@ -772,6 +770,7 @@ async function adminSaveAd() {
     video_url: document.getElementById('f_a_video')?.value || '',
     url: document.getElementById('f_a_url')?.value || '',
     reward: parseFloat(document.getElementById('f_a_reward')?.value || 0),
+    max_watches: parseInt(document.getElementById('f_a_max_watches')?.value || 5, 10) || 5,
   };
   const data = await adminApi('/ads', 'POST', body);
   if (data.ok) { toast('Ad campaign added!'); closeModal(); adminAds(); }
@@ -876,8 +875,6 @@ async function adminSettings() {
     { key: 'max_withdraw_upi', label: 'Max UPI Withdraw (₹)', type: 'float' },
     { key: 'daily_withdraw_limit', label: 'Daily Withdraw Limit (₹)', type: 'float' },
     { key: 'redeem_stock_enabled', label: 'Redeem Stock Enabled', type: 'bool' },
-    { key: 'ad_goal_target', label: 'Ad Goal Target', type: 'int' },
-    { key: 'ad_goal_reward', label: 'Ad Goal Reward (₹)', type: 'float' },
     { key: 'referral_fixed_reward', label: 'Per Referral Reward (₹)', type: 'float' },
     { key: 'promo_price', label: 'Promo Price (₹)', type: 'float' },
     { key: 'promo_description', label: 'Promo Description', type: 'text' },

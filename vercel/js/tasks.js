@@ -53,7 +53,6 @@ function renderTaskCard(t, index) {
         </div>
         <h3>${t.title}</h3>
         <div class="meta">
-          <span>⏱ ${t.duration || '15 min'}</span>
           <span>👥 ${t.completions || 0} done</span>
         </div>
         <div class="task-actions" onclick="event.stopPropagation()">
@@ -111,7 +110,6 @@ async function loadTaskDetail(taskId) {
       </div>
       <div style="color:var(--success);font-weight:800;font-size:28px;margin:8px 0">₹${t.reward}</div>
       <div style="font-size:12px;color:var(--text-secondary);display:flex;justify-content:center;gap:16px">
-        <span>⏱ ${t.duration || '15 min'}</span>
         <span>👥 ${t.completions || 0} users</span>
       </div>
     </div>
@@ -637,53 +635,34 @@ async function loadAdvertise() {
     api('/api/app/promoted?' + new URLSearchParams({ user_id: USER.id }).toString())
   ]);
 
-  const adGoal = earnData.ad_goal || { current: 0, target: 20, reward: 1, reset_in: '24h', completed: false, no_ads: true };
   const ads = earnData.ads || [];
-  const pct = Math.min(100, (adGoal.current / adGoal.target) * 100);
   const items = promoData.items || [];
-  const isCompleted = adGoal.completed;
 
-  const perAd = adGoal.target > 0 ? (adGoal.reward / adGoal.target).toFixed(2) : '0.05';
-
-  let goalBody = '';
-  if (isCompleted) {
-    goalBody = `<div style="text-align:center;padding:16px;font-size:14px;font-weight:700;color:#00e5a0">✅ Target complete! Come back in ${adGoal.reset_in}</div>
-    <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px">Resets at midnight</div>`;
-  } else if (ads.length === 0) {
-    goalBody = `<div style="text-align:center;padding:16px;font-size:14px;font-weight:700;color:rgba(255,255,255,0.6)">No ads available</div>`;
+  let adsHtml = '';
+  if (ads.length === 0) {
+    adsHtml = `<div style="text-align:center;padding:24px 16px;font-size:14px;color:rgba(255,255,255,0.6)">No ads available</div>`;
   } else {
-    goalBody = `<div style="text-align:center;margin-bottom:12px;font-size:12px;color:rgba(255,255,255,0.5)">
-      Watch ${adGoal.target} ads at ₹${perAd} each to earn ₹${adGoal.reward}
-    </div>
-    <button class="btn-watch-ad" onclick="watchAdVideo()">▶ WATCH AD TO EARN</button>`;
+    adsHtml = ads.map(a => `
+      <div class="card" style="padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#7b5ef8,#5a3fd6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0">🎬</div>
+          <div style="flex:1;min-width:0">
+            <h4 style="font-size:14px;font-weight:600;margin-bottom:2px">${escHtml(a.title)}</h4>
+            <div style="font-size:11px;color:var(--text-secondary)">${a.description ? escHtml(a.description.slice(0, 60)) : 'Watch full video to earn'}</div>
+            <div style="font-size:11px;color:var(--success);margin-top:2px">₹${parseFloat(a.reward).toFixed(2)} per view · ${a.remaining}/${a.max_watches} left</div>
+          </div>
+          <button class="btn btn-sm btn-primary" onclick="watchAdVideo(${a.id})">▶ Watch</button>
+        </div>
+      </div>
+    `).join('');
   }
 
   el.innerHTML = `
-    <div class="adgoal-card">
-      <div class="goal-header">
-        <div style="position:relative;width:110px;height:110px">
-          <svg width="110" height="110" viewBox="0 0 110 110">
-            <circle cx="55" cy="55" r="48" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="6"/>
-            <circle cx="55" cy="55" r="48" fill="none" stroke="#00e5a0" stroke-width="6"
-              stroke-dasharray="${2 * Math.PI * 48}" stroke-dashoffset="${2 * Math.PI * 48 * (1 - pct / 100)}"
-              stroke-linecap="round" transform="rotate(-90 55 55)" style="transition:stroke-dashoffset 0.5s"/>
-          </svg>
-          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
-            <span style="font-size:22px;font-weight:800;color:#fff">${adGoal.current}</span>
-            <span style="font-size:10px;color:rgba(255,255,255,0.5)">of ${adGoal.target}</span>
-          </div>
-        </div>
-        <div style="text-align:left">
-          <h3 style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">Daily Ad Goal</h3>
-          <div style="font-size:12px;color:rgba(255,255,255,0.6);line-height:1.8">
-            <div>🎯 Target: <b style="color:#fff">${adGoal.target} Ads</b></div>
-            <div>💰 Per Ad: <b style="color:#00e5a0">₹${perAd}</b></div>
-            <div>🔄 Resets: <b style="color:#fff">${adGoal.reset_in}</b></div>
-          </div>
-        </div>
-      </div>
-      ${goalBody}
+    <div style="margin-bottom:8px">
+      <h3 style="font-size:17px;font-weight:700;color:#fff">📢 Ads</h3>
+      <div style="font-size:12px;color:var(--text-secondary)">${ads.length} ad${ads.length !== 1 ? 's' : ''} available</div>
     </div>
+    ${adsHtml}
     ${items.length > 0 ? `
       <h3 class="section-title" style="margin-top:16px">📢 Promoted</h3>
       ${items.map(p => `
@@ -707,13 +686,13 @@ async function loadAdvertise() {
   `;
 }
 
-async function watchAdVideo() {
+async function watchAdVideo(adId) {
   const earnData = await api('/api/app/earn?' + new URLSearchParams({ user_id: USER.id }).toString());
   const ads = earnData.ads || [];
-  if (ads.length === 0) { toast('No ads available'); return; }
+  const ad = ads.find(a => a.id === adId) || ads[0];
+  if (!ad) { toast('No ads available'); return; }
 
-  const randomAd = ads[Math.floor(Math.random() * ads.length)];
-  const videoUrl = randomAd.video_url || '';
+  const videoUrl = ad.video_url || '';
   if (!videoUrl) { toast('No video ad available'); return; }
 
   let adCompleted = false;
@@ -761,11 +740,13 @@ async function watchAdVideo() {
 
     api('/api/app/ad/watch', {
       method: 'POST',
-      body: JSON.stringify({ user_id: USER.id, ad_id: randomAd.id })
+      body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
     }).then(data => {
       if (data.ok) {
-        toast('💰 +₹' + (data.amount || '0.10') + ' earned!');
+        toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
         updateBalance(data.balance || CURRENT_USER.balance);
+      } else {
+        toast(data.error || 'Failed to earn reward');
       }
       setTimeout(closeAdOverlay, 800);
     }).catch(() => {

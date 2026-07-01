@@ -44,22 +44,6 @@
 .ad-info h4 { font-size: 13px; }
 .ad-info p { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
 
-.adgoal-card {
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
-  border-radius: 16px; padding: 24px 20px; margin-bottom: 16px;
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.adgoal-card .btn-watch-ad {
-  display: block; width: 100%; padding: 14px; border-radius: 12px; font-size: 14px; font-weight: 800;
-  background: var(--success-gradient); color: #071a11; border: none; cursor: pointer;
-  transition: transform 0.15s; text-align: center;
-}
-.adgoal-card .btn-watch-ad:active { transform: scale(0.98); }
-
-.adgoal-card .goal-header {
-  display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 16px;
-}
-
 .game-play { padding: 16px 0; }
 .game-desc { text-align: center; color: var(--text-secondary); font-size: 13px; margin-bottom: 16px; }
 
