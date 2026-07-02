@@ -678,18 +678,26 @@ async function loadAdvertise() {
   if (ads.length === 0) {
     adsHtml = `<div style="text-align:center;padding:24px 16px;font-size:14px;color:rgba(255,255,255,0.6)">No ads available</div>`;
   } else {
-    adsHtml = ads.map(a => `
-      <div class="card" style="padding:14px;margin-bottom:10px;cursor:pointer" onclick="watchAdVideo(${a.id})">
+    adsHtml = ads.map(a => {
+      const imgUrl = a.image ? '/api/app/ad-image/' + a.id : '';
+      const isYT = isYouTubeUrl(a.video_url || '');
+      const isTG = isTelegramUrl(a.video_url || '');
+      const badge = isYT ? '▶️ YouTube' : isTG ? '✈️ Telegram' : '🎬 Video';
+      return `
+      <div class="card" style="padding:12px;margin-bottom:10px;cursor:pointer" onclick="watchAdVideo(${a.id})">
         <div style="display:flex;align-items:center;gap:12px">
-          <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#7b5ef8,#5a3fd6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0">🎬</div>
+          ${imgUrl ? `<img src="${imgUrl}" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#7b5ef8,#5a3fd6);display:none;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0">🎬</div>` : `<div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#7b5ef8,#5a3fd6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0">🎬</div>`}
           <div style="flex:1;min-width:0">
-            <h4 style="font-size:14px;font-weight:600;margin-bottom:2px">${escHtml(a.title)}</h4>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+              <h4 style="font-size:14px;font-weight:600">${escHtml(a.title)}</h4>
+              <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(123,94,248,0.15);color:#a78bfa;white-space:nowrap">${badge}</span>
+            </div>
             <div style="font-size:11px;color:var(--text-secondary)">${a.description ? escHtml(a.description.slice(0, 60)) : 'Watch full video to earn'}</div>
             <div style="font-size:11px;color:var(--success);margin-top:2px">₹${parseFloat(a.reward).toFixed(2)} per view</div>
           </div>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   }
 
   el.innerHTML = `
@@ -721,6 +729,63 @@ async function loadAdvertise() {
   `;
 }
 
+function isYouTubeUrl(url) {
+  return /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)/.test(url);
+}
+
+function isTelegramUrl(url) {
+  return /t\.me\/|telegram\.me\//.test(url);
+}
+
+function extractYouTubeId(url) {
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^&?#\/\s]+)/);
+  return m ? m[1] : null;
+}
+
+function formatAdTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return m > 0 ? m + ':' + String(sec).padStart(2, '0') : sec + 's';
+}
+
+async function loadTasksAds() {
+  const el = document.getElementById('adsList');
+  if (!el) return;
+  el.innerHTML = '';
+
+  const earnData = await api('/api/app/earn?' + new URLSearchParams({ user_id: USER.id }).toString());
+  const ads = earnData.ads || [];
+  if (ads.length === 0) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h3 class="section-title" style="margin-bottom:0">📢 Ads</h3>
+      <span style="font-size:12px;color:var(--text-secondary)">${ads.length} ad${ads.length !== 1 ? 's' : ''}</span>
+    </div>
+    ${ads.map(a => {
+      const imgUrl = a.image ? '/api/app/ad-image/' + a.id : '';
+      const isYT = isYouTubeUrl(a.video_url || '');
+      const isTG = isTelegramUrl(a.video_url || '');
+      const badge = isYT ? '▶️ YouTube' : isTG ? '✈️ Telegram' : '🎬 Video';
+      return `
+      <div class="card" style="padding:12px;margin-bottom:8px;cursor:pointer" onclick="watchAdVideo(${a.id})">
+        <div style="display:flex;align-items:center;gap:10px">
+          ${imgUrl ? `<img src="${imgUrl}" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#7b5ef8,#5a3fd6);display:none;align-items:center;justify-content:center;color:#fff;font-size:18px;flex-shrink:0">${a.image ? '' : '🎬'}</div>` : `<div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#7b5ef8,#5a3fd6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;flex-shrink:0">🎬</div>`}
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+              <h4 style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(a.title)}</h4>
+              <span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(123,94,248,0.15);color:#a78bfa;white-space:nowrap">${badge}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.description ? escHtml(a.description.slice(0, 50)) : 'Watch full video to earn'}</div>
+            <div style="font-size:11px;color:var(--success);margin-top:2px">₹${parseFloat(a.reward).toFixed(2)} per view</div>
+          </div>
+          <div style="font-size:18px;flex-shrink:0">▶️</div>
+        </div>
+      </div>`;
+    }).join('')}
+  `;
+}
+
 async function watchAdVideo(adId) {
   const earnData = await api('/api/app/earn?' + new URLSearchParams({ user_id: USER.id }).toString());
   const ads = earnData.ads || [];
@@ -738,76 +803,211 @@ async function watchAdVideo(adId) {
   const overlay = document.createElement('div');
   overlay.id = 'adOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center';
-  overlay.innerHTML = `
-    <div id="adTimer" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;z-index:10">Loading...</div>
-    <div style="width:100%;max-width:480px;aspect-ratio:16/9;background:#111;border-radius:8px;overflow:hidden;position:relative">
-      <video id="adVideoPlayer" style="width:100%;height:100%;object-fit:contain" playsinline webkit-playsinline controlsList="nodownload noplaybackrate">
-        <source src="/api/app/ad-video?url=${encodeURIComponent(videoUrl)}" type="video/mp4">
-      </video>
-      <div id="adProgressBar" style="position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,0.2)">
-        <div id="adProgressFill" style="height:100%;background:#00e5a0;width:0%;transition:width 0.3s"></div>
+
+  if (isYouTubeUrl(videoUrl)) {
+    const ytId = extractYouTubeId(videoUrl);
+    if (!ytId) { toast('Invalid YouTube URL'); return; }
+    overlay.innerHTML = `
+      <div id="adTimer" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;z-index:10">Loading...</div>
+      <div style="width:100%;max-width:480px;aspect-ratio:16/9;background:#111;border-radius:8px;overflow:hidden;position:relative">
+        <div id="adYTPlayer"></div>
+        <div id="adProgressBar" style="position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,0.2);z-index:5">
+          <div id="adProgressFill" style="height:100%;background:#00e5a0;width:0%;transition:width 0.3s"></div>
+        </div>
       </div>
-    </div>
-    <div style="margin-top:16px;font-size:13px;color:rgba(255,255,255,0.7);text-align:center">Watch the full ad to earn reward</div>
-  `;
-  document.body.appendChild(overlay);
+      <div style="margin-top:12px;font-size:13px;color:rgba(255,255,255,0.7);text-align:center">Watch the full video to earn ₹${parseFloat(ad.reward).toFixed(2)}</div>
+    `;
+    document.body.appendChild(overlay);
 
-  const video = document.getElementById('adVideoPlayer');
-  const timerEl = document.getElementById('adTimer');
-  const progressFill = document.getElementById('adProgressFill');
+    const timerEl = document.getElementById('adTimer');
+    const progressFill = document.getElementById('adProgressFill');
+    const playerDiv = document.getElementById('adYTPlayer');
 
-  if (!video) { closeAdOverlay(); return; }
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
 
-  video.play().catch(() => {});
+    window._ytAdDone = false;
+    window.onYouTubeIframeAPIReady = function() {
+      new YT.Player(playerDiv, {
+        height: '100%', width: '100%', videoId: ytId,
+        playerVars: { autoplay: 1, controls: 0, disablekb: 1, fs: 0, iv_load_policy: 3, modestbranding: 1, rel: 0, showinfo: 0 },
+        events: {
+          onReady: function(e) { e.target.playVideo(); },
+          onStateChange: function(e) {
+            if (e.data === YT.PlayerState.PLAYING) {
+              const dur = e.target.getDuration();
+              const iv = setInterval(function() {
+                if (window._ytAdDone || adCompleted) { clearInterval(iv); return; }
+                const cur = e.target.getCurrentTime();
+                const pct = Math.min(100, (cur / dur) * 100);
+                if (progressFill) progressFill.style.width = pct + '%';
+                const rem = Math.ceil(dur - cur);
+                if (timerEl) timerEl.textContent = formatAdTime(rem) + ' remaining';
+              }, 500);
+            }
+            if (e.data === YT.PlayerState.ENDED && !window._ytAdDone) {
+              window._ytAdDone = true;
+              adCompleted = true;
+              if (timerEl) timerEl.textContent = '✅ Complete!';
+              if (progressFill) progressFill.style.width = '100%';
+              api('/api/app/ad/watch', {
+                method: 'POST',
+                body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
+              }).then(data => {
+                if (data.ok) {
+                  toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
+                  updateBalance(data.balance || CURRENT_USER.balance);
+                } else { toast(data.error || 'Failed to earn reward'); }
+                setTimeout(closeAdOverlay, 800);
+              }).catch(() => { setTimeout(closeAdOverlay, 800); });
+            }
+          }
+        }
+      });
+    };
 
-  video.addEventListener('timeupdate', function onTimeUpdate() {
-    if (!video.duration) return;
-    const pct = Math.min(100, (video.currentTime / video.duration) * 100);
-    if (progressFill) progressFill.style.width = pct + '%';
-    const remaining = Math.ceil(video.duration - video.currentTime);
-    if (timerEl) timerEl.textContent = remaining + 's remaining';
-  });
-
-  video.addEventListener('ended', function onEnded() {
-    adCompleted = true;
-    if (timerEl) timerEl.textContent = '✅ Complete!';
-    if (progressFill) progressFill.style.width = '100%';
-
-    api('/api/app/ad/watch', {
-      method: 'POST',
-      body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
-    }).then(data => {
-      if (data.ok) {
-        toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
-        updateBalance(data.balance || CURRENT_USER.balance);
-      } else {
-        toast(data.error || 'Failed to earn reward');
+    function onVisibilityChange() {
+      if (document.hidden && !adCompleted && !adCancelled) {
+        adCancelled = true;
+        toast('Ad closed early — no reward');
+        setTimeout(closeAdOverlay, 300);
       }
-      setTimeout(closeAdOverlay, 800);
-    }).catch(() => {
-      setTimeout(closeAdOverlay, 800);
-    });
-  });
-
-  video.addEventListener('error', function() {
-    toast('Video failed to load');
-    closeAdOverlay();
-  });
-
-  function onVisibilityChange() {
-    if (document.hidden && !adCompleted && !adCancelled) {
-      adCancelled = true;
-      try { video.pause(); } catch(e) {}
-      toast('Ad closed early — no reward');
-      setTimeout(closeAdOverlay, 300);
     }
-  }
-  document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window._adCleanup = function() {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      try { TG?.BackButton?.show(); } catch(e) {}
+    };
 
-  window._adCleanup = function() {
-    document.removeEventListener('visibilitychange', onVisibilityChange);
-    try { TG?.BackButton?.show(); } catch(e) {}
-  };
+  } else if (isTelegramUrl(videoUrl)) {
+    const TIMER_SECONDS = 15;
+    let timeLeft = TIMER_SECONDS;
+    overlay.innerHTML = `
+      <div id="adTimer" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;z-index:10">${formatAdTime(TIMER_SECONDS)}</div>
+      <div style="width:100%;max-width:480px;background:#1a1a2e;border-radius:12px;overflow:hidden;padding:20px;text-align:center">
+        <div style="font-size:40px;margin-bottom:12px">✈️</div>
+        <h3 style="color:#fff;font-size:16px;font-weight:700;margin-bottom:6px">${escHtml(ad.title)}</h3>
+        <p style="color:rgba(255,255,255,0.6);font-size:12px;margin-bottom:16px">${escHtml(ad.description || 'Watch this ad to earn reward')}</p>
+        <div style="margin-bottom:16px">
+          <div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden">
+            <div id="adProgressFill" style="height:100%;background:linear-gradient(90deg,#00e5a0,#7b5ef8);width:0%;transition:width 1s linear;border-radius:3px"></div>
+          </div>
+        </div>
+        <a href="${escHtml(videoUrl)}" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:var(--primary);color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;margin-bottom:12px">✈️ View on Telegram</a>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4)">Timer runs while you view the ad</div>
+      </div>
+      <div style="margin-top:12px;font-size:13px;color:rgba(255,255,255,0.7);text-align:center">Watch for ${TIMER_SECONDS} seconds to earn ₹${parseFloat(ad.reward).toFixed(2)}</div>
+    `;
+    document.body.appendChild(overlay);
+
+    const timerEl = document.getElementById('adTimer');
+    const progressFill = document.getElementById('adProgressFill');
+
+    const iv = setInterval(function() {
+      if (adCompleted || adCancelled) { clearInterval(iv); return; }
+      timeLeft--;
+      if (progressFill) progressFill.style.width = ((TIMER_SECONDS - timeLeft) / TIMER_SECONDS * 100) + '%';
+      if (timerEl) timerEl.textContent = formatAdTime(timeLeft);
+      if (timeLeft <= 0) {
+        clearInterval(iv);
+        adCompleted = true;
+        if (timerEl) timerEl.textContent = '✅ Complete!';
+        if (progressFill) progressFill.style.width = '100%';
+        api('/api/app/ad/watch', {
+          method: 'POST',
+          body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
+        }).then(data => {
+          if (data.ok) {
+            toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
+            updateBalance(data.balance || CURRENT_USER.balance);
+          } else { toast(data.error || 'Failed to earn reward'); }
+          setTimeout(closeAdOverlay, 800);
+        }).catch(() => { setTimeout(closeAdOverlay, 800); });
+      }
+    }, 1000);
+
+    function onVisibilityChange() {
+      if (document.hidden && !adCompleted && !adCancelled) {
+        adCancelled = true;
+        clearInterval(iv);
+        toast('Ad closed early — no reward');
+        setTimeout(closeAdOverlay, 300);
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window._adCleanup = function() {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      clearInterval(iv);
+      try { TG?.BackButton?.show(); } catch(e) {}
+    };
+
+  } else {
+    overlay.innerHTML = `
+      <div id="adTimer" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;z-index:10">Loading...</div>
+      <div style="width:100%;max-width:480px;aspect-ratio:16/9;background:#111;border-radius:8px;overflow:hidden;position:relative">
+        <video id="adVideoPlayer" style="width:100%;height:100%;object-fit:contain" playsinline webkit-playsinline controlsList="nodownload noplaybackrate">
+          <source src="/api/app/ad-video?url=${encodeURIComponent(videoUrl)}" type="video/mp4">
+        </video>
+        <div id="adProgressBar" style="position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,0.2)">
+          <div id="adProgressFill" style="height:100%;background:#00e5a0;width:0%;transition:width 0.3s"></div>
+        </div>
+      </div>
+      <div style="margin-top:16px;font-size:13px;color:rgba(255,255,255,0.7);text-align:center">Watch the full ad to earn ₹${parseFloat(ad.reward).toFixed(2)}</div>
+    `;
+    document.body.appendChild(overlay);
+
+    const video = document.getElementById('adVideoPlayer');
+    const timerEl = document.getElementById('adTimer');
+    const progressFill = document.getElementById('adProgressFill');
+
+    if (!video) { closeAdOverlay(); return; }
+
+    video.play().catch(() => {});
+
+    video.addEventListener('timeupdate', function() {
+      if (!video.duration) return;
+      const pct = Math.min(100, (video.currentTime / video.duration) * 100);
+      if (progressFill) progressFill.style.width = pct + '%';
+      const remaining = Math.ceil(video.duration - video.currentTime);
+      if (timerEl) timerEl.textContent = formatAdTime(remaining) + ' remaining';
+    });
+
+    video.addEventListener('ended', function() {
+      adCompleted = true;
+      if (timerEl) timerEl.textContent = '✅ Complete!';
+      if (progressFill) progressFill.style.width = '100%';
+      api('/api/app/ad/watch', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
+      }).then(data => {
+        if (data.ok) {
+          toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
+          updateBalance(data.balance || CURRENT_USER.balance);
+        } else { toast(data.error || 'Failed to earn reward'); }
+        setTimeout(closeAdOverlay, 800);
+      }).catch(() => { setTimeout(closeAdOverlay, 800); });
+    });
+
+    video.addEventListener('error', function() {
+      toast('Video failed to load');
+      closeAdOverlay();
+    });
+
+    function onVisibilityChange() {
+      if (document.hidden && !adCompleted && !adCancelled) {
+        adCancelled = true;
+        try { video.pause(); } catch(e) {}
+        toast('Ad closed early — no reward');
+        setTimeout(closeAdOverlay, 300);
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window._adCleanup = function() {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      try { TG?.BackButton?.show(); } catch(e) {}
+    };
+  }
 }
 
 function closeAdOverlay() {

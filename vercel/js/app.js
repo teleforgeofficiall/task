@@ -246,7 +246,7 @@ function navigateTab(name) {
 
 function loadTab(name) {
   switch(name) {
-    case 'Tasks': loadTasks(); loadPromoted(); break;
+    case 'Tasks': loadTasks(); loadPromoted(); loadTasksAds(); break;
     case 'Top': loadLeaderboard(); break;
     case 'Invite': loadReferral(); break;
     case 'Wallet': loadWallet(); break;

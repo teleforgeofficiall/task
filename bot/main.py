@@ -1346,6 +1346,77 @@ async def app_ad_video(url: str):
         return Response(status_code=404)
 
 
+@app.get("/api/app/ad-image/{ad_id}")
+async def app_ad_image(ad_id: int):
+    """Proxy ad image — resolves ad image URLs to actual image bytes."""
+    from bot.database import get_session, Repository
+    import httpx, re
+    async with get_session() as session:
+        repo = Repository(session)
+        campaigns = await repo.get_setting("ad_campaigns", [])
+        if not isinstance(campaigns, list):
+            return Response(status_code=404)
+        ad = next((a for a in campaigns if a.get("id") == ad_id), None)
+        if not ad or not ad.get("image"):
+            return Response(status_code=404)
+        image_ref = ad["image"]
+    if image_ref.startswith("/api/app/uploads/"):
+        from fastapi.responses import FileResponse
+        filepath = os.path.normpath(os.path.join(UPLOAD_DIR, os.path.basename(image_ref)))
+        if filepath.startswith(UPLOAD_DIR) and os.path.exists(filepath):
+            return FileResponse(filepath)
+        return Response(status_code=404)
+    if image_ref.startswith("http://") or image_ref.startswith("https://"):
+        try:
+            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+                resp = await client.get(image_ref)
+                if resp.status_code != 200:
+                    return Response(status_code=404)
+                ct = resp.headers.get("content-type", "text/plain").split(";")[0].strip().lower()
+                if ct == "text/html":
+                    html_text = resp.text
+                    image_url = None
+                    for pattern in [
+                        r'property="og:image"\s+content="([^"]+)"',
+                        r'content="([^"]+)"\s+property="og:image"',
+                        r"property='og:image'\s+content='([^']+)'",
+                        r'content="([^"]+)"\s+property="og:image:url"',
+                        r'property="og:image:url"\s+content="([^"]+)"',
+                        r'property="twitter:image"\s+content="([^"]+)"',
+                        r'<img\s+class="tgme_page_photo_image"\s+src="([^"]+)"',
+                    ]:
+                        m = re.search(pattern, html_text, re.IGNORECASE)
+                        if m:
+                            image_url = m.group(1)
+                            break
+                    if image_url:
+                        img_resp = await client.get(image_url)
+                        if img_resp.status_code == 200:
+                            img_ct = img_resp.headers.get("content-type", "image/jpeg")
+                            return Response(content=img_resp.content, media_type=img_ct, headers={"Cache-Control": "public, max-age=3600"})
+                    return Response(status_code=404)
+                return Response(content=resp.content, media_type=resp.headers.get("content-type", "image/jpeg"), headers={"Cache-Control": "public, max-age=3600"})
+        except Exception as e:
+            logger.error("ad-image proxy failed for ad %d: %s", ad_id, e)
+            return Response(status_code=404)
+    token = settings.BOT_TOKEN
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(f"https://api.telegram.org/bot{token}/getFile", json={"file_id": image_ref})
+            d = r.json()
+            if not d.get("ok"):
+                return Response(status_code=404)
+            file_path = d["result"]["file_path"]
+            url = f"https://api.telegram.org/file/bot{token}/{file_path}"
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                return Response(status_code=404)
+            ct = resp.headers.get("content-type", "image/jpeg")
+            return Response(content=resp.content, media_type=ct, headers={"Cache-Control": "public, max-age=3600"})
+    except Exception:
+        return Response(status_code=404)
+
+
 @app.get("/api/app/task-image/{task_id}")
 async def app_task_image(task_id: int):
     """Proxy task image — resolves Telegram file_ids to actual image bytes."""
@@ -1714,7 +1785,10 @@ async def app_submit_promotion(request: Request):
         url = data.get("url", "")
         image = data.get("image", "")
         color = data.get("color", "#7b5ef8")
-        reward = float(data.get("reward", 0))
+        try:
+            reward = float(data.get("reward", 0))
+        except (ValueError, TypeError):
+            reward = 0.0
         payment_proof = (data.get("payment_proof", "") or "")[:500000]
         transaction_id = data.get("transaction_id", "")
         if not user_id:

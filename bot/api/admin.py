@@ -610,50 +610,67 @@ async def admin_ads(request: Request):
 
 @router.post("/ads")
 async def admin_add_ad(request: Request):
-    admin_id = await require_admin(request)
-    data = await request.json()
-    async with get_session() as session:
-        repo = Repository(session)
-        campaigns = await repo.get_setting("ad_campaigns", [])
-        if not isinstance(campaigns, list):
-            campaigns = []
-        new_id = max([a.get("id", 0) for a in campaigns], default=0) + 1
-        ad = {
-            "id": new_id,
-            "title": data.get("title", ""),
-            "description": data.get("description", ""),
-            "image": data.get("image", ""),
-            "video_url": data.get("video_url", ""),
-            "url": data.get("url", ""),
-            "reward": float(data.get("reward", 0)),
-            "active": data.get("active", True),
-        }
-        campaigns.append(ad)
-        await repo.update_setting("ad_campaigns", campaigns)
-    return {"ok": True, "ad": ad}
+    try:
+        admin_id = await require_admin(request)
+        data = await request.json()
+        title = (data.get("title") or "").strip()
+        if not title:
+            return {"ok": False, "error": "Title is required"}
+        try:
+            reward = float(data.get("reward", 0))
+        except (ValueError, TypeError):
+            reward = 0.0
+        async with get_session() as session:
+            repo = Repository(session)
+            campaigns = await repo.get_setting("ad_campaigns", [])
+            if not isinstance(campaigns, list):
+                campaigns = []
+            new_id = max([a.get("id", 0) for a in campaigns], default=0) + 1
+            ad = {
+                "id": new_id,
+                "title": title,
+                "description": (data.get("description") or "").strip(),
+                "image": (data.get("image") or "").strip(),
+                "video_url": (data.get("video_url") or "").strip(),
+                "url": (data.get("url") or "").strip(),
+                "reward": reward,
+                "active": data.get("active", True),
+            }
+            campaigns.append(ad)
+            await repo.update_setting("ad_campaigns", campaigns)
+        return {"ok": True, "ad": ad}
+    except Exception as e:
+        logger.exception("admin_add_ad failed: %s", e)
+        return {"ok": False, "error": "Server error"}
 
 
 @router.put("/ads/{ad_id}")
 async def admin_update_ad(request: Request, ad_id: int):
-    admin_id = await require_admin(request)
-    data = await request.json()
-    async with get_session() as session:
-        repo = Repository(session)
-        campaigns = await repo.get_setting("ad_campaigns", [])
-        if not isinstance(campaigns, list):
-            campaigns = []
-        for ad in campaigns:
-            if ad.get("id") == ad_id:
-                if "title" in data: ad["title"] = data["title"]
-                if "description" in data: ad["description"] = data["description"]
-                if "image" in data: ad["image"] = data["image"]
-                if "video_url" in data: ad["video_url"] = data["video_url"]
-                if "url" in data: ad["url"] = data["url"]
-                if "reward" in data: ad["reward"] = float(data["reward"])
-                if "active" in data: ad["active"] = data["active"]
-                break
-        await repo.update_setting("ad_campaigns", campaigns)
-    return {"ok": True, "ad": next((a for a in campaigns if a.get("id") == ad_id), None)}
+    try:
+        admin_id = await require_admin(request)
+        data = await request.json()
+        async with get_session() as session:
+            repo = Repository(session)
+            campaigns = await repo.get_setting("ad_campaigns", [])
+            if not isinstance(campaigns, list):
+                campaigns = []
+            for ad in campaigns:
+                if ad.get("id") == ad_id:
+                    if "title" in data: ad["title"] = data["title"]
+                    if "description" in data: ad["description"] = data["description"]
+                    if "image" in data: ad["image"] = data["image"]
+                    if "video_url" in data: ad["video_url"] = data["video_url"]
+                    if "url" in data: ad["url"] = data["url"]
+                    if "reward" in data:
+                        try: ad["reward"] = float(data["reward"])
+                        except (ValueError, TypeError): pass
+                    if "active" in data: ad["active"] = data["active"]
+                    break
+            await repo.update_setting("ad_campaigns", campaigns)
+        return {"ok": True, "ad": next((a for a in campaigns if a.get("id") == ad_id), None)}
+    except Exception as e:
+        logger.exception("admin_update_ad failed: %s", e)
+        return {"ok": False, "error": "Server error"}
 
 
 @router.delete("/ads/{ad_id}")
