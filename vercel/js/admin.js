@@ -754,12 +754,26 @@ function adminEditAd(id) {
   adminApi('/ads', 'GET').then(data => {
     const ad = data.ads?.find(a => a.id === id);
     if (!ad) { toast('Ad not found'); return; }
+    const hasVid = ad.video_url && !ad.video_url.includes('t.me');
+    const hasImg = ad.image && !ad.image.includes('t.me');
     showModal('Admin › Edit Ad Campaign', `
       <div class="admin-form">
         <div class="form-group"><label>Title</label><input id="f_a_edit_title" value="${escHtml(ad.title || '')}"></div>
         <div class="form-group"><label>Description</label><textarea id="f_a_edit_desc" rows="3">${escHtml(ad.description || '')}</textarea></div>
-        <div class="form-group"><label>Image</label><input id="f_a_edit_image" value="${escHtml(ad.image || '')}" placeholder="Telegram post link or image URL"></div>
-        <div class="form-group"><label>Video URL</label><input id="f_a_edit_video" value="${escHtml(ad.video_url || '')}" placeholder="https://t.me/channel/post_id"></div>
+        <div class="form-group"><label>Video</label>
+          <input id="f_a_edit_video_text" value="${escHtml(ad.video_url || '')}" placeholder="Paste URL or upload below" style="margin-bottom:6px">
+          <input type="file" id="f_a_edit_video_file" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo" style="display:none" onchange="adminHandleAdFile(this,'f_a_edit_video_file_name','f_a_edit_video_data')">
+          <div onclick="document.getElementById('f_a_edit_video_file').click()" style="padding:10px;border:2px dashed var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-secondary)">📁 Tap to upload video (MP4, MOV, WebM — max 50MB)</div>
+          <div id="f_a_edit_video_file_name" style="font-size:11px;color:var(--success);margin-top:4px">${hasVid ? '✅ Current: ' + ad.video_url.slice(0,50) : ''}</div>
+          <input type="hidden" id="f_a_edit_video_data" value="">
+        </div>
+        <div class="form-group"><label>Image</label>
+          <input id="f_a_edit_image_text" value="${escHtml(ad.image || '')}" placeholder="Paste URL or upload below" style="margin-bottom:6px">
+          <input type="file" id="f_a_edit_image_file" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" onchange="adminHandleAdFile(this,'f_a_edit_image_file_name','f_a_edit_image_data')">
+          <div onclick="document.getElementById('f_a_edit_image_file').click()" style="padding:10px;border:2px dashed var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-secondary)">📁 Tap to upload image (JPG, PNG, GIF — max 5MB)</div>
+          <div id="f_a_edit_image_file_name" style="font-size:11px;color:var(--success);margin-top:4px">${hasImg ? '✅ Current: ' + ad.image.slice(0,50) : ''}</div>
+          <input type="hidden" id="f_a_edit_image_data" value="">
+        </div>
         <div class="form-group"><label>Link URL</label><input id="f_a_edit_url" value="${escHtml(ad.url || '')}" placeholder="https://..."></div>
         <div class="form-group"><label>Reward per View (₹)</label><input id="f_a_edit_reward" type="number" step="0.01" value="${ad.reward || 0.05}"></div>
         <button class="btn btn-primary btn-block" onclick="adminUpdateAd(${id})">Save</button>
@@ -769,17 +783,31 @@ function adminEditAd(id) {
 }
 
 async function adminUpdateAd(id) {
+  const videoData = document.getElementById('f_a_edit_video_data')?.value;
+  const imageData = document.getElementById('f_a_edit_image_data')?.value;
+  let videoUrl = document.getElementById('f_a_edit_video_text')?.value || '';
+  let imageUrl = document.getElementById('f_a_edit_image_text')?.value || '';
+  if (videoData) {
+    toast('Uploading video...');
+    const up = await adminUploadToCloudinary(videoData, '/upload-video');
+    if (up.ok) { videoUrl = up.url; } else { toast(up.error || 'Video upload failed'); return; }
+  }
+  if (imageData) {
+    toast('Uploading image...');
+    const up = await adminUploadToCloudinary(imageData, '/upload-ad-image');
+    if (up.ok) { imageUrl = up.url; } else { toast(up.error || 'Image upload failed'); return; }
+  }
   const body = {
     title: document.getElementById('f_a_edit_title')?.value || '',
     description: document.getElementById('f_a_edit_desc')?.value || '',
-    image: document.getElementById('f_a_edit_image')?.value || '',
-    video_url: document.getElementById('f_a_edit_video')?.value || '',
+    image: imageUrl,
+    video_url: videoUrl,
     url: document.getElementById('f_a_edit_url')?.value || '',
     reward: parseFloat(document.getElementById('f_a_edit_reward')?.value || 0),
   };
   const data = await adminApi('/ads/' + id, 'PUT', body);
   if (data.ok) { toast('Ad updated!'); closeModal(); adminAds(); }
-  else { toast('Failed'); }
+  else { toast(data.error || 'Failed'); }
 }
 
 function adminAddAd() {
@@ -787,8 +815,20 @@ function adminAddAd() {
     <div class="admin-form">
       <div class="form-group"><label>Title</label><input id="f_a_title"></div>
       <div class="form-group"><label>Description</label><textarea id="f_a_desc"></textarea></div>
-      <div class="form-group"><label>Image</label><input id="f_a_image" placeholder="Telegram post link or image URL"></div>
-      <div class="form-group"><label>Video URL</label><input id="f_a_video" placeholder="https://t.me/channel/post_id"></div>
+      <div class="form-group"><label>Video</label>
+        <input id="f_a_video_text" placeholder="Paste URL or upload below" style="margin-bottom:6px">
+        <input type="file" id="f_a_video_file" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo" style="display:none" onchange="adminHandleAdFile(this,'f_a_video_file_name','f_a_video_data')">
+        <div onclick="document.getElementById('f_a_video_file').click()" style="padding:10px;border:2px dashed var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-secondary)">📁 Tap to upload video (MP4, MOV, WebM — max 50MB)</div>
+        <div id="f_a_video_file_name" style="font-size:11px;color:var(--success);margin-top:4px"></div>
+        <input type="hidden" id="f_a_video_data" value="">
+      </div>
+      <div class="form-group"><label>Image</label>
+        <input id="f_a_image_text" placeholder="Paste URL or upload below" style="margin-bottom:6px">
+        <input type="file" id="f_a_image_file" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" onchange="adminHandleAdFile(this,'f_a_image_file_name','f_a_image_data')">
+        <div onclick="document.getElementById('f_a_image_file').click()" style="padding:10px;border:2px dashed var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-secondary)">📁 Tap to upload image (JPG, PNG, GIF — max 5MB)</div>
+        <div id="f_a_image_file_name" style="font-size:11px;color:var(--success);margin-top:4px"></div>
+        <input type="hidden" id="f_a_image_data" value="">
+      </div>
       <div class="form-group"><label>Link URL</label><input id="f_a_url" placeholder="https://..."></div>
       <div class="form-group"><label>Reward per View (₹)</label><input id="f_a_reward" type="number" step="0.01" value="0.05"></div>
       <button class="btn btn-primary btn-block" onclick="adminSaveAd()">Add</button>
@@ -796,18 +836,60 @@ function adminAddAd() {
   `);
 }
 
+function adminHandleAdFile(input, nameElId, dataElId) {
+  const file = input.files[0];
+  if (!file) return;
+  const nameEl = document.getElementById(nameElId);
+  const dataEl = document.getElementById(dataElId);
+  if (nameEl) nameEl.textContent = '⏳ ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + 'MB)';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    if (dataEl) dataEl.value = e.target.result;
+    if (nameEl) nameEl.textContent = '✅ ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + 'MB) — ready to upload';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function adminUploadToCloudinary(dataUrl, endpoint) {
+  try {
+    const resp = await fetch(dataUrl);
+    const blob = await resp.blob();
+    const formData = new FormData();
+    formData.append('file', blob, 'upload');
+    const user_id = USER?.id || 0;
+    const res = await fetch('/api/admin' + endpoint + '?user_id=' + user_id, { method: 'POST', body: formData });
+    return await res.json();
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
+}
+
 async function adminSaveAd() {
+  const videoData = document.getElementById('f_a_video_data')?.value;
+  const imageData = document.getElementById('f_a_image_data')?.value;
+  let videoUrl = document.getElementById('f_a_video_text')?.value || '';
+  let imageUrl = document.getElementById('f_a_image_text')?.value || '';
+  if (videoData) {
+    toast('Uploading video...');
+    const up = await adminUploadToCloudinary(videoData, '/upload-video');
+    if (up.ok) { videoUrl = up.url; } else { toast(up.error || 'Video upload failed'); return; }
+  }
+  if (imageData) {
+    toast('Uploading image...');
+    const up = await adminUploadToCloudinary(imageData, '/upload-ad-image');
+    if (up.ok) { imageUrl = up.url; } else { toast(up.error || 'Image upload failed'); return; }
+  }
   const body = {
     title: document.getElementById('f_a_title')?.value || '',
     description: document.getElementById('f_a_desc')?.value || '',
-    image: document.getElementById('f_a_image')?.value || '',
-    video_url: document.getElementById('f_a_video')?.value || '',
+    image: imageUrl,
+    video_url: videoUrl,
     url: document.getElementById('f_a_url')?.value || '',
     reward: parseFloat(document.getElementById('f_a_reward')?.value || 0),
   };
   const data = await adminApi('/ads', 'POST', body);
   if (data.ok) { toast('Ad campaign added!'); closeModal(); adminAds(); }
-  else { toast('Failed'); }
+  else { toast(data.error || 'Failed'); }
 }
 
 async function adminDeleteAd(id) {

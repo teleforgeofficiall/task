@@ -43,6 +43,82 @@ async def admin_upload_image(request: Request):
     return {"ok": True, "path": f"/api/app/uploads/{filename}"}
 
 
+@router.post("/upload-video")
+async def admin_upload_video(request: Request):
+    """Upload video to Cloudinary. Accepts multipart form with 'file' field."""
+    admin_id = await require_admin(request)
+    from fastapi import UploadFile, File
+    from config.settings import settings
+    import cloudinary.uploader
+    try:
+        form = await request.form()
+        upload_file: UploadFile = form.get("file")
+        if not upload_file:
+            return {"ok": False, "error": "No file provided"}
+        content = await upload_file.read()
+        if len(content) > 50 * 1024 * 1024:
+            return {"ok": False, "error": "File too large (max 50MB)"}
+        allowed = {"video/mp4", "video/quicktime", "video/webm", "video/x-msvideo", "video/avi", "video/x-matroska"}
+        ct = upload_file.content_type or ""
+        if ct not in allowed:
+            ext = (upload_file.filename or "").rsplit(".", 1)[-1].lower()
+            if ext not in {"mp4", "mov", "webm", "avi", "mkv"}:
+                return {"ok": False, "error": "Invalid video format. Use MP4, MOV, WebM, or AVI."}
+        cloudinary.config(
+            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+            api_key=settings.CLOUDINARY_API_KEY,
+            api_secret=settings.CLOUDINARY_API_SECRET,
+        )
+        result = cloudinary.uploader.upload(
+            content,
+            resource_type="video",
+            folder="taskhub/ads",
+            public_id=f"ad_{uuid.uuid4().hex[:10]}",
+        )
+        return {"ok": True, "url": result["secure_url"]}
+    except Exception as e:
+        logger.exception("upload-video failed: %s", e)
+        return {"ok": False, "error": "Upload failed"}
+
+
+@router.post("/upload-ad-image")
+async def admin_upload_ad_image(request: Request):
+    """Upload ad image to Cloudinary. Accepts multipart form with 'file' field."""
+    admin_id = await require_admin(request)
+    from fastapi import UploadFile, File
+    from config.settings import settings
+    import cloudinary.uploader
+    try:
+        form = await request.form()
+        upload_file: UploadFile = form.get("file")
+        if not upload_file:
+            return {"ok": False, "error": "No file provided"}
+        content = await upload_file.read()
+        if len(content) > 5 * 1024 * 1024:
+            return {"ok": False, "error": "File too large (max 5MB)"}
+        allowed = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+        ct = upload_file.content_type or ""
+        if ct not in allowed:
+            ext = (upload_file.filename or "").rsplit(".", 1)[-1].lower()
+            if ext not in {"jpg", "jpeg", "png", "gif", "webp"}:
+                return {"ok": False, "error": "Invalid image format. Use JPG, PNG, GIF, or WebP."}
+        cloudinary.config(
+            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+            api_key=settings.CLOUDINARY_API_KEY,
+            api_secret=settings.CLOUDINARY_API_SECRET,
+        )
+        result = cloudinary.uploader.upload(
+            content,
+            resource_type="image",
+            folder="taskhub/ads",
+            public_id=f"ad_img_{uuid.uuid4().hex[:10]}",
+        )
+        return {"ok": True, "url": result["secure_url"]}
+    except Exception as e:
+        logger.exception("upload-ad-image failed: %s", e)
+        return {"ok": False, "error": "Upload failed"}
+
+
 async def require_admin(request: Request) -> int:
     """Extract user_id from request and verify admin access. Never consumes request body."""
     try:

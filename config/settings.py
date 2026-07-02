@@ -109,6 +109,11 @@ class Settings(BaseSettings):
         description="Fraud score above this triggers auto-ban alert",
     )
 
+    # ─── Cloudinary (ad uploads) ────────────────────────────────────────────
+    CLOUDINARY_CLOUD_NAME: str = Field(default="db0uloyhu", description="Cloudinary cloud name")
+    CLOUDINARY_API_KEY: str = Field(default="781346525936915", description="Cloudinary API key")
+    CLOUDINARY_API_SECRET: str = Field(default="", description="Cloudinary API secret")
+
     # ─── Backup ──────────────────────────────────────────────────────────────
     BACKUP_DIR: str = Field(default="/app/backups", description="Directory to store DB backups")
     BACKUP_RETENTION_DAYS: int = Field(

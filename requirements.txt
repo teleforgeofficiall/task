@@ -27,3 +27,6 @@ aiofiles==24.1.0
 
 # Security
 cryptography==43.0.1
+
+# Cloud storage
+cloudinary==1.40.0
