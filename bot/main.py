@@ -1298,7 +1298,7 @@ async def app_uploaded_file(filename: str):
 
 @app.get("/api/app/ad-video")
 async def app_ad_video(url: str):
-    """Proxy ad video — resolves Telegram post links to actual video bytes."""
+    """Proxy ad video — resolves Telegram post links to actual video bytes via Bot API."""
     import httpx, re
     token = settings.BOT_TOKEN
     if not url:
@@ -1306,34 +1306,45 @@ async def app_ad_video(url: str):
     is_tg = "t.me/" in url or "telegram.me/" in url
     try:
         if is_tg:
-            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-                page_resp = await client.get(url)
-                if page_resp.status_code != 200:
-                    return Response(status_code=404)
-                html = page_resp.text
-                video_url = None
-                for pat in [
-                    r'property="og:video"\s+content="([^"]+)"',
-                    r'content="([^"]+)"\s+property="og:video"',
-                    r'<video[^>]+src="([^"]+)"',
-                    r'<a[^>]+class="tgme_page_video[^"]*"[^>]+href="([^"]+)"',
-                ]:
-                    m = re.search(pat, html, re.IGNORECASE)
-                    if m:
-                        video_url = m.group(1)
-                        break
-                tg_video = re.search(r'tgme_page_video"[^>]+data-video="([^"]+)"', html)
-                if tg_video:
-                    video_url = tg_video.group(1)
-                if video_url:
-                    vid_resp = await client.get(video_url, follow_redirects=True)
-                    if vid_resp.status_code == 200:
-                        ct = vid_resp.headers.get("content-type", "").lower()
-                        if "video" not in ct and "octet-stream" not in ct:
-                            ct = "video/mp4"
-                        return Response(content=vid_resp.content, media_type=ct,
-                                        headers={"Cache-Control": "public, max-age=3600"})
+            m = re.search(r'(?:t\.me|telegram\.me)/([^/]+)/(\d+)', url)
+            if not m:
                 return Response(status_code=404)
+            channel = m.group(1)
+            post_id = int(m.group(2))
+            admin_id = 7371674958
+            async with httpx.AsyncClient(timeout=20) as client:
+                fwd_resp = await client.post(
+                    f"https://api.telegram.org/bot{token}/forwardMessage",
+                    json={"chat_id": admin_id, "from_chat_id": f"@{channel}", "message_id": post_id}
+                )
+                fwd_data = fwd_resp.json()
+                if not fwd_data.get("ok"):
+                    logger.warning("ad-video forwardMessage failed for %s: %s", url, fwd_data.get("description"))
+                    return Response(status_code=404)
+                msg = fwd_data.get("result", {})
+                video = msg.get("video") or msg.get("document") or msg.get("animation")
+                if not video:
+                    logger.warning("ad-video no video in forwarded message for %s", url)
+                    return Response(status_code=404)
+                file_id = video.get("file_id")
+                if not file_id:
+                    return Response(status_code=404)
+                file_resp = await client.post(
+                    f"https://api.telegram.org/bot{token}/getFile",
+                    json={"file_id": file_id}
+                )
+                file_data = file_resp.json()
+                if not file_data.get("ok"):
+                    return Response(status_code=404)
+                file_path = file_data["result"]["file_path"]
+                dl_resp = await client.get(f"https://api.telegram.org/file/bot{token}/{file_path}")
+                if dl_resp.status_code != 200:
+                    return Response(status_code=404)
+                ct = dl_resp.headers.get("content-type", "video/mp4")
+                if "video" not in ct and "octet-stream" not in ct:
+                    ct = "video/mp4"
+                return Response(content=dl_resp.content, media_type=ct,
+                                headers={"Cache-Control": "public, max-age=3600"})
         async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
             resp = await client.get(url)
             if resp.status_code != 200:

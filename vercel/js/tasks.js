@@ -881,56 +881,119 @@ async function watchAdVideo(adId) {
     };
 
   } else if (isTelegramUrl(videoUrl)) {
-    const TIMER_SECONDS = 15;
-    let timeLeft = TIMER_SECONDS;
     overlay.innerHTML = `
-      <div id="adTimer" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;z-index:10">${formatAdTime(TIMER_SECONDS)}</div>
-      <div style="width:100%;max-width:480px;background:#1a1a2e;border-radius:12px;overflow:hidden;padding:20px;text-align:center">
-        <div style="font-size:40px;margin-bottom:12px">✈️</div>
-        <h3 style="color:#fff;font-size:16px;font-weight:700;margin-bottom:6px">${escHtml(ad.title)}</h3>
-        <p style="color:rgba(255,255,255,0.6);font-size:12px;margin-bottom:16px">${escHtml(ad.description || 'Watch this ad to earn reward')}</p>
-        <div style="margin-bottom:16px">
-          <div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden">
-            <div id="adProgressFill" style="height:100%;background:linear-gradient(90deg,#00e5a0,#7b5ef8);width:0%;transition:width 1s linear;border-radius:3px"></div>
-          </div>
+      <div id="adTimer" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;z-index:10">Loading...</div>
+      <div style="width:100%;max-width:480px;aspect-ratio:16/9;background:#111;border-radius:8px;overflow:hidden;position:relative">
+        <video id="adVideoPlayer" style="width:100%;height:100%;object-fit:contain" playsinline webkit-playsinline controlsList="nodownload noplaybackrate">
+          <source src="/api/app/ad-video?url=${encodeURIComponent(videoUrl)}" type="video/mp4">
+        </video>
+        <div id="adProgressBar" style="position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,0.2)">
+          <div id="adProgressFill" style="height:100%;background:#00e5a0;width:0%;transition:width 0.3s"></div>
         </div>
-        <a href="${escHtml(videoUrl)}" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:var(--primary);color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;margin-bottom:12px">✈️ View on Telegram</a>
-        <div style="font-size:11px;color:rgba(255,255,255,0.4)">Timer runs while you view the ad</div>
       </div>
-      <div style="margin-top:12px;font-size:13px;color:rgba(255,255,255,0.7);text-align:center">Watch for ${TIMER_SECONDS} seconds to earn ₹${parseFloat(ad.reward).toFixed(2)}</div>
+      <div style="margin-top:16px;font-size:13px;color:rgba(255,255,255,0.7);text-align:center">Watch the full ad to earn ₹${parseFloat(ad.reward).toFixed(2)}</div>
     `;
     document.body.appendChild(overlay);
 
+    const video = document.getElementById('adVideoPlayer');
     const timerEl = document.getElementById('adTimer');
     const progressFill = document.getElementById('adProgressFill');
 
-    const iv = setInterval(function() {
-      if (adCompleted || adCancelled) { clearInterval(iv); return; }
-      timeLeft--;
-      if (progressFill) progressFill.style.width = ((TIMER_SECONDS - timeLeft) / TIMER_SECONDS * 100) + '%';
-      if (timerEl) timerEl.textContent = formatAdTime(timeLeft);
-      if (timeLeft <= 0) {
+    if (!video) { closeAdOverlay(); return; }
+
+    function showTelegramFallback() {
+      const TIMER_SECONDS = 15;
+      let timeLeft = TIMER_SECONDS;
+      const ov = document.getElementById('adOverlay');
+      if (!ov) return;
+      ov.innerHTML = `
+        <div id="adTimer" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;z-index:10">${formatAdTime(TIMER_SECONDS)}</div>
+        <div style="width:100%;max-width:480px;background:#1a1a2e;border-radius:12px;overflow:hidden;padding:20px;text-align:center">
+          <div style="font-size:40px;margin-bottom:12px">✈️</div>
+          <h3 style="color:#fff;font-size:16px;font-weight:700;margin-bottom:6px">${escHtml(ad.title)}</h3>
+          <p style="color:rgba(255,255,255,0.6);font-size:12px;margin-bottom:16px">${escHtml(ad.description || 'Watch this ad to earn reward')}</p>
+          <div style="margin-bottom:16px">
+            <div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden">
+              <div id="adProgressFill" style="height:100%;background:linear-gradient(90deg,#00e5a0,#7b5ef8);width:0%;transition:width 1s linear;border-radius:3px"></div>
+            </div>
+          </div>
+          <a href="${escHtml(videoUrl)}" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:var(--primary);color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;margin-bottom:12px">✈️ View on Telegram</a>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4)">Timer runs while you view the ad</div>
+        </div>
+        <div style="margin-top:12px;font-size:13px;color:rgba(255,255,255,0.7);text-align:center">Watch for ${TIMER_SECONDS} seconds to earn ₹${parseFloat(ad.reward).toFixed(2)}</div>
+      `;
+      const timerEl2 = document.getElementById('adTimer');
+      const progressFill2 = document.getElementById('adProgressFill');
+      const iv = setInterval(function() {
+        if (adCompleted || adCancelled) { clearInterval(iv); return; }
+        timeLeft--;
+        if (progressFill2) progressFill2.style.width = ((TIMER_SECONDS - timeLeft) / TIMER_SECONDS * 100) + '%';
+        if (timerEl2) timerEl2.textContent = formatAdTime(timeLeft);
+        if (timeLeft <= 0) {
+          clearInterval(iv);
+          adCompleted = true;
+          if (timerEl2) timerEl2.textContent = '✅ Complete!';
+          if (progressFill2) progressFill2.style.width = '100%';
+          api('/api/app/ad/watch', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
+          }).then(data => {
+            if (data.ok) {
+              toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
+              updateBalance(data.balance || CURRENT_USER.balance);
+            } else { toast(data.error || 'Failed to earn reward'); }
+            setTimeout(closeAdOverlay, 800);
+          }).catch(() => { setTimeout(closeAdOverlay, 800); });
+        }
+      }, 1000);
+      window._adCleanup = function() {
         clearInterval(iv);
-        adCompleted = true;
-        if (timerEl) timerEl.textContent = '✅ Complete!';
-        if (progressFill) progressFill.style.width = '100%';
-        api('/api/app/ad/watch', {
-          method: 'POST',
-          body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
-        }).then(data => {
-          if (data.ok) {
-            toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
-            updateBalance(data.balance || CURRENT_USER.balance);
-          } else { toast(data.error || 'Failed to earn reward'); }
-          setTimeout(closeAdOverlay, 800);
-        }).catch(() => { setTimeout(closeAdOverlay, 800); });
-      }
-    }, 1000);
+        try { TG?.BackButton?.show(); } catch(e) {}
+      };
+    }
+
+    let videoLoadTimer = setTimeout(function() {
+      if (!adCompleted && !adCancelled) showTelegramFallback();
+    }, 8000);
+
+    video.play().catch(() => {});
+
+    video.addEventListener('timeupdate', function() {
+      if (!video.duration || isNaN(video.duration)) return;
+      clearTimeout(videoLoadTimer);
+      const pct = Math.min(100, (video.currentTime / video.duration) * 100);
+      if (progressFill) progressFill.style.width = pct + '%';
+      const remaining = Math.ceil(video.duration - video.currentTime);
+      if (timerEl) timerEl.textContent = formatAdTime(remaining) + ' remaining';
+    });
+
+    video.addEventListener('ended', function() {
+      clearTimeout(videoLoadTimer);
+      adCompleted = true;
+      if (timerEl) timerEl.textContent = '✅ Complete!';
+      if (progressFill) progressFill.style.width = '100%';
+      api('/api/app/ad/watch', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
+      }).then(data => {
+        if (data.ok) {
+          toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
+          updateBalance(data.balance || CURRENT_USER.balance);
+        } else { toast(data.error || 'Failed to earn reward'); }
+        setTimeout(closeAdOverlay, 800);
+      }).catch(() => { setTimeout(closeAdOverlay, 800); });
+    });
+
+    video.addEventListener('error', function() {
+      clearTimeout(videoLoadTimer);
+      showTelegramFallback();
+    });
 
     function onVisibilityChange() {
       if (document.hidden && !adCompleted && !adCancelled) {
         adCancelled = true;
-        clearInterval(iv);
+        clearTimeout(videoLoadTimer);
+        try { video.pause(); } catch(e) {}
         toast('Ad closed early — no reward');
         setTimeout(closeAdOverlay, 300);
       }
@@ -938,7 +1001,7 @@ async function watchAdVideo(adId) {
     document.addEventListener('visibilitychange', onVisibilityChange);
     window._adCleanup = function() {
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      clearInterval(iv);
+      clearTimeout(videoLoadTimer);
       try { TG?.BackButton?.show(); } catch(e) {}
     };
 
