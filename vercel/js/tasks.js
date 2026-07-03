@@ -851,16 +851,7 @@ async function watchAdVideo(adId) {
               adCompleted = true;
               if (timerEl) timerEl.textContent = '✅ Complete!';
               if (progressFill) progressFill.style.width = '100%';
-              api('/api/app/ad/watch', {
-                method: 'POST',
-                body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
-              }).then(data => {
-                if (data.ok) {
-                  toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
-                  updateBalance(data.balance || CURRENT_USER.balance);
-                } else { toast(data.error || 'Failed to earn reward'); }
-                setTimeout(closeAdOverlay, 800);
-              }).catch(() => { setTimeout(closeAdOverlay, 800); });
+              showAdComplete(ad);
             }
           }
         }
@@ -934,16 +925,7 @@ async function watchAdVideo(adId) {
           adCompleted = true;
           if (timerEl2) timerEl2.textContent = '✅ Complete!';
           if (progressFill2) progressFill2.style.width = '100%';
-          api('/api/app/ad/watch', {
-            method: 'POST',
-            body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
-          }).then(data => {
-            if (data.ok) {
-              toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
-              updateBalance(data.balance || CURRENT_USER.balance);
-            } else { toast(data.error || 'Failed to earn reward'); }
-            setTimeout(closeAdOverlay, 800);
-          }).catch(() => { setTimeout(closeAdOverlay, 800); });
+          showAdComplete(ad);
         }
       }, 1000);
       window._adCleanup = function() {
@@ -972,16 +954,7 @@ async function watchAdVideo(adId) {
       adCompleted = true;
       if (timerEl) timerEl.textContent = '✅ Complete!';
       if (progressFill) progressFill.style.width = '100%';
-      api('/api/app/ad/watch', {
-        method: 'POST',
-        body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
-      }).then(data => {
-        if (data.ok) {
-          toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
-          updateBalance(data.balance || CURRENT_USER.balance);
-        } else { toast(data.error || 'Failed to earn reward'); }
-        setTimeout(closeAdOverlay, 800);
-      }).catch(() => { setTimeout(closeAdOverlay, 800); });
+      showAdComplete(ad);
     });
 
     video.addEventListener('error', function() {
@@ -1040,16 +1013,7 @@ async function watchAdVideo(adId) {
       adCompleted = true;
       if (timerEl) timerEl.textContent = '✅ Complete!';
       if (progressFill) progressFill.style.width = '100%';
-      api('/api/app/ad/watch', {
-        method: 'POST',
-        body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
-      }).then(data => {
-        if (data.ok) {
-          toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
-          updateBalance(data.balance || CURRENT_USER.balance);
-        } else { toast(data.error || 'Failed to earn reward'); }
-        setTimeout(closeAdOverlay, 800);
-      }).catch(() => { setTimeout(closeAdOverlay, 800); });
+      showAdComplete(ad);
     });
 
     video.addEventListener('error', function() {
@@ -1078,4 +1042,48 @@ function closeAdOverlay() {
   if (ov) ov.remove();
   if (window._adCleanup) { window._adCleanup(); window._adCleanup = null; }
   try { TG?.BackButton?.show(); } catch(e) {}
+}
+
+function showAdComplete(ad) {
+  const ov = document.getElementById('adOverlay');
+  if (!ov) return;
+  const imgUrl = ad.image ? '/api/app/ad-image/' + ad.id : '';
+  const linkUrl = ad.url || '';
+  const hasLink = !!linkUrl;
+  const rewardText = '💰 Claim ₹' + parseFloat(ad.reward).toFixed(2);
+  ov.innerHTML = `
+    <div style="position:fixed;inset:0;z-index:9999;background:#000;display:flex;align-items:center;justify-content:center;padding:24px">
+      <div style="width:100%;max-width:400px;background:#1a1a2e;border-radius:16px;overflow:hidden;text-align:center;padding:24px 20px">
+        <div style="font-size:48px;margin-bottom:12px">✅</div>
+        <h3 style="color:#fff;font-size:18px;font-weight:700;margin-bottom:4px">${escHtml(ad.title)}</h3>
+        ${imgUrl ? `<img src="${imgUrl}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin:12px 0">` : ''}
+        ${ad.description ? `<p style="color:rgba(255,255,255,0.6);font-size:13px;margin:8px 0 16px">${escHtml(ad.description)}</p>` : '<div style="height:8px"></div>'}
+        <div id="adRewardBtn" style="display:block;padding:16px 24px;background:var(--primary-gradient,linear-gradient(135deg,#7b5ef8,#00e5a0));color:#fff;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:8px;transition:opacity 0.2s">
+          ${hasLink ? '🔗 More' : rewardText}
+        </div>
+        ${hasLink ? `<div style="font-size:11px;color:rgba(255,255,255,0.4)">Tap to earn ${rewardText}</div>` : ''}
+      </div>
+    </div>
+  `;
+  const btn = document.getElementById('adRewardBtn');
+  if (!btn) return;
+  btn.onclick = function() {
+    btn.style.pointerEvents = 'none';
+    btn.style.opacity = '0.5';
+    btn.textContent = '⏳ Claiming...';
+    api('/api/app/ad/watch', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: USER.id, ad_id: ad.id })
+    }).then(data => {
+      if (data.ok) {
+        toast('💰 +₹' + parseFloat(data.amount || 0).toFixed(2) + ' earned!');
+        updateBalance(data.balance || CURRENT_USER.balance);
+      } else { toast(data.error || 'Failed to earn reward'); }
+      if (hasLink) { try { window.open(linkUrl, '_blank'); } catch(e) {} }
+      setTimeout(closeAdOverlay, 800);
+    }).catch(() => {
+      if (hasLink) { try { window.open(linkUrl, '_blank'); } catch(e) {} }
+      setTimeout(closeAdOverlay, 800);
+    });
+  };
 }
