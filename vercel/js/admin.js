@@ -915,7 +915,7 @@ async function adminUploadToCloudinary(dataUrl, endpoint, label) {
     formData.append('file', blob, 'upload');
     const user_id = USER?.id || 0;
     adminUpdateUploadOverlay('Uploading ' + label + '...', (blob.size / 1024 / 1024).toFixed(1) + 'MB');
-    const res = await fetch('/api/admin' + endpoint + '?user_id=' + user_id, {
+    const res = await fetch('http://153.75.246.79:8001/api/admin' + endpoint + '?user_id=' + user_id, {
       method: 'POST', body: formData, signal: _adUploadAbort.signal
     });
     const text = await res.text();
