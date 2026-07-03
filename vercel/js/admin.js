@@ -788,14 +788,12 @@ async function adminUpdateAd(id) {
   let videoUrl = document.getElementById('f_a_edit_video_text')?.value || '';
   let imageUrl = document.getElementById('f_a_edit_image_text')?.value || '';
   if (videoData) {
-    toast('Uploading video...');
-    const up = await adminUploadToCloudinary(videoData, '/upload-video');
-    if (up.ok) { videoUrl = up.url; } else { toast(up.error || 'Video upload failed'); return; }
+    const up = await adminUploadToCloudinary(videoData, '/upload-video', 'video');
+    if (up.ok) { videoUrl = up.url; } else { if (up.error !== 'Cancelled') toast(up.error || 'Video upload failed'); return; }
   }
   if (imageData) {
-    toast('Uploading image...');
-    const up = await adminUploadToCloudinary(imageData, '/upload-ad-image');
-    if (up.ok) { imageUrl = up.url; } else { toast(up.error || 'Image upload failed'); return; }
+    const up = await adminUploadToCloudinary(imageData, '/upload-ad-image', 'image');
+    if (up.ok) { imageUrl = up.url; } else { if (up.error !== 'Cancelled') toast(up.error || 'Image upload failed'); return; }
   }
   const body = {
     title: document.getElementById('f_a_edit_title')?.value || '',
@@ -836,31 +834,99 @@ function adminAddAd() {
   `);
 }
 
+let _adUploadAbort = null;
+
 function adminHandleAdFile(input, nameElId, dataElId) {
   const file = input.files[0];
   if (!file) return;
   const nameEl = document.getElementById(nameElId);
   const dataEl = document.getElementById(dataElId);
-  if (nameEl) nameEl.textContent = '⏳ ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + 'MB)';
+  const isVideo = file.type.startsWith('video/');
+  const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+  const maxLabel = isVideo ? '50MB' : '5MB';
+  const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+  if (file.size > maxSize) {
+    if (nameEl) { nameEl.textContent = '❌ ' + file.name + ' (' + sizeMB + 'MB) — too large! Max ' + maxLabel; nameEl.style.color = '#ef4444'; }
+    input.value = '';
+    if (dataEl) dataEl.value = '';
+    return;
+  }
+  if (nameEl) { nameEl.textContent = '⏳ Reading ' + file.name + ' (' + sizeMB + 'MB)...'; nameEl.style.color = '#f59e0b'; }
   const reader = new FileReader();
   reader.onload = function(e) {
     if (dataEl) dataEl.value = e.target.result;
-    if (nameEl) nameEl.textContent = '✅ ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + 'MB) — ready to upload';
+    if (nameEl) { nameEl.textContent = '✅ ' + file.name + ' (' + sizeMB + 'MB) — ready'; nameEl.style.color = '#22c55e'; }
+  };
+  reader.onerror = function() {
+    if (nameEl) { nameEl.textContent = '❌ Failed to read file'; nameEl.style.color = '#ef4444'; }
   };
   reader.readAsDataURL(file);
 }
 
-async function adminUploadToCloudinary(dataUrl, endpoint) {
+function adminShowUploadOverlay(msg, onCancel) {
+  let ov = document.getElementById('adminUploadOverlay');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'adminUploadOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center';
+  ov.innerHTML = `
+    <div style="background:#1a1a2e;border-radius:16px;padding:32px 24px;text-align:center;max-width:320px;width:90%">
+      <div style="width:48px;height:48px;border:4px solid rgba(255,255,255,0.1);border-top-color:#7b5ef8;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px"></div>
+      <div id="adminUploadMsg" style="color:#fff;font-size:14px;font-weight:600;margin-bottom:8px">${msg}</div>
+      <div id="adminUploadSub" style="color:rgba(255,255,255,0.5);font-size:12px;margin-bottom:20px">Please do not close the app</div>
+      <button id="adminUploadCancel" style="padding:10px 24px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:8px;font-size:13px;cursor:pointer;width:100%">Cancel</button>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  document.getElementById('adminUploadCancel').onclick = function() {
+    if (_adUploadAbort) { _adUploadAbort.abort(); _adUploadAbort = null; }
+    if (onCancel) onCancel();
+    ov.remove();
+    toast('Upload cancelled');
+  };
+  if (!document.getElementById('adminSpinKeyframes')) {
+    const style = document.createElement('style');
+    style.id = 'adminSpinKeyframes';
+    style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(style);
+  }
+}
+
+function adminUpdateUploadOverlay(msg, sub) {
+  const msgEl = document.getElementById('adminUploadMsg');
+  const subEl = document.getElementById('adminUploadSub');
+  if (msgEl) msgEl.textContent = msg;
+  if (subEl) subEl.textContent = sub || '';
+}
+
+function adminCloseUploadOverlay() {
+  const ov = document.getElementById('adminUploadOverlay');
+  if (ov) ov.remove();
+}
+
+async function adminUploadToCloudinary(dataUrl, endpoint, label) {
+  _adUploadAbort = new AbortController();
+  adminShowUploadOverlay('Uploading ' + label + '...');
   try {
+    adminUpdateUploadOverlay('Preparing ' + label + '...', 'Converting file');
     const resp = await fetch(dataUrl);
     const blob = await resp.blob();
     const formData = new FormData();
     formData.append('file', blob, 'upload');
     const user_id = USER?.id || 0;
-    const res = await fetch('/api/admin' + endpoint + '?user_id=' + user_id, { method: 'POST', body: formData });
-    return await res.json();
+    adminUpdateUploadOverlay('Uploading ' + label + '...', (blob.size / 1024 / 1024).toFixed(1) + 'MB');
+    const res = await fetch('/api/admin' + endpoint + '?user_id=' + user_id, {
+      method: 'POST', body: formData, signal: _adUploadAbort.signal
+    });
+    const data = await res.json();
+    adminCloseUploadOverlay();
+    _adUploadAbort = null;
+    return data;
   } catch(e) {
-    return { ok: false, error: e.message };
+    adminCloseUploadOverlay();
+    _adUploadAbort = null;
+    if (e.name === 'AbortError') return { ok: false, error: 'Cancelled' };
+    return { ok: false, error: e.message || 'Upload failed' };
   }
 }
 
@@ -870,14 +936,12 @@ async function adminSaveAd() {
   let videoUrl = document.getElementById('f_a_video_text')?.value || '';
   let imageUrl = document.getElementById('f_a_image_text')?.value || '';
   if (videoData) {
-    toast('Uploading video...');
-    const up = await adminUploadToCloudinary(videoData, '/upload-video');
-    if (up.ok) { videoUrl = up.url; } else { toast(up.error || 'Video upload failed'); return; }
+    const up = await adminUploadToCloudinary(videoData, '/upload-video', 'video');
+    if (up.ok) { videoUrl = up.url; } else { if (up.error !== 'Cancelled') toast(up.error || 'Video upload failed'); return; }
   }
   if (imageData) {
-    toast('Uploading image...');
-    const up = await adminUploadToCloudinary(imageData, '/upload-ad-image');
-    if (up.ok) { imageUrl = up.url; } else { toast(up.error || 'Image upload failed'); return; }
+    const up = await adminUploadToCloudinary(imageData, '/upload-ad-image', 'image');
+    if (up.ok) { imageUrl = up.url; } else { if (up.error !== 'Cancelled') toast(up.error || 'Image upload failed'); return; }
   }
   const body = {
     title: document.getElementById('f_a_title')?.value || '',
