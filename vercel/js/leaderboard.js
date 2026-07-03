@@ -54,7 +54,9 @@ async function loadLeaderboard() {
       var url = el.getAttribute('data-pfp');
       if (!url) return;
       var img = new Image();
-      img.onload = function() { el.src = url; };
+      img.onload = function() {
+        if (img.naturalWidth > 10 && img.naturalHeight > 10) { el.src = url; }
+      };
       img.src = url;
     });
   }, 100);
