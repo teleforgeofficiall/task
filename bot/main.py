@@ -1871,6 +1871,14 @@ async def app_leaderboard(user_id: int = 0):
                         except Exception:
                             pass
                         pfp = f"/api/user/{u.user_id}/pfp"
+                    elif cached_pfp:
+                        # Clear stale cache — user no longer has a profile photo
+                        meta.pop("pfp_url", None)
+                        meta.pop("pfp_cached_at", None)
+                        try:
+                            await repo.update_user_fields(u.user_id, user_meta=meta)
+                        except Exception:
+                            pass
                 except Exception:
                     pass
             leaders.append({
