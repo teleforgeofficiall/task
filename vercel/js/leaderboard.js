@@ -47,6 +47,17 @@ async function loadLeaderboard() {
   _leaderboardInterval = setInterval(() => {
     loadLeaderboard();
   }, 30000);
+
+  // Load real profile photos in background (only if pfp URL exists and image loads)
+  setTimeout(function() {
+    document.querySelectorAll('[data-pfp]').forEach(function(el) {
+      var url = el.getAttribute('data-pfp');
+      if (!url) return;
+      var img = new Image();
+      img.onload = function() { el.src = url; };
+      img.src = url;
+    });
+  }, 100);
 }
 
 function renderPodiumItem(user, rank, color, className) {
@@ -54,12 +65,13 @@ function renderPodiumItem(user, rank, color, className) {
 
   const name = user.name || 'User';
   const earnings = user.earnings || 0;
-  const pfp = user.pfp || getAvatarSvg(name);
+  const fallback = getAvatarSvg(name);
+  const pfpUrl = user.pfp || '';
 
   return `
     <div class="podium-item ${className} animate-in scale stagger-${rank}">
       ${rank === 1 ? '<div class="podium-crown">👑</div>' : ''}
-      <img class="podium-pfp" src="${pfp}" alt="${name}" onerror="this.src='${getAvatarSvg(name)}'">
+      <img class="podium-pfp" src="${fallback}" data-pfp="${escHtml(pfpUrl)}" alt="${name}">
       <div class="podium-rank" style="background:${color}">${rank}</div>
       <div class="podium-name">${name}</div>
       <div class="podium-earnings" data-target="${earnings}">${formatCurrency(earnings)}</div>
@@ -72,13 +84,14 @@ function renderTop10Item(user, rank) {
   if (!user) return '';
   const name = user.name || 'User';
   const earnings = user.earnings || 0;
-  const pfp = user.pfp || getAvatarSvg(name);
+  const fallback = getAvatarSvg(name);
+  const pfpUrl = user.pfp || '';
   const rankClass = rank <= 3 ? ['rank-gold', 'rank-silver', 'rank-bronze'][rank - 1] : 'rank-default';
 
   return `
     <div class="top10-item animate-in fade stagger-${rank}">
       <div class="top10-rank ${rankClass}">${rank}</div>
-      <img class="top10-pfp" src="${pfp}" alt="${name}" onerror="this.src='${getAvatarSvg(name)}'">
+      <img class="top10-pfp" src="${fallback}" data-pfp="${escHtml(pfpUrl)}" alt="${name}">
       <div class="top10-name">${name}</div>
       <div class="top10-earnings">${formatCurrency(earnings)}</div>
     </div>
