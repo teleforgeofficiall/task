@@ -788,11 +788,11 @@ async function adminUpdateAd(id) {
   let videoUrl = document.getElementById('f_a_edit_video_text')?.value || '';
   let imageUrl = document.getElementById('f_a_edit_image_text')?.value || '';
   if (videoData) {
-    const up = await adminUploadToCloudinary(videoData, '/upload-video', 'video');
+    const up = await adminUploadToCloudinary(videoData, 'video');
     if (up.ok) { videoUrl = up.url; } else { if (up.error !== 'Cancelled') toast(up.error || 'Video upload failed'); return; }
   }
   if (imageData) {
-    const up = await adminUploadToCloudinary(imageData, '/upload-ad-image', 'image');
+    const up = await adminUploadToCloudinary(imageData, 'image');
     if (up.ok) { imageUrl = up.url; } else { if (up.error !== 'Cancelled') toast(up.error || 'Image upload failed'); return; }
   }
   const body = {
@@ -904,26 +904,28 @@ function adminCloseUploadOverlay() {
   if (ov) ov.remove();
 }
 
-async function adminUploadToCloudinary(dataUrl, endpoint, label) {
+async function adminUploadToCloudinary(dataUrl, type) {
   _adUploadAbort = new AbortController();
-  adminShowUploadOverlay('Uploading ' + label + '...');
+  adminShowUploadOverlay('Uploading ' + type + '...');
   try {
-    adminUpdateUploadOverlay('Preparing ' + label + '...', 'Converting file');
+    adminUpdateUploadOverlay('Preparing ' + type + '...', 'Converting file');
     const resp = await fetch(dataUrl);
     const blob = await resp.blob();
+    const ext = type === 'video' ? 'mp4' : 'jpg';
     const formData = new FormData();
-    formData.append('file', blob, 'upload');
-    const user_id = USER?.id || 0;
-    adminUpdateUploadOverlay('Uploading ' + label + '...', (blob.size / 1024 / 1024).toFixed(1) + 'MB');
-    const res = await fetch('http://153.75.246.79:8001/api/admin' + endpoint + '?user_id=' + user_id, {
+    formData.append('file', blob, 'upload.' + ext);
+    formData.append('upload_preset', 'taskhub_ads');
+    formData.append('folder', 'taskhub/ads');
+    const resourceType = type === 'video' ? 'video' : 'image';
+    adminUpdateUploadOverlay('Uploading ' + type + '...', (blob.size / 1024 / 1024).toFixed(1) + 'MB');
+    const res = await fetch('https://api.cloudinary.com/v1_1/db0uloyhu/' + resourceType + '/upload', {
       method: 'POST', body: formData, signal: _adUploadAbort.signal
     });
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch(e) { data = { ok: false, error: 'Server error: ' + text.slice(0, 80) }; }
+    const data = await res.json();
     adminCloseUploadOverlay();
     _adUploadAbort = null;
-    return data;
+    if (data.secure_url) return { ok: true, url: data.secure_url };
+    return { ok: false, error: data.error?.message || 'Cloudinary upload failed' };
   } catch(e) {
     adminCloseUploadOverlay();
     _adUploadAbort = null;
@@ -938,11 +940,11 @@ async function adminSaveAd() {
   let videoUrl = document.getElementById('f_a_video_text')?.value || '';
   let imageUrl = document.getElementById('f_a_image_text')?.value || '';
   if (videoData) {
-    const up = await adminUploadToCloudinary(videoData, '/upload-video', 'video');
+    const up = await adminUploadToCloudinary(videoData, 'video');
     if (up.ok) { videoUrl = up.url; } else { if (up.error !== 'Cancelled') toast(up.error || 'Video upload failed'); return; }
   }
   if (imageData) {
-    const up = await adminUploadToCloudinary(imageData, '/upload-ad-image', 'image');
+    const up = await adminUploadToCloudinary(imageData, 'image');
     if (up.ok) { imageUrl = up.url; } else { if (up.error !== 'Cancelled') toast(up.error || 'Image upload failed'); return; }
   }
   const body = {
