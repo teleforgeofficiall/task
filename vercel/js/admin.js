@@ -908,17 +908,24 @@ async function adminUploadToCloudinary(dataUrl, type) {
   _adUploadAbort = new AbortController();
   adminShowUploadOverlay('Uploading ' + type + '...');
   try {
+    adminUpdateUploadOverlay('Getting upload signature...', '');
+    const sigRes = await fetch('/api/admin/cloudinary-signature?resource_type=' + type + '&user_id=' + (USER?.id || 0));
+    const sigData = await sigRes.json();
+    if (!sigData.ok) { adminCloseUploadOverlay(); return { ok: false, error: 'Failed to get upload signature' }; }
     adminUpdateUploadOverlay('Preparing ' + type + '...', 'Converting file');
     const resp = await fetch(dataUrl);
     const blob = await resp.blob();
     const ext = type === 'video' ? 'mp4' : 'jpg';
     const formData = new FormData();
     formData.append('file', blob, 'upload.' + ext);
-    formData.append('upload_preset', 'taskhub_ads');
-    formData.append('folder', 'taskhub/ads');
+    formData.append('api_key', sigData.api_key);
+    formData.append('timestamp', sigData.timestamp);
+    formData.append('signature', sigData.signature);
+    formData.append('public_id', sigData.public_id);
+    formData.append('folder', sigData.folder);
     const resourceType = type === 'video' ? 'video' : 'image';
     adminUpdateUploadOverlay('Uploading ' + type + '...', (blob.size / 1024 / 1024).toFixed(1) + 'MB');
-    const res = await fetch('https://api.cloudinary.com/v1_1/db0uloyhu/' + resourceType + '/upload', {
+    const res = await fetch('https://api.cloudinary.com/v1_1/' + sigData.cloud_name + '/' + resourceType + '/upload', {
       method: 'POST', body: formData, signal: _adUploadAbort.signal
     });
     const data = await res.json();

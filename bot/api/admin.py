@@ -1,8 +1,10 @@
 """Admin REST API layer for TASKHUB Mini App admin panel."""
 
+import hashlib
 import json
 import logging
 import os
+import time
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -119,6 +121,40 @@ async def admin_upload_ad_image(request: Request):
     except Exception as e:
         logger.exception("upload-ad-image failed: %s", e)
         return {"ok": False, "error": "Upload failed"}
+
+
+@router.get("/cloudinary-signature")
+async def cloudinary_signature(request: Request):
+    """Generate a signed upload signature for direct Cloudinary upload from frontend."""
+    try:
+        admin_id = await require_admin(request)
+        from config.settings import settings
+        resource_type = request.query_params.get("resource_type", "image")
+        public_id = f"ad_{uuid.uuid4().hex[:10]}"
+        folder = "taskhub/ads"
+        timestamp_val = int(time.time())
+        params = {
+            "folder": folder,
+            "public_id": public_id,
+            "timestamp": str(timestamp_val),
+        }
+        signature_str = "&".join(f"{k}={v}" for k, v in sorted(params.items())) + settings.CLOUDINARY_API_SECRET
+        signature = hashlib.sha1(signature_str.encode()).hexdigest()
+        return {
+            "ok": True,
+            "signature": signature,
+            "timestamp": timestamp_val,
+            "public_id": public_id,
+            "api_key": settings.CLOUDINARY_API_KEY,
+            "cloud_name": settings.CLOUDINARY_CLOUD_NAME,
+            "folder": folder,
+            "resource_type": resource_type,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("cloudinary-signature failed: %s", e)
+        return {"ok": False, "error": "Failed to generate signature"}
 
 
 async def require_admin(request: Request) -> int:
