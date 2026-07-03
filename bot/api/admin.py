@@ -46,18 +46,17 @@ async def admin_upload_image(request: Request):
 @router.post("/upload-video")
 async def admin_upload_video(request: Request):
     """Upload video to Cloudinary. Accepts multipart form with 'file' field."""
-    admin_id = await require_admin(request)
-    from fastapi import UploadFile, File
-    from config.settings import settings
-    import cloudinary.uploader
     try:
+        admin_id = await require_admin(request)
+        from config.settings import settings
+        import cloudinary.uploader
         form = await request.form()
-        upload_file: UploadFile = form.get("file")
+        upload_file = form.get("file")
         if not upload_file:
             return {"ok": False, "error": "No file provided"}
         content = await upload_file.read()
-        if len(content) > 50 * 1024 * 1024:
-            return {"ok": False, "error": "File too large (max 50MB)"}
+        if len(content) > 100 * 1024 * 1024:
+            return {"ok": False, "error": "File too large (max 100MB)"}
         allowed = {"video/mp4", "video/quicktime", "video/webm", "video/x-msvideo", "video/avi", "video/x-matroska"}
         ct = upload_file.content_type or ""
         if ct not in allowed:
@@ -76,6 +75,8 @@ async def admin_upload_video(request: Request):
             public_id=f"ad_{uuid.uuid4().hex[:10]}",
         )
         return {"ok": True, "url": result["secure_url"]}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("upload-video failed: %s", e)
         return {"ok": False, "error": "Upload failed"}
@@ -84,13 +85,12 @@ async def admin_upload_video(request: Request):
 @router.post("/upload-ad-image")
 async def admin_upload_ad_image(request: Request):
     """Upload ad image to Cloudinary. Accepts multipart form with 'file' field."""
-    admin_id = await require_admin(request)
-    from fastapi import UploadFile, File
-    from config.settings import settings
-    import cloudinary.uploader
     try:
+        admin_id = await require_admin(request)
+        from config.settings import settings
+        import cloudinary.uploader
         form = await request.form()
-        upload_file: UploadFile = form.get("file")
+        upload_file = form.get("file")
         if not upload_file:
             return {"ok": False, "error": "No file provided"}
         content = await upload_file.read()
@@ -114,6 +114,8 @@ async def admin_upload_ad_image(request: Request):
             public_id=f"ad_img_{uuid.uuid4().hex[:10]}",
         )
         return {"ok": True, "url": result["secure_url"]}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("upload-ad-image failed: %s", e)
         return {"ok": False, "error": "Upload failed"}

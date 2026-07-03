@@ -763,7 +763,7 @@ function adminEditAd(id) {
         <div class="form-group"><label>Video</label>
           <input id="f_a_edit_video_text" value="${escHtml(ad.video_url || '')}" placeholder="Paste URL or upload below" style="margin-bottom:6px">
           <input type="file" id="f_a_edit_video_file" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo" style="display:none" onchange="adminHandleAdFile(this,'f_a_edit_video_file_name','f_a_edit_video_data')">
-          <div onclick="document.getElementById('f_a_edit_video_file').click()" style="padding:10px;border:2px dashed var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-secondary)">📁 Tap to upload video (MP4, MOV, WebM — max 50MB)</div>
+          <div onclick="document.getElementById('f_a_edit_video_file').click()" style="padding:10px;border:2px dashed var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-secondary)">📁 Tap to upload video (MP4, MOV, WebM — max 100MB)</div>
           <div id="f_a_edit_video_file_name" style="font-size:11px;color:var(--success);margin-top:4px">${hasVid ? '✅ Current: ' + ad.video_url.slice(0,50) : ''}</div>
           <input type="hidden" id="f_a_edit_video_data" value="">
         </div>
@@ -816,7 +816,7 @@ function adminAddAd() {
       <div class="form-group"><label>Video</label>
         <input id="f_a_video_text" placeholder="Paste URL or upload below" style="margin-bottom:6px">
         <input type="file" id="f_a_video_file" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo" style="display:none" onchange="adminHandleAdFile(this,'f_a_video_file_name','f_a_video_data')">
-        <div onclick="document.getElementById('f_a_video_file').click()" style="padding:10px;border:2px dashed var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-secondary)">📁 Tap to upload video (MP4, MOV, WebM — max 50MB)</div>
+        <div onclick="document.getElementById('f_a_video_file').click()" style="padding:10px;border:2px dashed var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:12px;color:var(--text-secondary)">📁 Tap to upload video (MP4, MOV, WebM — max 100MB)</div>
         <div id="f_a_video_file_name" style="font-size:11px;color:var(--success);margin-top:4px"></div>
         <input type="hidden" id="f_a_video_data" value="">
       </div>
@@ -842,11 +842,11 @@ function adminHandleAdFile(input, nameElId, dataElId) {
   const nameEl = document.getElementById(nameElId);
   const dataEl = document.getElementById(dataElId);
   const isVideo = file.type.startsWith('video/');
-  const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
-  const maxLabel = isVideo ? '50MB' : '5MB';
+  const maxSize = isVideo ? 100 * 1024 * 1024 : 5 * 1024 * 1024;
+  const maxLabel = isVideo ? '100MB' : '5MB';
   const sizeMB = (file.size / 1024 / 1024).toFixed(1);
   if (file.size > maxSize) {
-    if (nameEl) { nameEl.textContent = '❌ ' + file.name + ' (' + sizeMB + 'MB) — too large! Max ' + maxLabel; nameEl.style.color = '#ef4444'; }
+    if (nameEl) { nameEl.textContent = '❌ ' + file.name + ' (' + sizeMB + 'MB) — too large! Please compress to under ' + maxLabel; nameEl.style.color = '#ef4444'; }
     input.value = '';
     if (dataEl) dataEl.value = '';
     return;
@@ -918,7 +918,9 @@ async function adminUploadToCloudinary(dataUrl, endpoint, label) {
     const res = await fetch('/api/admin' + endpoint + '?user_id=' + user_id, {
       method: 'POST', body: formData, signal: _adUploadAbort.signal
     });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) { data = { ok: false, error: 'Server error: ' + text.slice(0, 80) }; }
     adminCloseUploadOverlay();
     _adUploadAbort = null;
     return data;
