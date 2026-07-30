@@ -8,10 +8,10 @@ pydantic>=2.9.0,<3.0.0
 pydantic-settings>=2.5.0,<3.0.0
 
 # Database (PostgreSQL)
-sqlalchemy[asyncio]==2.0.35
+sqlalchemy[asyncio]>=2.0.36
 asyncpg==0.30.0
 psycopg2-binary==2.9.10
-alembic==1.13.2
+alembic>=1.13.2
 aiosqlite==0.22.1
 
 # Optional caching
@@ -26,7 +26,7 @@ python-multipart==0.0.12
 aiofiles==24.1.0
 
 # Security
-cryptography==43.0.1
+cryptography>=43.0.1
 
 # Cloud storage
 cloudinary==1.45.0
