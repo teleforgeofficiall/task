@@ -2,10 +2,13 @@ services:
   - type: web
     name: taskhub-bot
     env: python
-    buildCommand: pip install -r requirements.txt
+    pythonVersion: 3.12.0
+    buildCommand: pip install --upgrade pip && pip install --prefer-binary -r requirements.txt
     startCommand: uvicorn bot.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
       - key: PORT
         value: 8000
       - key: ENVIRONMENT
