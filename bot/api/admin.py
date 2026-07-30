@@ -17,7 +17,7 @@ from bot.admin.panel import get_admin_ids, refresh_admin_ids
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin")
 
-UPLOAD_DIR = "/opt/taskhub/uploads"
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "./uploads")
 
 
 @router.post("/upload-image")

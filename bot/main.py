@@ -189,7 +189,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "/opt/taskhub/uploads"
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "./uploads")
 
 app.include_router(admin_router)
 
