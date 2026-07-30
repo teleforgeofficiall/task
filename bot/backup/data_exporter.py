@@ -1,6 +1,6 @@
 """
 data_exporter.py — SQLAlchemy-based table export/import.
-Works through any MySQL connection.
+Works through any PostgreSQL connection.
 Uses ORM for import so JSON columns are handled automatically.
 """
 from __future__ import annotations

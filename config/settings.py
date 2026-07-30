@@ -48,21 +48,16 @@ class Settings(BaseSettings):
             if x.strip().isdigit()
         ]
 
-    # ─── Database (MySQL) ───────────────────────────────────────────────────
+    # ─── Database (PostgreSQL) ──────────────────────────────────────────────
     DATABASE_URL: str = Field(
         default="",
-        description="MySQL connection string (e.g. mysql+aiomysql://user:pass@localhost:3306/db)",
+        description="PostgreSQL connection string (e.g. postgresql+asyncpg://user:pass@host:5432/db)",
     )
-    DB_HOST: str = Field(default="localhost", description="MySQL host")
-    DB_PORT: int = Field(default=3306, description="MySQL port")
-    DB_USER: str = Field(default="taskhub_user", description="MySQL user")
-    DB_PASSWORD: str = Field(default="", description="MySQL password")
-    DB_NAME: str = Field(default="taskhub_db", description="MySQL database name")
-    MYSQL_ROOT_PASSWORD: str = Field(default="", description="MySQL root password for auto-creating database/user on startup")
-
-    # Legacy MongoDB settings (kept for backward compatibility during migration)
-    MONGO_URL: str = Field(default="", description="MongoDB Atlas connection string (legacy)")
-    MONGO_MOCK: bool = Field(default=False, description="Use MongoDB mock (legacy)")
+    DB_HOST: str = Field(default="localhost", description="Database host")
+    DB_PORT: int = Field(default=5432, description="Database port")
+    DB_USER: str = Field(default="taskhub_user", description="Database user")
+    DB_PASSWORD: str = Field(default="", description="Database password")
+    DB_NAME: str = Field(default="taskhub_db", description="Database name")
 
     # ─── Runtime flags ───────────────────────────────────────────────────────
     DISABLE_TELEGRAM_NETWORK: bool = Field(

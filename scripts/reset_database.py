@@ -3,11 +3,8 @@ reset_database.py — Standalone script to reset all database tables and seed de
 
 Run from terminal (NOT from bot admin panel / Telegram):
     cd /opt/taskhub && venv/bin/python scripts/reset_database.py
-
-Requirements: pymysql installed in the venv.
 """
 import asyncio
-import json
 import logging
 import os
 import sys
@@ -27,27 +24,23 @@ def _get_sync_url() -> str:
     db_url = os.getenv("DATABASE_URL", "")
     if db_url:
         for old, new in [
-            ("mysql+aiomysql://", "mysql+pymysql://"),
-            ("mysql://", "mysql+pymysql://"),
+            ("postgresql+asyncpg://", "postgresql://"),
             ("sqlite+aiosqlite://", "sqlite://"),
         ]:
             if db_url.startswith(old):
                 return db_url.replace(old, new, 1)
         return db_url
-    user = os.getenv("DB_USER", "root")
+    user = os.getenv("DB_USER", "taskhub_user")
     password = os.getenv("DB_PASSWORD", "")
     host = os.getenv("DB_HOST", "localhost")
-    port = os.getenv("DB_PORT", "3306")
-    db = os.getenv("DB_NAME", "taskhub")
-    return f"mysql+pymysql://{user}:{password}@{host}:{port}/{db}"
+    port = os.getenv("DB_PORT", "5432")
+    db = os.getenv("DB_NAME", "taskhub_db")
+    return f"postgresql://{user}:{password}@{host}:{port}/{db}"
 
 
 def _drop_and_create(engine):
     with engine.begin() as conn:
-        conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
-        for table_name in Base.metadata.tables:
-            conn.execute(text("DROP TABLE IF EXISTS `{}`".format(table_name)))
-        conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
+        conn.execute(text("DROP TABLE IF EXISTS {} CASCADE".format(",".join(Base.metadata.tables))))
         Base.metadata.create_all(conn)
 
 
@@ -76,9 +69,9 @@ def main():
 
     if not is_sqlite:
         try:
-            import pymysql  # noqa: F401
+            import psycopg2  # noqa: F401
         except ImportError:
-            print("ERROR: pymysql is not installed. Run: pip install pymysql")
+            print("ERROR: psycopg2 not installed. Run: pip install psycopg2-binary")
             sys.exit(1)
 
     confirm = input("WARNING: This will DELETE ALL DATA. Type 'reset' to confirm: ")
