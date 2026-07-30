@@ -110,7 +110,7 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = Field(default="", description="Cloudinary API secret")
 
     # ─── Backup ──────────────────────────────────────────────────────────────
-    BACKUP_DIR: str = Field(default="/app/backups", description="Directory to store DB backups")
+    BACKUP_DIR: str = Field(default="./backups", description="Directory to store DB backups")
     BACKUP_RETENTION_DAYS: int = Field(
         default=30, description="Number of days to keep old backups",
     )
