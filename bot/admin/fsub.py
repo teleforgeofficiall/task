@@ -198,9 +198,9 @@ async def admin_fsub_remove_handler(update: Update, context: ContextTypes.DEFAUL
 
 def register_handlers(application) -> None:
     """Register fsub handlers."""
-    application.add_handler(CallbackQueryHandler(admin_fsub_channels_handler, pattern="^admin:set_fsub$"))
-    application.add_handler(CallbackQueryHandler(admin_fsub_add_start, pattern="^admin:fsub_add$"))
-    application.add_handler(CallbackQueryHandler(admin_fsub_remove_handler, pattern="^admin:fsub_rem:-?\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_fsub_channels_handler, pattern=r"^admin:set_fsub$"))
+    application.add_handler(CallbackQueryHandler(admin_fsub_add_start, pattern=r"^admin:fsub_add$"))
+    application.add_handler(CallbackQueryHandler(admin_fsub_remove_handler, pattern=r"^admin:fsub_rem:-?\d+$"))
     
     application.add_handler(MessageHandler(
         (filters.TEXT & ~filters.COMMAND) | (filters.FORWARDED & ~filters.COMMAND),

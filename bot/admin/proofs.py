@@ -443,11 +443,11 @@ async def send_queue_panel(admin_id: int, page: int, context, repository: Reposi
 
 def register_handlers(application) -> None:
     """Register proofs admin handlers."""
-    application.add_handler(CallbackQueryHandler(admin_proofs_menu_handler, pattern="^admin:proofs_menu$"))
-    application.add_handler(CallbackQueryHandler(admin_proofs_queue_handler, pattern="^admin:proofs_queue:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_proof_view_handler, pattern="^admin:proof_view:\d+:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_proof_decision_handler, pattern="^admin:proof_decide:(approve|reject):\d+:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_proof_custom_reason_start, pattern="^admin:proof_reason:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_proofs_menu_handler, pattern=r"^admin:proofs_menu$"))
+    application.add_handler(CallbackQueryHandler(admin_proofs_queue_handler, pattern=r"^admin:proofs_queue:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_proof_view_handler, pattern=r"^admin:proof_view:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_proof_decision_handler, pattern=r"^admin:proof_decide:(approve|reject):\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_proof_custom_reason_start, pattern=r"^admin:proof_reason:\d+:\d+$"))
     
     # Text input handlers for custom rejection reasons
     application.add_handler(MessageHandler(

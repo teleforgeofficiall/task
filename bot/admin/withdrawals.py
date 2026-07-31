@@ -606,17 +606,17 @@ async def send_star_queue_panel(admin_id: int, page: int, context, repository: R
 
 def register_handlers(application) -> None:
     """Register withdrawal admin handlers."""
-    application.add_handler(CallbackQueryHandler(admin_withdraws_menu_handler, pattern="^admin:withdraws_menu$"))
-    application.add_handler(CallbackQueryHandler(admin_withdraws_queue_handler, pattern="^admin:withdraws_queue:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_wd_view_handler, pattern="^admin:wd_view:\d+:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_wd_decision_handler, pattern="^admin:wd_decide:(approve|reject):\d+:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_wd_custom_reason_start, pattern="^admin:wd_reason:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_withdraws_menu_handler, pattern=r"^admin:withdraws_menu$"))
+    application.add_handler(CallbackQueryHandler(admin_withdraws_queue_handler, pattern=r"^admin:withdraws_queue:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_wd_view_handler, pattern=r"^admin:wd_view:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_wd_decision_handler, pattern=r"^admin:wd_decide:(approve|reject):\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_wd_custom_reason_start, pattern=r"^admin:wd_reason:\d+:\d+$"))
 
     # Star withdrawal admin handlers
-    application.add_handler(CallbackQueryHandler(admin_stars_queue_handler, pattern="^admin:stars_queue:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_star_view_handler, pattern="^admin:star_view:\d+:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_star_decision_handler, pattern="^admin:star_decide:(approve|reject):\d+:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_star_custom_reason_start, pattern="^admin:star_reason:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_stars_queue_handler, pattern=r"^admin:stars_queue:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_star_view_handler, pattern=r"^admin:star_view:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_star_decision_handler, pattern=r"^admin:star_decide:(approve|reject):\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_star_custom_reason_start, pattern=r"^admin:star_reason:\d+:\d+$"))
 
     # Text input handlers for custom rejection reasons (UPI + Star)
     application.add_handler(MessageHandler(

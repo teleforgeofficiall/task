@@ -572,15 +572,15 @@ async def admin_task_edit_field_handler(update: Update, context: ContextTypes.DE
 
 def register_handlers(application) -> None:
     """Register tasks admin handlers."""
-    application.add_handler(CallbackQueryHandler(admin_tasks_menu_handler, pattern="^admin:tasks_menu$"))
-    application.add_handler(CallbackQueryHandler(admin_task_add_type_handler, pattern="^admin:task_add_type$"))
-    application.add_handler(CallbackQueryHandler(admin_task_create_start, pattern="^admin:task_create:(manual|channel)$"))
-    application.add_handler(CallbackQueryHandler(admin_tasks_list_handler, pattern="^admin:tasks_list:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_task_view_handler, pattern="^admin:task_view:\d+:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_task_toggle_handler, pattern="^admin:task_toggle:\d+:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_task_delete_handler, pattern="^admin:task_del:\d+:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_task_edit_handler, pattern="^admin:task_edit:\d+:\d+$"))
-    application.add_handler(CallbackQueryHandler(admin_task_edit_field_handler, pattern="^admin:task_edit_fld:\w+:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_tasks_menu_handler, pattern=r"^admin:tasks_menu$"))
+    application.add_handler(CallbackQueryHandler(admin_task_add_type_handler, pattern=r"^admin:task_add_type$"))
+    application.add_handler(CallbackQueryHandler(admin_task_create_start, pattern=r"^admin:task_create:(manual|channel)$"))
+    application.add_handler(CallbackQueryHandler(admin_tasks_list_handler, pattern=r"^admin:tasks_list:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_task_view_handler, pattern=r"^admin:task_view:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_task_toggle_handler, pattern=r"^admin:task_toggle:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_task_delete_handler, pattern=r"^admin:task_del:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_task_edit_handler, pattern=r"^admin:task_edit:\d+:\d+$"))
+    application.add_handler(CallbackQueryHandler(admin_task_edit_field_handler, pattern=r"^admin:task_edit_fld:\w+:\d+:\d+$"))
     
     # Text and media input handlers for creating task details
     application.add_handler(MessageHandler(
