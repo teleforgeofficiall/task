@@ -26,6 +26,6 @@ services:
       - key: CLOUDINARY_API_SECRET
         sync: false
       - key: WEBHOOK_URL
-        value: ""
+        value: https://taskhub-p8a1.onrender.com
       - key: REDIS_URL
         value: ""
