@@ -72,7 +72,8 @@ async def init_db() -> None:
                 database_url,
                 pool_size=5,
                 max_overflow=5,
-                pool_recycle=1800,
+                pool_recycle=300,
+                pool_pre_ping=True,
                 echo=False,
             )
         else:

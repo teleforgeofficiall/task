@@ -105,6 +105,7 @@ async def maintenance_middleware(update: Update, context: ContextTypes.DEFAULT_T
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handles async startup and shutdown hooks cleanly."""
+    _db_keepalive_task = None
     try:
         _webhook_url = settings.WEBHOOK_URL
 
@@ -154,9 +155,26 @@ async def lifespan(app: FastAPI):
                 await ptb_app.updater.start_polling()
                 logger.info("Long polling cycle started.")
 
+        # Database keepalive — prevents Neon from scaling to zero
+        async def _db_keepalive():
+            while True:
+                try:
+                    await asyncio.sleep(60)
+                    async with get_session() as session:
+                        await session.execute(text("SELECT 1"))
+                except asyncio.CancelledError:
+                    break
+                except Exception:
+                    pass
+
+        _db_keepalive_task = asyncio.create_task(_db_keepalive())
+        logger.info("Database keepalive task started (60s interval).")
+
         yield
 
     finally:
+        if _db_keepalive_task:
+            _db_keepalive_task.cancel()
         # Stop bot application gracefully
         logger.info("Stopping bot service...")
         if not settings.DISABLE_TELEGRAM_NETWORK:
@@ -181,6 +199,7 @@ app = FastAPI(
 )
 
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -188,6 +207,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "./uploads")
 
