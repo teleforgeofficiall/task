@@ -1995,8 +1995,8 @@ async def app_leaderboard(user_id: int = 0):
 
 @app.get("/api/app/cleanup-db")
 async def cleanup_db():
-    """One-time: fix corrupted proxy URLs saved in DB by the admin edit bug."""
-    from bot.database import get_session, Repository
+    """One-time: fix corrupted proxy URLs and stale local paths in DB."""
+    from bot.database import get_session
     from bot.database.models_sql import TaskTable
     from sqlalchemy import select, update, or_
     async with get_session() as session:
@@ -2005,8 +2005,10 @@ async def cleanup_db():
                 or_(
                     TaskTable.task_image.like("/api/app/task-card-image/%"),
                     TaskTable.task_image.like("/api/app/task-image/%"),
+                    TaskTable.task_image.like("/api/app/uploads/%"),
                     TaskTable.image.like("/api/app/task-image/%"),
                     TaskTable.image.like("/api/app/task-card-image/%"),
+                    TaskTable.image.like("/api/app/uploads/%"),
                 )
             )
         )
@@ -2014,14 +2016,14 @@ async def cleanup_db():
         fixed = 0
         details = []
         for t in corrupted:
-            old_ti = t.task_image
-            old_img = t.image
+            old_ti = t.task_image or ""
+            old_img = t.image or ""
             new_ti = ""
             new_img = ""
-            # Keep only valid values (Cloudinary URLs, Telegram file_ids, local uploads)
-            if old_ti and not old_ti.startswith("/api/app/task"):
+            # Keep only valid values (Cloudinary URLs, Telegram file_ids)
+            if old_ti and (old_ti.startswith("http") or (not old_ti.startswith("/api/"))):
                 new_ti = old_ti
-            if old_img and not old_img.startswith("/api/app/task"):
+            if old_img and (old_img.startswith("http") or (not old_img.startswith("/api/"))):
                 new_img = old_img
             await session.execute(
                 update(TaskTable).where(TaskTable.id == t.id).values(task_image=new_ti, image=new_img)
