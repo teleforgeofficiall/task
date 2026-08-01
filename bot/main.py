@@ -1457,6 +1457,9 @@ async def app_task_card_image(task_id: int):
         if not task or not task.task_image:
             return Response(status_code=404)
         image_ref = task.task_image
+    # Reject corrupted proxy URLs saved by admin edit bug
+    if image_ref.startswith("/api/app/task-card-image/") or image_ref.startswith("/api/app/task-image/"):
+        return Response(status_code=404)
     token = settings.BOT_TOKEN
     if image_ref.startswith("/api/app/uploads/"):
         from fastapi.responses import FileResponse
@@ -1522,6 +1525,9 @@ async def app_task_image(task_id: int):
         if not task or not task.image:
             return Response(status_code=404)
         image_ref = task.image
+    # Reject corrupted proxy URLs saved by admin edit bug
+    if image_ref.startswith("/api/app/task-card-image/") or image_ref.startswith("/api/app/task-image/"):
+        return Response(status_code=404)
     token = settings.BOT_TOKEN
     if image_ref.startswith("/api/app/uploads/"):
         from fastapi.responses import FileResponse
@@ -1987,22 +1993,43 @@ async def app_leaderboard(user_id: int = 0):
         return {"ok": True, "leaders": leaders, "my_rank": my_rank, "my_earnings": my_earnings}
 
 
-@app.get("/api/app/debug-task/{task_id}")
-async def debug_task(task_id: int):
-    """Debug: show raw DB values for a task."""
+@app.get("/api/app/cleanup-db")
+async def cleanup_db():
+    """One-time: fix corrupted proxy URLs saved in DB by the admin edit bug."""
     from bot.database import get_session, Repository
+    from bot.database.models_sql import TaskTable
+    from sqlalchemy import update, or_
     async with get_session() as session:
-        repo = Repository(session)
-        task = await repo.get_task(task_id)
-        if not task:
-            return {"error": "not found"}
-        return {
-            "id": task.id,
-            "task_image_raw": repr(task.task_image),
-            "image_raw": repr(task.image),
-            "task_image_type": type(task.task_image).__name__,
-            "image_type": type(task.image).__name__,
-        }
+        result = await session.execute(
+            select(TaskTable).where(
+                or_(
+                    TaskTable.task_image.like("/api/app/task-card-image/%"),
+                    TaskTable.task_image.like("/api/app/task-image/%"),
+                    TaskTable.image.like("/api/app/task-image/%"),
+                    TaskTable.image.like("/api/app/task-card-image/%"),
+                )
+            )
+        )
+        corrupted = result.scalars().all()
+        fixed = 0
+        details = []
+        for t in corrupted:
+            old_ti = t.task_image
+            old_img = t.image
+            new_ti = ""
+            new_img = ""
+            # Keep only valid values (Cloudinary URLs, Telegram file_ids, local uploads)
+            if old_ti and not old_ti.startswith("/api/app/task"):
+                new_ti = old_ti
+            if old_img and not old_img.startswith("/api/app/task"):
+                new_img = old_img
+            await session.execute(
+                update(TaskTable).where(TaskTable.id == t.id).values(task_image=new_ti, image=new_img)
+            )
+            fixed += 1
+            details.append({"id": t.id, "old_task_image": old_ti, "old_image": old_img, "new_task_image": new_ti, "new_image": new_img})
+        await session.commit()
+    return {"ok": True, "fixed": fixed, "details": details}
 
 
 if __name__ == "__main__":
