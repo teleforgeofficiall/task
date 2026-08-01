@@ -408,12 +408,7 @@ async def admin_tasks(request: Request):
         tasks = await repo.get_all_tasks()
         result = []
         for t in tasks:
-            d = t.to_dict()
-            if d.get("task_image"):
-                d["task_image"] = f"/api/app/task-card-image/{t.id}"
-            if d.get("image"):
-                d["image"] = f"/api/app/task-image/{t.id}"
-            result.append(d)
+            result.append(t.to_dict())
         return {"ok": True, "tasks": result}
 
 

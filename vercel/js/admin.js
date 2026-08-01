@@ -321,7 +321,8 @@ async function adminEditTask(tid) {
   const task = data.tasks?.find(t => t.id === tid);
   if (!task) { toast('Task not found'); return; }
   const isChannel = task.task_type === 'channel';
-  const taskImgHtml = task.task_image ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><img src="${task.task_image}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;border:1px solid var(--border)"><span style="font-size:11px;color:var(--text-secondary)">Current</span></div>` : '';
+  const taskImgDisplay = task.task_image ? (task.task_image.startsWith('http') ? task.task_image : `/api/app/task-card-image/${task.id}`) : '';
+  const taskImgHtml = taskImgDisplay ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><img src="${taskImgDisplay}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;border:1px solid var(--border)"><span style="font-size:11px;color:var(--text-secondary)">Current</span></div>` : '';
   const refImgHtml = task.image ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><img src="/api/app/task-image/${tid}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;border:1px solid var(--border)" onerror="this.style.display='none'"><span style="font-size:11px;color:var(--text-secondary)">Current</span></div>` : '';
   showModal('Admin › Edit Task', `
     <div class="admin-form">

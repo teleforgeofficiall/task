@@ -101,7 +101,7 @@ async function loadTaskDetail(taskId) {
   body.innerHTML = `
     <div class="task-detail-header">
       <div class="task-icon" style="background:linear-gradient(135deg,${t.color || '#7b5ef8'},${t.color2 || '#5a3fd6'})">
-        ${t.icon || '📋'}
+        ${t.task_image ? `<img src="${t.task_image}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.onerror=null;this.parentElement.innerHTML='${t.icon || '📋'}'">` : (t.icon || '📋')}
       </div>
       <h3 style="font-size:17px;font-weight:700">${t.title}</h3>
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px">

@@ -709,7 +709,7 @@ async def app_task_detail(task_id: int, user_id: int):
                 "type": t.task_type or "manual",
                 "icon": "📋",
                 "image": f"/api/app/task-image/{t.id}" if t.image else "",
-                "task_image": t.task_image or "",
+                "task_image": f"/api/app/task-card-image/{t.id}" if t.task_image else "",
                 "color": t.color or "#7b5ef8",
                 "color2": t.color2 or "#5a3fd6",
                 "completions": t.completion_count or 0,
