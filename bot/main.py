@@ -668,7 +668,7 @@ async def app_tasks(user_id: int):
                     "type": t.task_type or "manual",
                     "icon": "📋",
                     "image": f"/api/app/task-image/{t.id}" if t.image else "",
-                    "task_image": t.task_image or "",
+                    "task_image": f"/api/app/task-card-image/{t.id}" if t.task_image else "",
                     "color": t.color or "#7b5ef8",
                     "color2": t.color2 or "#5a3fd6",
                     "completions": t.completion_count or 0,
@@ -1442,6 +1442,71 @@ async def app_ad_image(ad_id: int):
                 return Response(status_code=404)
             ct = resp.headers.get("content-type", "image/jpeg")
             return Response(content=resp.content, media_type=ct, headers={"Cache-Control": "public, max-age=3600"})
+    except Exception:
+        return Response(status_code=404)
+
+
+@app.get("/api/app/task-card-image/{task_id}")
+async def app_task_card_image(task_id: int):
+    """Proxy task card image (task_image field) — resolves file_ids, URLs, and local paths."""
+    from bot.database import get_session, Repository
+    import httpx
+    async with get_session() as session:
+        repo = Repository(session)
+        task = await repo.get_task(task_id)
+        if not task or not task.task_image:
+            return Response(status_code=404)
+        image_ref = task.task_image
+    token = settings.BOT_TOKEN
+    if image_ref.startswith("/api/app/uploads/"):
+        from fastapi.responses import FileResponse
+        filepath = os.path.normpath(os.path.join(UPLOAD_DIR, os.path.basename(image_ref)))
+        if filepath.startswith(UPLOAD_DIR) and os.path.exists(filepath):
+            return FileResponse(filepath)
+        return Response(status_code=404)
+    if image_ref.startswith("http://") or image_ref.startswith("https://"):
+        import re
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            resp = await client.get(image_ref)
+            if resp.status_code != 200:
+                return Response(status_code=404)
+            ct = resp.headers.get("content-type", "text/plain").split(";")[0].strip().lower()
+            if ct == "text/html":
+                html_text = resp.text
+                image_url = None
+                for pattern in [
+                    r'property="og:image"\s+content="([^"]+)"',
+                    r'content="([^"]+)"\s+property="og:image"',
+                    r"property='og:image'\s+content='([^']+)'",
+                    r'og:image["\s]+content="([^"]+)"',
+                    r'content="([^"]+)"\s+property="og:image:url"',
+                    r'property="og:image:url"\s+content="([^"]+)"',
+                    r'property="twitter:image"\s+content="([^"]+)"',
+                    r'<img\s+class="tgme_page_photo_image"\s+src="([^"]+)"',
+                ]:
+                    m = re.search(pattern, html_text, re.IGNORECASE)
+                    if m:
+                        image_url = m.group(1)
+                        break
+                if image_url:
+                    img_resp = await client.get(image_url)
+                    if img_resp.status_code == 200:
+                        img_ct = img_resp.headers.get("content-type", "image/jpeg")
+                        return Response(content=img_resp.content, media_type=img_ct, headers={"Cache-Control": "public, max-age=3600"})
+                return Response(status_code=404)
+            return Response(content=resp.content, media_type=resp.headers.get("content-type", "image/jpeg"), headers={"Cache-Control": "public, max-age=3600"})
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(f"https://api.telegram.org/bot{token}/getFile", json={"file_id": image_ref})
+            d = r.json()
+            if not d.get("ok"):
+                return Response(status_code=404)
+            file_path = d["result"]["file_path"]
+            url = f"https://api.telegram.org/file/bot{token}/{file_path}"
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                return Response(status_code=404)
+            return Response(content=resp.content, media_type=resp.headers.get("content-type", "image/jpeg"), headers={"Cache-Control": "public, max-age=3600"})
     except Exception:
         return Response(status_code=404)
 

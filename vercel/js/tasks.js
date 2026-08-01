@@ -34,7 +34,7 @@ function renderTaskCard(t, index) {
   const isDone = t.is_completed;
   const hasImage = t.task_image && t.task_image.length > 5;
   const imgContent = hasImage
-    ? `<img src="${t.task_image}" alt="${t.title}" loading="lazy" onerror="this.onerror=null;var vps='http://153.75.246.79:8001${t.task_image}';var s=this;fetch(vps).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(b=>{s.src=URL.createObjectURL(b)}).catch(()=>{s.style.display='none'})">`
+    ? `<img src="${t.task_image}" alt="${t.title}" loading="lazy" onerror="this.onerror=null;this.style.display='none'">`
     : (t.icon || '📋');
   const badgeClass = t.type === 'channel' ? 'badge-channel' : 'badge-manual';
   const badgeText = t.type === 'channel' ? 'Channel' : 'Manual';
@@ -186,7 +186,7 @@ async function showProofModal(taskId, t, stepsHtml) {
   const refHtml = hasImage
     ? `<div class="proof-side proof-ref-side">
         <div class="proof-side-label">📋 Reference</div>
-        <img src="${imageUrl}" class="proof-ref-img" onerror="this.onerror=null;var vps='http://153.75.246.79:8001${imageUrl}';var s=this;fetch(vps).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(b=>{s.src=URL.createObjectURL(b)}).catch(()=>{s.parentElement.innerHTML='<div class=proof-empty>No reference</div>'})">
+        <img src="${imageUrl}" class="proof-ref-img" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=proof-empty>No reference</div>'">
       </div>`
     : `<div class="proof-side proof-ref-side">
         <div class="proof-empty">No reference image</div>

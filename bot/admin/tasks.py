@@ -205,6 +205,7 @@ async def admin_tasks_text_input_handler(update: Update, context: ContextTypes.D
             "guide": context.user_data["new_task_guide"],
             "reward": context.user_data["new_task_reward"],
             "image": file_id,
+            "task_image": file_id,
             "media_type": media_type,
             "is_active": True
         }

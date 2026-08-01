@@ -35,12 +35,29 @@ async def admin_upload_image(request: Request):
         img_bytes = base64.b64decode(image_data)
     except Exception:
         return {"ok": False, "error": "Invalid image data"}
-    filename = f"{prefix}_{uuid.uuid4().hex[:12]}.jpg"
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    filepath = os.path.join(UPLOAD_DIR, filename)
-    with open(filepath, "wb") as f:
-        f.write(img_bytes)
-    return {"ok": True, "path": f"/api/app/uploads/{filename}"}
+    try:
+        from config.settings import settings
+        import cloudinary.uploader
+        cloudinary.config(
+            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+            api_key=settings.CLOUDINARY_API_KEY,
+            api_secret=settings.CLOUDINARY_API_SECRET,
+        )
+        result = cloudinary.uploader.upload(
+            img_bytes,
+            folder="taskhub/tasks",
+            public_id=f"{prefix}_{uuid.uuid4().hex[:12]}",
+            resource_type="image",
+        )
+        return {"ok": True, "path": result["secure_url"]}
+    except Exception as e:
+        logger.warning("Cloudinary upload failed, falling back to local: %s", e)
+        filename = f"{prefix}_{uuid.uuid4().hex[:12]}.jpg"
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        with open(filepath, "wb") as f:
+            f.write(img_bytes)
+        return {"ok": True, "path": f"/api/app/uploads/{filename}"}
 
 
 @router.post("/upload-video")
@@ -391,7 +408,12 @@ async def admin_tasks(request: Request):
         tasks = await repo.get_all_tasks()
         result = []
         for t in tasks:
-            result.append(t.to_dict())
+            d = t.to_dict()
+            if d.get("task_image"):
+                d["task_image"] = f"/api/app/task-card-image/{t.id}"
+            if d.get("image"):
+                d["image"] = f"/api/app/task-image/{t.id}"
+            result.append(d)
         return {"ok": True, "tasks": result}
 
 
