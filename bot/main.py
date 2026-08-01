@@ -1998,7 +1998,7 @@ async def cleanup_db():
     """One-time: fix corrupted proxy URLs saved in DB by the admin edit bug."""
     from bot.database import get_session, Repository
     from bot.database.models_sql import TaskTable
-    from sqlalchemy import update, or_
+    from sqlalchemy import select, update, or_
     async with get_session() as session:
         result = await session.execute(
             select(TaskTable).where(
