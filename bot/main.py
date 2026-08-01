@@ -1987,6 +1987,24 @@ async def app_leaderboard(user_id: int = 0):
         return {"ok": True, "leaders": leaders, "my_rank": my_rank, "my_earnings": my_earnings}
 
 
+@app.get("/api/app/debug-task/{task_id}")
+async def debug_task(task_id: int):
+    """Debug: show raw DB values for a task."""
+    from bot.database import get_session, Repository
+    async with get_session() as session:
+        repo = Repository(session)
+        task = await repo.get_task(task_id)
+        if not task:
+            return {"error": "not found"}
+        return {
+            "id": task.id,
+            "task_image_raw": repr(task.task_image),
+            "image_raw": repr(task.image),
+            "task_image_type": type(task.task_image).__name__,
+            "image_type": type(task.image).__name__,
+        }
+
+
 if __name__ == "__main__":
     # Start ASGI server
     uvicorn.run(
