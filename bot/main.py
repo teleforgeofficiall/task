@@ -2032,6 +2032,18 @@ async def cleanup_db():
     return {"ok": True, "fixed": fixed, "details": details}
 
 
+@app.get("/api/app/debug-tasks")
+async def debug_tasks():
+    """Debug: show raw task_image and image values for all tasks."""
+    from bot.database import get_session
+    from bot.database.models_sql import TaskTable
+    from sqlalchemy import select
+    async with get_session() as session:
+        result = await session.execute(select(TaskTable.id, TaskTable.task_image, TaskTable.image))
+        rows = result.all()
+    return [{"id": r[0], "task_image": repr(r[1]), "image": repr(r[2])} for r in rows]
+
+
 if __name__ == "__main__":
     # Start ASGI server
     uvicorn.run(
